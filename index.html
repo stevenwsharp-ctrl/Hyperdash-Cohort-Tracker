@@ -175,7 +175,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
   </header>
   <div class="macro" id="macro"></div>
   <div id="toasts" class="toasts" aria-live="polite"></div>
-  <div class="tabs"><button class="tab on" data-tab="setups">Setups</button><button class="tab" data-tab="news">News</button><button class="tab" data-tab="changes">Changes <span id="evCount" style="color:var(--bear)"></span></button><button class="tab" data-tab="record">Track record</button><button class="tab" data-tab="alerts">Alerts setup</button></div>
+  <div class="tabs"><button class="tab on" data-tab="setups">Setups</button><button class="tab" data-tab="news">News</button><button class="tab" data-tab="traders">Traders</button><button class="tab" data-tab="changes">Changes <span id="evCount" style="color:var(--bear)"></span></button><button class="tab" data-tab="record">Track record</button><button class="tab" data-tab="alerts">Alerts setup</button></div>
 
   <section id="v-setups">
     <div class="bar">
@@ -236,6 +236,12 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
     <div id="news"></div>
   </section>
 
+  <section id="v-traders" hidden>
+    <div class="info">The best and worst traders among the top holders of the top 30 setups. <b>Record on these coins</b> = completed trades on the coins where they hold a position now. <b>Habits</b> come from their open positions: average leverage, how many use a stop on the exchange, and how far price must move to liquidate them. Click a coin to open it.</div>
+    <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--bull);margin:16px 0 8px">Best: dialed in on the coins they hold</h3><div id="trBest"></div>
+    <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--bear);margin:22px 0 8px">Worst: lose on the coins they hold</h3><div id="trWorst"></div>
+  </section>
+
   <section id="v-changes" hidden>
     <div class="bar">
       <div class="chips" id="evChips"></div>
@@ -293,6 +299,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
       <li><b>Trader count</b>: bias blends dollars and accounts. Default 60% $ and 40% trader count, so a few large accounts cannot set the side alone. A tile shows "$ −74 · count 0 ⚠" when the two disagree, and the row shows <b>Whale-driven</b> when the smart side's $ bias is not backed by its trader count. Change the weight in Settings.</li>
       <li><b>Rating</b> = disparity × context. Context factors: liquidity (Hyperliquid 24h volume), funding (smart side earns or pays), alignment trend and expert exits, price momentum, earnings within 7 days (event risk), the macro regime (VIX, S&P 500, BTC: risk-on helps smart longs on risk assets, risk-off helps smart shorts), recent big news sentiment, and whale-driven bias. Click a row to see each factor in "Why this rating". Turn context off in Settings to rank by disparity only.</li>
       <li><b>Coin specialists</b>: for the top 30 setups, the page checks the 30 largest holders of each coin. For each holder it compares the win rate on this coin with the holder's overall win rate, and adds the PnL made on this coin. Few coin trades are pulled toward the overall rate, so one lucky trade does not count much. "Specialists agree" = the traders who are dialed in on this coin hold the smart side (and the ones who lose on it hold the other side). This adds up to +15% to the rating; disagreement takes off up to 25%. Wallets with the same side and almost the same size count as one trader.</li>
+      <li><b>Leverage, liquidations, stops</b>: for the top holders, the page reads each open position from Hyperliquid: leverage, real exposure (position ÷ account value), entry, liquidation price, and open stop and target orders. It compares good traders with bad traders on each side. <b>Liquidation fuel</b> = losing-side money that gets liquidated or stopped within 10% in the smart direction (forced closes push price further that way; up to +8% rating). <b>Smart near liq</b> = good traders on the smart side who get liquidated within 7% (up to −10%). The <b>Traders</b> tab lists the best and worst traders on these coins and their habits.</li>
       <li><b>Listing filters</b>: S&P 500 members (and sector), NYSE (NYSE, NYSE American, NYSE Arca) and Nasdaq. They use the US stock, or the first proxy ETF for index and commodity markets.</li>
       <li><b>News</b>: headlines are matched to markets every minute. Big stories on markets rated 30+ and big macro stories pop up at the bottom right. Turn on desktop notifications in Settings to get them while the tab is in the background.</li>
       <li><b>Alignment trend</b>: the change of the gap over 1h, 4h, 24h and 7d. ▲ green = the two groups moved further apart on the setup side (stronger). ▼ red = they moved closer (weaker). Hover a box to see the smart bias, fools bias and smart $ change.</li>
@@ -324,7 +331,7 @@ const DEFAULTS = {
 };
 let S = load();
 let DATA = null, HIST = null, STATUS = null, INST = null, OPTS = null, EVENTS = null, ROWS = [], OPEN = null, VIEW = "setups";
-let LIVE = {}, LIVE_T = 0, SPEC = null, CONTEXT = null, NEWS = null, NEWS_BY = {}, SEEN_NEWS = null, SEEN_EV = null, SHA = null, LOADED = {}, CHART_W = "24h", EV_TYPE = "all";
+let LIVE = {}, LIVE_T = 0, SPEC = null, LEVELS = null, CONTEXT = null, NEWS = null, NEWS_BY = {}, SEEN_NEWS = null, SEEN_EV = null, SHA = null, LOADED = {}, CHART_W = "24h", EV_TYPE = "all";
 const EV_RECENT_H = 6;
 
 function load(){ try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem("cohortSniper") || "{}")); } catch { return Object.assign({}, DEFAULTS); } }
@@ -436,6 +443,10 @@ function contextFactors(r, MAC){
     if (A.smartDwr != null && A.smartDwr <= -8) add("Smart holders on this coin", 0.93, `Smart-cohort holders win ${Math.abs(A.smartDwr)} points less on this coin than overall.`);
     else if (A.smartDwr != null && A.smartDwr >= 8) add("Smart holders on this coin", 1.05, `Smart-cohort holders win ${A.smartDwr} points more on this coin than overall.`);
   }
+  if (r.lv && r.lv.dir === r.dir) {
+    if (r.lv.fuelPct >= 10) add("Liquidation fuel", 1 + Math.min(0.08, r.lv.fuelPct / 250), `${r.lv.fuelPct}% of top-holder money (${usd(r.lv.fuelUsd)}) is losing-side positions whose liquidation or stop is within 10% in the smart direction. Forced closes would push price further that way.`);
+    if (r.lv.riskPct >= 10) add("Smart side near liquidation", 1 - Math.min(0.1, r.lv.riskPct / 200), `${r.lv.riskPct}% of top-holder money (${usd(r.lv.riskUsd)}) is good traders on the smart side with liquidation within 7%. A squeeze could force them out.`);
+  }
   const ns = r.news.filter(n => n.b && n.s && Date.now() - n.t < 24 * 36e5);
   const net = ns.reduce((a, n) => a + (n.s === "bull" ? 1 : n.s === "bear" ? -1 : 0), 0) * r.dir;
   if (net <= -2) add("News", 0.9, `Recent big news leans against the smart side.`);
@@ -491,7 +502,8 @@ function compute(){
     const er = inst && inst.u && CONTEXT && CONTEXT.earnings ? CONTEXT.earnings[inst.u.s] || null : null;
     const news = NEWS_BY[coin] || [];
     const spx = SPEC && SPEC.m && SPEC.m[coin] && SPEC.m[coin].agg ? SPEC.m[coin] : null;
-    const r = { coin, ...p, m, sm, fo, gap, dir, agree, red, score, minN: minSide, big, thin, ctx, earn, hist: h, held: h.heldH, since, inst, tools, ntools: tools.n, tr, d4, evs, whale, lst, er, news, spx };
+    const lv = LEVELS && LEVELS.m && LEVELS.m[coin] && LEVELS.m[coin].groups ? LEVELS.m[coin] : null;
+    const r = { coin, ...p, m, sm, fo, gap, dir, agree, red, score, minN: minSide, big, thin, ctx, earn, hist: h, held: h.heldH, since, inst, tools, ntools: tools.n, tr, d4, evs, whale, lst, er, news, spx, lv };
     r.factors = S.useCtx ? contextFactors(r, MAC) : [];
     r.rating = Math.min(100, Math.round(score * r.factors.reduce((a, f) => a * f.mult, 1)));
     out.push(r);
@@ -630,6 +642,7 @@ function render(){
   if (VIEW === "record") { renderRecord(); return; }
   if (VIEW === "changes") { renderChanges(); return; }
   if (VIEW === "news") { renderNews(); return; }
+  if (VIEW === "traders") { renderTraders(); return; }
   if (VIEW !== "setups") return;
   const list = $("list");
   let rows = filtered();
@@ -653,6 +666,8 @@ function render(){
     if (r.thin) flags.push(`<span class="flag f-thin">Thin</span>`);
     { const ss = specState(r), A = r.spx && r.spx.agg;
       if (ss) flags.push(`<span class="flag ${ss > 0 ? "f-good" : "f-bad"}" title="Coin specialists (win more on this coin than overall): ${A.nS}, ${specSide(A.sb)}. Coin losers: ${A.nL}, ${specSide(A.lb)}.">Specialists ${ss > 0 ? "agree" : "disagree"} · ${A.nS}/${A.nL}</span>`); }
+    if (r.lv && r.lv.dir === r.dir && r.lv.fuelPct >= 10) flags.push(`<span class="flag f-good" title="${usd(r.lv.fuelUsd)} of losing-side positions get liquidated or stopped within 10% in the smart direction">Liq fuel ${r.lv.fuelPct}%</span>`);
+    if (r.lv && r.lv.dir === r.dir && r.lv.riskPct >= 10) flags.push(`<span class="flag f-bad" title="Good traders on the smart side with liquidation within 7%">Smart near liq ${r.lv.riskPct}%</span>`);
     if (r.whale) flags.push(`<span class="flag f-red" title="$ bias ${pct(r.sm.bd)}, trader-count bias ${pct(r.sm.bc)}. A few big accounts set the $ side.">Whale-driven</span>`);
     if (r.er) { const dd = Math.round((Date.parse(r.er.d + "T12:00:00Z") - Date.now()) / 864e5); flags.push(`<span class="flag ${dd <= 3 ? "f-red" : "f-thin"}" title="${esc(r.er.tm || "")} ${esc(r.er.est ? "EPS est " + r.er.est : "")}">Earnings ${new Date(r.er.d + "T12:00:00Z").toLocaleDateString([], {month:"short", day:"numeric"})}</span>`); }
     const n24 = r.news.filter(n => Date.now() - n.t < 24 * 36e5), nb = n24.filter(n => n.b);
@@ -736,6 +751,7 @@ function detail(r){
     <h3>Alignment over time</h3>${alignChart(r)}<div style="margin-top:8px">${windowTable(r)}</div>
     ${coinEvs.length ? `<h3>Recent changes</h3><div class="card" style="padding:0">${coinEvs.map(evRow).join("")}</div>` : ""}
     <h3>Why this rating</h3><div class="cards">${ratingCard(r)}${newsCard(r)}</div>
+    <h3>How good and bad traders hold it · leverage, liquidations, stops</h3>${behaviorCard(r)}
     <h3>Top holders on this coin · overall record vs this coin</h3>${holdersTable(r)}
     <h3>How to trade it</h3><div class="cards">${perp}${us}${lev}${none}</div>
     <h3>PnL cohorts — white border = in your Smart or Fools group</h3>
@@ -751,21 +767,69 @@ function holdersTable(r){
   if (!X || !X.holders) return `<div class="card"><div class="note">${r.score >= 30 ? "Holder analysis is in the queue. It refreshes the top 30 setups about every 15 minutes." : "Holder analysis runs for the top 30 setups (score 30+)."}</div></div>`;
   const A = X.agg, coh = { EP: "Ext profitable", VP: "Very profitable", P: "Profitable", U: "Unprofitable", VU: "Very unprofitable", R: "Rekt" };
   const tag = h => h.miss ? `<span style="color:var(--faint)">loading</span>` : h.q >= 0.25 ? `<span class="et add">Specialist</span>` : h.q <= -0.25 ? `<span class="et exit">Loses here</span>` : h.wrs == null ? `<span style="color:var(--faint)">no record</span>` : `<span style="color:var(--faint)">thin</span>`;
-  const rows = X.holders.map(h => `<tr>
+  const LV = LEVELS && LEVELS.m && LEVELS.m[r.coin] && LEVELS.m[r.coin].h || {};
+  const pxNow = r.ctx && r.ctx.px;
+  const dist = (p, sd) => p && pxNow ? `${price(p)} <span style="color:var(--faint)">${(sd * (pxNow - p) / pxNow * 100).toFixed(0)}%</span>` : "–";
+  const rows = X.holders.map(h => { const l = LV[h.a] || {}; const sd = h.sd; return `<tr>
     <td style="text-align:left"><a href="https://hyperdash.com/address/${esc(h.a)}" target="_blank" rel="noopener">${esc(h.lb || h.a.slice(0, 6) + "…" + h.a.slice(-4))}</a>${h.k ? ` <span title="Same side and almost the same size as other wallets: most likely one trader" style="color:var(--warn)">◆${h.k}</span>` : ""}</td>
     <td class="${h.sd > 0 ? "L" : "S"}">${h.sd > 0 ? "long" : "short"}</td><td>${usd(h.n)}</td><td class="${h.u >= 0 ? "L" : "S"}">${usd(h.u)}</td>
     <td style="text-align:left">${coh[h.coh] || "–"}</td><td>${h.wr != null ? h.wr.toFixed(0) + "%" : "–"} <span style="color:var(--faint)">${h.tt}</span></td>
     <td>${h.cw}W / ${h.cl}L</td><td>${h.raw != null ? h.raw.toFixed(0) + "%" : "–"} <span style="color:var(--faint)">${h.wrs != null ? "→ " + h.wrs.toFixed(0) + "%" : ""}</span></td>
     <td class="${h.dwr > 0 ? "L" : h.dwr < 0 ? "S" : ""}">${h.dwr != null ? (h.dwr > 0 ? "+" : "") + h.dwr.toFixed(0) : "–"}</td>
-    <td class="${h.cp >= 0 ? "L" : "S"}">${usd(h.cp)}</td><td>${tag(h)}</td></tr>`).join("");
+    <td class="${h.cp >= 0 ? "L" : "S"}">${usd(h.cp)}</td><td>${tag(h)}</td>
+    <td>${l.lev ? l.lev + "x " + (l.lt === "i" ? "iso" : "cross") : "–"}${l.eff != null ? ` <span style="color:var(--faint)" title="Position size ÷ account value">${l.eff}x acct</span>` : ""}</td>
+    <td>${dist(l.ep, -sd)}</td><td>${dist(l.lq, sd)}</td><td>${l.st ? dist(sd > 0 ? Math.max(...l.st) : Math.min(...l.st), sd) : `<span style="color:var(--faint)">none</span>`}</td></tr>`; }).join("");
   const sum = `<div class="kv"><span>Coin specialists (entities)</span><b>${A.nS} · ${usd(A.sL)} long / ${usd(A.sS)} short</b></div>
     <div class="kv"><span>Coin losers (entities)</span><b>${A.nL} · ${usd(A.lL)} long / ${usd(A.lS)} short</b></div>
     <div class="kv"><span>Specialist signal</span><b class="${A.sig > 0 ? "L" : A.sig < 0 ? "S" : ""}">${pct(A.sig)} (${A.sig > 0.2 ? "long" : A.sig < -0.2 ? "short" : "no clear side"}) · trust ${Math.round(A.conf * 100)}%</b></div>
     <div class="kv"><span>Smart holders: coin vs overall win rate</span><b>${A.smartDwr == null ? "–" : (A.smartDwr > 0 ? "+" : "") + A.smartDwr + " pts"}</b></div>
     <div class="kv"><span>Top ${A.nHold} holders = ${A.ent} traders${A.cov != null ? ` · ${A.cov}% of open interest` : ""}</span><b>updated ${ago(Date.parse(X.t))} ago</b></div>
     ${A.statsCov != null && A.statsCov < 95 ? `<div class="note" style="max-width:none">Coin records loaded for ${A.statsCov}% of holder money. Hyperdash limits these lookups, so the rest fills in over the next minutes. Trust is lowered until then.</div>` : ""}`;
-  return `<div class="card">${sum}<div style="overflow-x:auto;margin-top:8px"><table class="tr" style="min-width:880px"><thead><tr><th>Trader</th><th>Side</th><th>Size</th><th>Open PnL</th><th style="text-align:left">Cohort</th><th>Overall win</th><th>This coin</th><th>Coin win → adj.</th><th>vs overall</th><th>Coin PnL</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+  return `<div class="card">${sum}<div style="overflow-x:auto;margin-top:8px"><table class="tr" style="min-width:1240px"><thead><tr><th>Trader</th><th>Side</th><th>Size</th><th>Open PnL</th><th style="text-align:left">Cohort</th><th>Overall win</th><th>This coin</th><th>Coin win → adj.</th><th>vs overall</th><th>Coin PnL</th><th></th><th>Leverage</th><th>Entry · vs now</th><th>Liq · move to liq</th><th>Stop · move to stop</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="note" style="margin-top:6px;max-width:none">"Coin win → adj." = raw win rate on this coin → adjusted win rate (pulled toward the trader's overall rate when there are few coin trades). "vs overall" = adjusted coin win rate minus overall win rate. Specialist = wins clearly more (and/or makes money) on this coin; needs about 4 coin trades or $100K coin PnL for full trust. ◆ = wallets that look like one trader; they count once. Completed trades only; Hyperdash shows the top 30 holders without login.</div></div>`;
+}
+const GROUPS = [["good_long","Good traders · long","L"],["good_short","Good traders · short","S"],["bad_long","Bad traders · long","L"],["bad_short","Bad traders · short","S"]];
+function behaviorCard(r){
+  const V = r.lv;
+  if (!V) return `<div class="card"><div class="note">${r.spx ? "Leverage and stop data is in the queue (one market every 45 seconds, top 30 setups)." : "Runs after the holder analysis for the top 30 setups."}</div></div>`;
+  const cell = v => v == null ? "–" : v;
+  const rows = GROUPS.map(([k, name, cls]) => { const g = V.groups[k]; if (!g) return `<tr><td style="text-align:left">${name}</td><td colspan="10" style="text-align:left;color:var(--faint)">no positions in the top holders</td></tr>`;
+    return `<tr><td style="text-align:left" class="${cls}">${name}</td><td>${g.cnt}</td><td>${usd(g.n)}</td><td>${cell(g.lev)}x</td><td>${cell(g.eff)}x</td><td>${price(g.ep)} <span style="color:var(--faint)">${((cls === "L" ? 1 : -1) * (V.px - g.ep) / g.ep * 100).toFixed(1)}%</span></td><td class="${g.under >= 50 ? "S" : ""}">${g.under}%</td><td class="${g.stopCov < 30 ? "S" : "L"}">${g.stopCov}%</td><td>${g.stopD == null ? "–" : g.stopD + "%"}</td><td class="${g.liqD != null && g.liqD < 10 ? "S" : ""}">${g.liqD == null ? "–" : g.liqD + "%"}</td><td>${g.tpD == null ? "–" : g.tpD + "%"}</td></tr>`; }).join("");
+  const dl = r.dir > 0;
+  return `<div class="card">
+    <div class="kv"><span>Liquidation fuel (losing-side positions liquidated or stopped within 10% the smart way)</span><b class="${V.fuelPct >= 10 ? "L" : ""}">${usd(V.fuelUsd)} · ${V.fuelPct}% of top holders</b></div>
+    <div class="kv"><span>Smart-side good traders with liquidation within 7%</span><b class="${V.riskPct >= 10 ? "S" : ""}">${usd(V.riskUsd)} · ${V.riskPct}%</b></div>
+    <div style="overflow-x:auto;margin-top:8px"><table class="tr" style="min-width:980px"><thead><tr><th>Group</th><th>Traders</th><th>Size</th><th>Avg leverage</th><th title="Position size ÷ account value">Real exposure</th><th>Avg entry · P/L move</th><th>Under water</th><th>Use a stop</th><th>Move to stop</th><th>Move to liq (median)</th><th>Move to target</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${ladder(V)}
+    <div class="note" style="margin-top:6px;max-width:none">Good = Extremely/Very Profitable or a coin specialist. Bad = Unprofitable/Very Unprofitable/Rekt or loses on this coin. "Move to …" = how far price must move against the position (in %) to reach it. Stops = stop orders and reduce-only orders on the loss side; targets = take-profit and closing orders on the profit side. Many traders keep stops off the exchange, so "no stop" can also mean a hidden or mental stop. Top 30 holders only · updated ${ago(Date.parse(V.t))} ago.</div></div>`;
+}
+// Price ladder: where each group entered, set stops and targets, and gets liquidated
+function ladder(V){
+  const pts = [];
+  GROUPS.forEach(([k], li) => { const g = V.groups[k]; if (!g) return;
+    g.ents.forEach(([p, n]) => pts.push({ li, p, n, t: "e" })); g.liq.forEach(([p, n]) => pts.push({ li, p, n, t: "l" }));
+    g.stops.forEach(([p, n]) => pts.push({ li, p, n, t: "s" })); g.tps.forEach(([p, n]) => pts.push({ li, p, n, t: "t" })); });
+  if (!pts.length) return "";
+  const lo = V.px * 0.6, hi = V.px * 1.4;
+  const ps = pts.map(x => Math.min(hi, Math.max(lo, x.p)));
+  const min = Math.min(V.px * 0.95, ...ps), max = Math.max(V.px * 1.05, ...ps);
+  const W = 1100, P = 150, H = 4 * 46 + 30, x = p => P + (Math.min(hi, Math.max(lo, p)) - min) / (max - min) * (W - P - 20);
+  const nMax = Math.max(...pts.map(q => q.n));
+  const rad = n => 3 + 9 * Math.sqrt(n / nMax);
+  const lane = li => 20 + li * 46;
+  const mk = q => { const cx = x(q.p), cy = lane(q.li) + 16, r0 = rad(q.n), cut = q.p < lo || q.p > hi ? ` (${price(q.p)})` : "";
+    const tt = `<title>${({ e: "Entry", l: "Liquidation", s: "Stop", t: "Target" })[q.t]} ${price(q.p)}${cut} · ${usd(q.n)}</title>`;
+    if (q.t === "e") return `<circle cx="${cx}" cy="${cy}" r="${r0}" fill="#7cc4ff" fill-opacity=".35" stroke="#7cc4ff">${tt}</circle>`;
+    if (q.t === "l") return `<g stroke="#e04a5a" stroke-width="2.2">${tt}<line x1="${cx - r0}" y1="${cy - r0}" x2="${cx + r0}" y2="${cy + r0}"/><line x1="${cx - r0}" y1="${cy + r0}" x2="${cx + r0}" y2="${cy - r0}"/></g>`;
+    if (q.t === "s") return `<rect x="${cx - 2}" y="${cy - r0 - 3}" width="4" height="${2 * r0 + 6}" fill="#f0b43c">${tt}</rect>`;
+    return `<path d="M${cx} ${cy - r0 - 2} L${cx + r0} ${cy + r0} L${cx - r0} ${cy + r0} Z" fill="#1fb58a" fill-opacity=".8">${tt}</path>`; };
+  const ticks = [min, (min + V.px) / 2, V.px, (V.px + max) / 2, max];
+  return `<div class="chart" style="margin-top:10px"><svg viewBox="0 0 ${W} ${H}" style="max-height:260px">
+    ${GROUPS.map(([k, name, cls], li) => `<rect x="0" y="${lane(li)}" width="${W}" height="38" fill="${li % 2 ? "transparent" : "rgba(255,255,255,.025)"}"/><text x="8" y="${lane(li) + 21}" fill="${cls === "L" ? "#1fb58a" : "#e04a5a"}" font-size="12" font-family="IBM Plex Sans">${name}</text>`).join("")}
+    <line x1="${x(V.px)}" x2="${x(V.px)}" y1="12" y2="${H - 18}" stroke="#e6ebea" stroke-dasharray="3 3"/>
+    ${pts.map(mk).join("")}
+    ${ticks.map(t => `<text x="${x(t)}" y="${H - 4}" fill="var(--faint)" font-size="10" text-anchor="middle" font-family="IBM Plex Mono">${price(t)}${t === V.px ? " now" : ""}</text>`).join("")}
+  </svg><div class="legend"><span><i style="background:#7cc4ff"></i>Entry (size = money)</span><span><i style="background:#e04a5a"></i>✕ Liquidation</span><span><i style="background:#f0b43c"></i>Stop</span><span><i style="background:#1fb58a"></i>▲ Target</span><span>Range shown: ±40% of price</span></div></div>`;
 }
 function ratingCard(r){
   const rows = r.factors.map(f => `<div class="inst"><div><b class="${f.mult >= 1 ? "L" : "S"}">${f.mult >= 1 ? "+" : "−"}${Math.abs(Math.round((f.mult - 1) * 100))}%</b> ${esc(f.name)}<div class="nm" style="white-space:normal;max-width:none">${esc(f.why)}</div></div></div>`).join("");
@@ -784,6 +848,41 @@ function newsRow(n){
   const sent = n.s === "bull" ? `<span class="L">bullish</span>` : n.s === "bear" ? `<span class="S">bearish</span>` : "";
   return `<div class="nw${n.b ? " big" : ""}"><span class="tm">${ago(n.t)}</span><div>${n.b ? `<span class="et new" style="margin-right:6px">Big</span>` : ""}${n.url ? `<a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.h)}</a>` : esc(n.h)}
     <div class="nm">${esc(n.src)}${sent ? " · " + sent : ""}${n.c && n.c.length ? " · " + n.c.slice(0, 5).map(c => `<a href="#" data-goto="${esc(c)}">${esc(c)}</a>`).join(" ") : ""}${n.m ? " · macro" : ""}</div></div></div>`;
+}
+
+// ---------- Traders tab ----------
+function renderTraders(){
+  const T = {};
+  const COH = { EP: "Ext profitable", VP: "Very profitable", P: "Profitable", U: "Unprofitable", VU: "Very unprofitable", R: "Rekt" };
+  for (const [coin, X] of Object.entries(SPEC && SPEC.m || {})) {
+    if (!X.holders) continue;
+    const L = LEVELS && LEVELS.m && LEVELS.m[coin] && LEVELS.m[coin].h || {};
+    const px = (ctxOf(coin) || {}).px;
+    for (const h of X.holders) {
+      if (h.miss) continue;
+      const t = T[h.a] = T[h.a] || { a: h.a, lb: h.lb, coh: h.coh, wr: h.wr, tt: h.tt, op: h.op, q: 0, cw: 0, cl: 0, cp: 0, pos: [], lev: [], st: 0, stN: 0, liqD: [] };
+      t.q += h.q; t.cw += h.cw; t.cl += h.cl; t.cp += h.cp;
+      const l = L[h.a];
+      t.pos.push({ coin, sd: h.sd, n: h.n, q: h.q });
+      if (l) { if (l.lev) t.lev.push([l.lev, h.n]); t.stN += h.n; if (l.st) t.st += h.n; if (l.lq && px) t.liqD.push(h.sd * (px - l.lq) / px * 100); }
+    }
+  }
+  const all = Object.values(T).filter(t => t.cw + t.cl >= 2 || Math.abs(t.cp) >= 25000);
+  const row = t => {
+    const lev = t.lev.length ? (t.lev.reduce((a, x) => a + x[0] * x[1], 0) / t.lev.reduce((a, x) => a + x[1], 0)).toFixed(1) + "x" : "–";
+    const stop = t.stN ? Math.round(t.st / t.stN * 100) + "%" : "–";
+    const liq = t.liqD.length ? Math.min(...t.liqD).toFixed(0) + "%" : "–";
+    const n = t.cw + t.cl;
+    return `<tr><td style="text-align:left"><a href="https://hyperdash.com/address/${esc(t.a)}" target="_blank" rel="noopener">${esc(t.lb || t.a.slice(0, 6) + "…" + t.a.slice(-4))}</a></td>
+      <td style="text-align:left">${COH[t.coh] || "–"}</td><td>${t.wr != null ? t.wr.toFixed(0) + "%" : "–"} <span style="color:var(--faint)">${t.tt}</span></td>
+      <td>${t.cw}W / ${t.cl}L <span style="color:var(--faint)">${n ? Math.round(t.cw / n * 100) + "%" : ""}</span></td><td class="${t.cp >= 0 ? "L" : "S"}">${usd(t.cp)}</td>
+      <td style="text-align:left">${t.pos.sort((a, b) => b.n - a.n).slice(0, 4).map(p => `<a href="#" data-goto="${esc(p.coin)}" class="${p.sd > 0 ? "L" : "S"}">${esc(parse(p.coin).sym)} ${p.sd > 0 ? "L" : "S"} ${usd(p.n)}</a>`).join(" · ")}</td>
+      <td>${lev}</td><td class="${t.stN && t.st / t.stN < 0.3 ? "S" : ""}">${stop}</td><td class="${t.liqD.length && Math.min(...t.liqD) < 10 ? "S" : ""}">${liq}</td></tr>`;
+  };
+  const head = `<thead><tr><th>Trader</th><th style="text-align:left">Cohort</th><th>Overall win</th><th>Record on these coins</th><th>PnL on these coins</th><th style="text-align:left">Holds now</th><th>Avg leverage</th><th>Use a stop</th><th>Nearest liq</th></tr></thead>`;
+  const table = list => list.length ? `<div class="card" style="padding:4px 10px;overflow-x:auto"><table class="tr" style="min-width:1000px">${head}<tbody>${list.map(row).join("")}</tbody></table></div>` : `<div class="empty">Not enough data yet. It builds as holder records load.</div>`;
+  $("trBest").innerHTML = table(all.filter(t => t.q > 0.2).sort((a, b) => b.q - a.q || b.cp - a.cp).slice(0, 25));
+  $("trWorst").innerHTML = table(all.filter(t => t.q < -0.2).sort((a, b) => a.q - b.q || a.cp - b.cp).slice(0, 25));
 }
 
 // ---------- News tab ----------
@@ -965,12 +1064,12 @@ async function refresh(force){
     const sha = await newestSha();
     if (sha && sha === SHA && !force) return;
     const now = Date.now(), need = (k, mins) => force || !LOADED[k] || now - LOADED[k] > mins * 6e4;
-    const jobs = { d: getJson("latest.json", sha), s: getJson("status.json", sha).catch(() => null), e: getJson("events.json", sha).catch(() => null), o: getJson("options.json", sha).catch(() => null), n: getJson("news.json", sha).catch(() => null), c: getJson("context.json", sha).catch(() => null), sp: getJson("specialists.json", sha).catch(() => null) };
+    const jobs = { d: getJson("latest.json", sha), s: getJson("status.json", sha).catch(() => null), e: getJson("events.json", sha).catch(() => null), o: getJson("options.json", sha).catch(() => null), n: getJson("news.json", sha).catch(() => null), c: getJson("context.json", sha).catch(() => null), sp: getJson("specialists.json", sha).catch(() => null), lv: getJson("levels.json", sha).catch(() => null) };
     if (need("h", 15)) jobs.h = getJson("history.json", sha).catch(() => null);
     if (need("i", 60)) jobs.i = getJson("instruments.json", sha).catch(() => null);
     const keys = Object.keys(jobs), vals = await Promise.all(Object.values(jobs)), R = {};
     keys.forEach((k, i) => R[k] = vals[i]);
-    DATA = R.d; STATUS = R.s; EVENTS = R.e; OPTS = R.o; if (R.n) NEWS = R.n; if (R.c) CONTEXT = R.c; if (R.sp) SPEC = R.sp; indexNews();
+    DATA = R.d; STATUS = R.s; EVENTS = R.e; OPTS = R.o; if (R.n) NEWS = R.n; if (R.c) CONTEXT = R.c; if (R.sp) SPEC = R.sp; if (R.lv) LEVELS = R.lv; indexNews();
     if ("h" in R) { if (R.h) HIST = R.h; LOADED.h = now; }
     if ("i" in R) { if (R.i) INST = R.i; LOADED.i = now; }
     if (sha) SHA = sha;
@@ -1066,7 +1165,7 @@ $("list").onclick = e => {
 document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
   VIEW = b.dataset.tab;
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
-  ["setups","news","changes","record","alerts"].forEach(v => $("v-" + v).hidden = v !== VIEW);
+  ["setups","news","traders","changes","record","alerts"].forEach(v => $("v-" + v).hidden = v !== VIEW);
   render();
 });
 $("trCls").innerHTML = CLASSES.map(c => `<option>${c}</option>`).join("");
