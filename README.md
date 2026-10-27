@@ -8,7 +8,7 @@ A GitHub Pages tracker. It finds Hyperliquid markets (crypto, stocks, indices, E
 
 ## How it works
 
-1. `.github/workflows/update.yml` runs every 15 minutes.
+1. `.github/workflows/update.yml` stays on all the time: each run lasts about 55 minutes and checks Hyperdash every 45 seconds. Hyperdash makes a new snapshot every 5 minutes, and each new one is pushed. A new run starts every 20 minutes and waits in the queue, so there is no gap (cancelled queued runs are normal).
 2. `scripts/fetch.mjs` gets the cohort data from the Hyperdash API (`api.hyperdash.com/graphql`).
 3. The workflow pushes `latest.json`, `history.json` and `status.json` to the `data` branch. It replaces that branch each time, so the repo stays small. History keeps 7 days.
 4. `index.html` (GitHub Pages, `main` branch) reads the data from `raw.githubusercontent.com/<owner>/<repo>/data/`.
@@ -30,7 +30,9 @@ Site: https://stevenwsharp-ctrl.github.io/Hyperdash-Cohort-Tracker/
 - **Funding**: Hyperliquid funding per year, and if the smart side earns or pays it.
 - **Track record** tab: what the price did 4h and 24h after each signal.
 - **CSV** button: export the table.
-- **Alerts**: add repo secret `NTFY_TOPIC` (ntfy phone app) and/or `DISCORD_WEBHOOK_URL`. Optional repo variable `ALERT_MIN_SCORE` (default 65).
+- **Alignment trend**: gap change over 1h / 4h / 24h / 7d, a chart per market, and the **Changes** tab (expert exits, flips, fades, adds, new setups).
+- **Live prices**: the page reads Hyperliquid prices and funding directly every 20 seconds.
+- **Alerts**: add repo secret `NTFY_TOPIC` (ntfy phone app) and/or `DISCORD_WEBHOOK_URL`. Optional repo variables: `ALERT_MIN_SCORE` (default 65) and `ALERT_TYPES` (default `setup,exit,flip`; also `fade`, `add`, `new`). Test: Actions → Run workflow → tick "Send a test alert".
 
 ## Notes
 

@@ -1,12 +1,25 @@
 name: Update Hyperdash data
 
+# Each run stays on for about 55 minutes and checks Hyperdash every 45 seconds.
+# Hyperdash makes a new cohort snapshot every 5 minutes; each new one is pushed to the data branch.
+# The schedule starts a new run every 20 minutes. Only one run works at a time; the next one
+# waits in the queue and starts when the current one ends, so there is no gap.
+# (GitHub cancels extra queued runs. "Cancelled" runs in the Actions list are normal.)
+
 on:
   schedule:
-    - cron: "*/15 * * * *"   # every 15 minutes (GitHub can run it some minutes late)
-  workflow_dispatch:          # lets you run it by hand from the Actions tab
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
     inputs:
+      loop_minutes:
+        description: "How long this run stays on (minutes)"
+        default: "55"
       force_instruments:
         description: "Rebuild the leveraged ETF / options list now"
+        type: boolean
+        default: false
+      test_alert:
+        description: "Send a test alert to ntfy / Discord"
         type: boolean
         default: false
 
@@ -20,7 +33,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
 
@@ -32,30 +45,47 @@ jobs:
         run: |
           mkdir -p out
           if git fetch --depth=1 origin data 2>/dev/null; then
-            for f in latest.json history.json instruments.json options.json alerts.json status.json; do
+            for f in latest.json history.json events.json instruments.json options.json alerts.json status.json; do
               git show origin/data:$f > out/$f 2>/dev/null || rm -f out/$f
             done
           fi
 
-      - name: Fetch new data
+      - name: Send a test alert
+        if: ${{ inputs.test_alert }}
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -n "$NTFY_TOPIC" ]; then curl -s -H "Title: Cohort Sniper test" -H "Tags: white_check_mark" -d "Alerts work. You will get expert exits, flips and strong new setups here." "https://ntfy.sh/$NTFY_TOPIC" >/dev/null && echo "ntfy sent"; else echo "No NTFY_TOPIC secret"; fi
+          if [ -n "$DISCORD_WEBHOOK_URL" ]; then curl -s -H "content-type: application/json" -d '{"content":"**Cohort Sniper test** - alerts work."}' "$DISCORD_WEBHOOK_URL" >/dev/null && echo "discord sent"; else echo "No DISCORD_WEBHOOK_URL secret"; fi
+
+      - name: Watch Hyperdash and push each new snapshot
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           ALERT_MIN_SCORE: ${{ vars.ALERT_MIN_SCORE }}
-          FORCE_INSTRUMENTS: ${{ inputs.force_instruments && '1' || '' }}
+          ALERT_TYPES: ${{ vars.ALERT_TYPES }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LOOP_MIN: ${{ inputs.loop_minutes || '55' }}
+          FORCE_INSTRUMENTS_IN: ${{ inputs.force_instruments && '1' || '' }}
         run: |
           OWNER="${GITHUB_REPOSITORY%%/*}"; REPO="${GITHUB_REPOSITORY#*/}"
           export SITE_URL="https://${OWNER,,}.github.io/${REPO}/"
-          node scripts/fetch.mjs out
-
-      - name: Push to the data branch (one commit only, so the repo stays small)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
           cd out
           git init -q -b data
           git config user.name "github-actions[bot]"
           git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -qm "data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          cd ..
+          END=$((SECONDS + LOOP_MIN * 60))
+          FIRST=1
+          while :; do
+            if [ -n "$FORCE_INSTRUMENTS_IN" ] && [ $FIRST = 1 ]; then export FORCE_INSTRUMENTS=1 FORCE_RUN=1; else unset FORCE_INSTRUMENTS FORCE_RUN; fi
+            set +e; node scripts/fetch.mjs out; rc=$?; set -e
+            if [ $rc -eq 0 ]; then
+              (cd out && git add -A && { git commit -q --amend -m "data $(date -u +%FT%TZ)" 2>/dev/null || git commit -q -m "data $(date -u +%FT%TZ)"; } && git push -f -q "$REMOTE" data) || echo "push failed"
+            fi
+            FIRST=0
+            [ $SECONDS -ge $END ] && break
+            sleep 45
+          done

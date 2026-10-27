@@ -48,7 +48,7 @@ button.ghost:hover{color:var(--text)}
 .note{color:var(--faint);font-size:12px;max-width:340px;line-height:1.5}
 .err{background:var(--bear-bg);border:1px solid var(--bear);padding:10px 12px;border-radius:8px;margin:10px 0;font-size:13px}
 .info{background:var(--panel);border:1px solid var(--line);padding:10px 12px;border-radius:8px;margin:10px 0;font-size:13px;color:var(--dim)}
-.hdr,.row{display:grid;grid-template-columns:30px minmax(120px,1.1fr) 120px 100px minmax(140px,1fr) minmax(140px,1fr) minmax(150px,1fr) minmax(150px,1.1fr) 96px;gap:10px;align-items:center;padding:9px 10px}
+.hdr,.row{display:grid;grid-template-columns:30px minmax(120px,1.1fr) 120px 100px minmax(140px,1fr) minmax(140px,1fr) minmax(150px,1fr) minmax(150px,1.1fr) 132px;gap:10px;align-items:center;padding:9px 10px}
 .hdr{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2}
 .hdr div[data-sort]{cursor:pointer} .hdr div[data-sort]:hover{color:var(--text)} .hdr .act{color:var(--accent)}
 .row{border-bottom:1px solid var(--line);cursor:pointer}
@@ -84,6 +84,24 @@ button.ghost:hover{color:var(--text)}
 .tk.L{border-color:#1d5a48} .tk.S{border-color:#6a2733}
 svg.spark{display:block}
 .trend small{display:block;font:10.5px var(--mono);color:var(--faint);margin-top:2px}
+.tf{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-bottom:4px}
+.tf span{font:500 10px var(--mono);text-align:center;border-radius:3px;padding:2px 0;background:var(--neutral-bg);color:var(--dim)}
+.tf span i{display:block;font-style:normal;font-size:8.5px;opacity:.7}
+.tf .up{background:var(--bull-bg);color:#7fe0c0} .tf .dn{background:var(--bear-bg);color:#f2a0aa}
+.chart{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px}
+.chart svg{display:block;width:100%;height:auto;max-height:300px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font:11px var(--mono);color:var(--dim);margin-top:6px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.ev{display:grid;grid-template-columns:130px 110px 140px 1fr;gap:10px;padding:9px 10px;border-bottom:1px solid var(--line);font-size:13px;align-items:center}
+.ev .tm{font:12px var(--mono);color:var(--faint)}
+.ev b{font-family:var(--mono)}
+.et{font:600 10.5px var(--sans);padding:3px 7px;border-radius:4px;text-align:center;text-transform:uppercase;letter-spacing:.04em}
+.et.exit,.et.flip{background:var(--bear-bg);color:#f2a0aa} .et.fade{background:#3d2a10;color:var(--warn)} .et.add,.et.new{background:var(--bull-bg);color:#7fe0c0}
+.wbtn{background:none;border:1px solid var(--line);color:var(--dim);padding:3px 8px;border-radius:6px;cursor:pointer;font:11px var(--mono)}
+.wbtn.on{color:var(--text);border-color:var(--accent)}
+.live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--bull);margin-right:5px;animation:pulse 2s infinite;vertical-align:1px}
+@keyframes pulse{50%{opacity:.25}}
+@media (max-width:700px){.ev{grid-template-columns:1fr 1fr;row-gap:4px}.ev .tx{grid-column:1/-1}}
 .detail{background:var(--panel2);border-bottom:1px solid var(--line);padding:4px 14px 16px}
 .detail h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:16px 0 8px;font-weight:600}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}
@@ -140,7 +158,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
     </div>
     <div class="stat" id="stat">Loading…</div>
   </header>
-  <div class="tabs"><button class="tab on" data-tab="setups">Setups</button><button class="tab" data-tab="record">Track record</button><button class="tab" data-tab="alerts">Alerts setup</button></div>
+  <div class="tabs"><button class="tab on" data-tab="setups">Setups</button><button class="tab" data-tab="changes">Changes <span id="evCount" style="color:var(--bear)"></span></button><button class="tab" data-tab="record">Track record</button><button class="tab" data-tab="alerts">Alerts setup</button></div>
 
   <section id="v-setups">
     <div class="bar">
@@ -154,6 +172,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
         <button class="chip" id="needOpt">Has options</button>
         <button class="chip" id="needLev">Has leveraged ETF</button>
         <button class="chip" id="needPaid">Smart side earns funding</button>
+        <button class="chip" id="onlyExit">Experts exiting (6h)</button>
       </div>
       <input type="search" id="q" placeholder="Search ticker">
       <button class="ghost" id="setBtn">Settings</button>
@@ -179,9 +198,18 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
     <div class="hdr" id="hdr">
       <div>#</div><div data-sort="coin">Market</div><div>Setup</div><div data-sort="score">Score · gap</div>
       <div data-sort="sb">Smart bias</div><div data-sort="fb">Fools bias</div><div data-sort="minN">Money · funding</div>
-      <div data-sort="ntools">Trade with</div><div data-sort="held">24h gap</div>
+      <div data-sort="ntools">Trade with</div><div data-sort="d4" title="Change of the gap. Green = alignment gets stronger. Red = it gets weaker.">Alignment trend</div>
     </div>
     <div id="list"></div>
+  </section>
+
+  <section id="v-changes" hidden>
+    <div class="bar">
+      <div class="chips" id="evChips"></div>
+      <input type="search" id="evQ" placeholder="Search ticker">
+    </div>
+    <div class="info">Events come from each 5-minute Hyperdash snapshot. <b>Exit</b>: the smart cohorts cut 30% or more of their position on the setup side in 1h or 4h. <b>Flip</b>: smart bias changed side. <b>Fade</b>: the gap shrank by 25 or more. <b>Add</b>: smart cohorts added 50% or more. <b>New</b>: the gap crossed 50. Only markets with a gap of 40 or more at the start count for exit, flip, fade and add.</div>
+    <div id="events"></div>
   </section>
 
   <section id="v-record" hidden>
@@ -200,7 +228,11 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
         1. Install the <b>ntfy</b> app (iPhone or Android).<br>
         2. Pick a long secret topic name, for example <code>cohort-sniper-<span id="rnd"></span></code>. Subscribe to it in the app.<br>
         3. In GitHub: repo <b>Settings → Secrets and variables → Actions → New repository secret</b>. Name: <code>NTFY_TOPIC</code>. Value: your topic name.<br>
-        Each run sends a push when a market reaches the alert score. The same market alerts again only if the side flips or after 24 hours.</div>
+        4. Go to the <b>Actions</b> tab → "Update Hyperdash data" → <b>Run workflow</b> → tick <b>Send a test alert</b>. Your phone gets a test push.<br>
+        You get a push when experts exit or flip a setup, and when a market reaches the alert score.</div>
+      <div class="card"><h4>Which alerts</h4>
+        Default: <code>setup,exit,flip</code>. To change it, add a repository <b>variable</b> named <code>ALERT_TYPES</code> with any of: <code>setup</code> (score reaches the alert score), <code>exit</code> (experts cut the position), <code>flip</code> (experts change side), <code>fade</code> (gap shrinks), <code>add</code> (experts add), <code>new</code> (gap crosses 50). Example: <code>setup,exit,flip,fade</code>.<br>
+        Cooldowns stop repeats: exit 4h, fade 6h, flip and add 8h, new 12h, setup 24h.</div>
       <div class="card"><h4>Discord</h4>
         1. In your Discord server: channel settings → Integrations → Webhooks → New Webhook → Copy Webhook URL.<br>
         2. In GitHub, add a repository secret named <code>DISCORD_WEBHOOK_URL</code> with that URL.</div>
@@ -225,11 +257,14 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
       <li><b>Funding</b>: the Hyperliquid funding rate as a yearly rate. "Smart side earns" means a position on the smart side gets paid funding now. Funding changes every hour.</li>
       <li><b>Trade with</b>: US-listed ways to take the smart side. Options are from the Cboe list of optionable symbols. Leveraged ETFs are found by name in the Nasdaq list of all US listings, every 12 hours. Check the fund before you trade. Single-stock leveraged ETFs reset each day and lose value in choppy markets.</li>
       <li><b>IV</b> = at-the-money implied volatility near 30 days. <b>P/C</b> = put/call ratio of open interest. Option data is from Cboe with a 15-minute delay, for the top setups only.</li>
+      <li><b>Alignment trend</b>: the change of the gap over 1h, 4h, 24h and 7d. ▲ green = the two groups moved further apart on the setup side (stronger). ▼ red = they moved closer (weaker). Hover a box to see the smart bias, fools bias and smart $ change.</li>
+      <li><b>Experts exiting</b>: the Extremely + Very Profitable cohorts cut 30% or more of their position on the setup side within 1h or 4h (and at least $100K). <b>Experts flipped</b>: their bias changed side. These show as red badges for 6 hours and in the Changes tab.</li>
+      <li><b>Live data</b>: Hyperdash makes a new cohort snapshot every 5 minutes. The data job checks it about every 45 seconds and publishes each new one. Prices and funding come straight from Hyperliquid every 20 seconds.</li>
       <li><b>Track record</b>: each time a market first crosses the signal gap, the page checks the price 4 hours and 24 hours later, on the smart side.</li>
     </ul>
     <p>Cohorts come from all-time PnL. A trader that was good last year can be wrong now. Use this as a filter to find setups, not as a signal to trade. This is not financial advice.</p>
   </details>
-  <footer>Data: Hyperdash cohort positioning, Hyperliquid funding and prices, Nasdaq Trader symbol lists, Cboe option lists and delayed quotes. A GitHub Action pulls it every 15 minutes. Spot markets are not in this data.</footer>
+  <footer>Data: Hyperdash cohort positioning, Hyperliquid funding and prices, Nasdaq Trader symbol lists, Cboe option lists and delayed quotes. A GitHub Action publishes each new Hyperdash snapshot (every 5 minutes). Prices and funding are live from Hyperliquid. Spot markets are not in this data.</footer>
 </div>
 
 <script>
@@ -244,13 +279,15 @@ const CLASS = {
 const CLASS_SET = {}; for (const k in CLASS) CLASS[k].split(" ").forEach(s => CLASS_SET[s] = k);
 const CLASSES = ["All", "Crypto", "Stock", "Index", "ETF", "Commodity", "FX / Rates"];
 const DEFAULTS = {
-  cls: "All", dir: "both", hideRed: false, hideThin: false, needOpt: false, needLev: false, needPaid: false, q: "",
+  cls: "All", dir: "both", hideRed: false, hideThin: false, needOpt: false, needLev: false, needPaid: false, onlyExit: false, q: "",
   smart: ["extremely_profitable", "very_profitable"],
   fools: ["unprofitable", "very_unprofitable", "rekt"],
   minN: 50000, minScore: 0, maxRows: 60, sort: "score", desc: true
 };
 let S = load();
-let DATA = null, HIST = null, STATUS = null, INST = null, OPTS = null, ROWS = [], OPEN = null, VIEW = "setups";
+let DATA = null, HIST = null, STATUS = null, INST = null, OPTS = null, EVENTS = null, ROWS = [], OPEN = null, VIEW = "setups";
+let LIVE = {}, LIVE_T = 0, SHA = null, LOADED = {}, CHART_W = "24h", EV_TYPE = "all";
+const EV_RECENT_H = 6;
 
 function load(){ try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem("cohortSniper") || "{}")); } catch { return Object.assign({}, DEFAULTS); } }
 function save(){ try { localStorage.setItem("cohortSniper", JSON.stringify(S)); } catch {} }
@@ -324,15 +361,23 @@ function compute(){
     const score = Math.round(100 * Math.abs(gap) * agree * depth * tdepth);
     const big = apexI >= 0 && whaleI >= 0 ? agg([m.s[apexI], m.s[whaleI]]) : null;
     const thin = minSide < S.minN * 3 || sm.traders < 5;
-    const ctx = (DATA.ctx || {})[coin] || null;
+    const ctx = LIVE[coin] || (DATA.ctx || {})[coin] || null;
+    const tr = (DATA.tr || {})[coin] || {};
+    const d4 = tr["4h"] ? dir * tr["4h"][0] : 0; // + = alignment got stronger in 4h
+    const evs = recentEvents(coin);
     const earn = ctx ? -dir * fundApr(ctx.f) : null; // + = smart side gets paid
     const h = histFor(coin, dir);
     const since = h.pxStart && ctx && ctx.px ? dir * (ctx.px / h.pxStart - 1) * 100 : null;
     const inst = INST && INST.m ? INST.m[coin] || null : null;
     const tools = toolsFor(inst, dir);
-    out.push({ coin, ...parse(coin), m, sm, fo, gap, dir, agree, red, score, minN: minSide, big, thin, ctx, earn, hist: h, held: h.heldH, since, inst, tools, ntools: tools.n });
+    out.push({ coin, ...parse(coin), m, sm, fo, gap, dir, agree, red, score, minN: minSide, big, thin, ctx, earn, hist: h, held: h.heldH, since, inst, tools, ntools: tools.n, tr, d4, evs });
   }
   return out;
+}
+function recentEvents(coin){
+  if (!EVENTS || !EVENTS.log) return [];
+  const now = Date.now();
+  return EVENTS.log.filter(e => e.coin === coin && (e.type === "exit" || e.type === "flip" || e.type === "fade") && now - Date.parse(e.t) < EV_RECENT_H * 36e5);
 }
 function toolsFor(inst, dir){
   const t = { opt: false, wk: false, optSym: null, same: [], other: [], n: 0 };
@@ -373,6 +418,61 @@ function spark(pts){
   const last = vals[vals.length-1][1];
   return `<svg class="spark" width="${w}" height="${h}"><line x1="0" x2="${w}" y1="${h/2}" y2="${h/2}" stroke="var(--line)"/><path d="${d}" fill="none" stroke="${last >= 0 ? "var(--bull)" : "var(--bear)"}" stroke-width="1.6"/></svg>`;
 }
+// Gap change per time frame. Green = alignment stronger on the setup side.
+function tfChips(r){
+  return `<div class="tf">${["1h","4h","24h","7d"].map(k => {
+    const v = r.tr[k]; if (!v) return `<span title="${k}: no history yet"><i>${k}</i>–</span>`;
+    const s = r.dir * v[0], cls = s >= 5 ? "up" : s <= -5 ? "dn" : "";
+    const net = v[3] != null ? ` · smart $ ${v[3] > 0 ? "+" : ""}${v[3]}%` : "";
+    return `<span class="${cls}" title="${k}: gap ${v[0] > 0 ? "+" : ""}${v[0]}, smart bias ${v[1] > 0 ? "+" : ""}${v[1]}, fools ${v[2] > 0 ? "+" : ""}${v[2]}${net}"><i>${k}</i>${s > 0 ? "▲" : s < 0 ? "▼" : ""}${Math.abs(s)}</span>`;
+  }).join("")}</div>`;
+}
+
+// Alignment chart from history
+function alignChart(r){
+  const snaps = HIST && HIST.snapshots || [];
+  const hrs = { "6h": 6, "24h": 24, "7d": 168 }[CHART_W];
+  const tEnd = snaps.length ? Date.parse(snaps[snaps.length-1].t) : 0;
+  const pts = snaps.filter(s => tEnd - Date.parse(s.t) <= hrs * 36e5 && s.d[r.coin]).map(s => ({ t: Date.parse(s.t), v: s.d[r.coin] }));
+  const btns = ["6h","24h","7d"].map(w => `<button class="wbtn ${w === CHART_W ? "on" : ""}" data-w="${w}">${w}</button>`).join(" ");
+  if (pts.length < 2) return `<div class="chart"><div style="display:flex;justify-content:space-between"><span class="note">Not enough history yet for this market. It builds every 5 minutes.</span><span>${btns}</span></div></div>`;
+  const W = 1100, H1 = 170, H2 = 80, P = 40, gapY = 18, Ht = H1 + gapY + H2 + 18;
+  const t0 = pts[0].t, t1 = pts[pts.length-1].t;
+  const x = t => P + (t - t0) / Math.max(1, t1 - t0) * (W - P - 40);
+  const yB = v => 8 + (100 - v) / 200 * (H1 - 16);
+  const line = (sel, y, col, dash) => { let d = "", on = false; pts.forEach(p => { const v = sel(p.v); if (v == null) { on = false; return; } d += (on ? "L" : "M") + x(p.t).toFixed(1) + " " + y(v).toFixed(1); on = true; }); return `<path d="${d}" fill="none" stroke="${col}" stroke-width="1.6" ${dash ? 'stroke-dasharray="4 3"' : ""}/>`; };
+  const prices = pts.map(p => p.v[2]).filter(Boolean);
+  const pMin = Math.min(...prices), pMax = Math.max(...prices);
+  const yP = v => 8 + (1 - (v - pMin) / Math.max(1e-9, pMax - pMin)) * (H1 - 16);
+  const nets = pts.flatMap(p => p.v.length > 4 ? [p.v[3] + p.v[4], p.v[3], p.v[4]] : []);
+  const nMax = Math.max(1, ...nets.map(Math.abs));
+  const y2 = v => H1 + gapY + (1 - (v + nMax) / (2 * nMax)) * H2;
+  const tl = t => new Date(t).toLocaleString([], (t1 - t0) > 12 * 36e5 ? { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" } : { hour: "numeric", minute: "2-digit" });
+  const kfmt = k => Math.abs(k) >= 1000 ? (k/1000).toFixed(1) + "M" : Math.round(k) + "K";
+  const svg = `<svg viewBox="0 0 ${W} ${Ht}" role="img" aria-label="Alignment over ${CHART_W}">
+    ${[100, 50, 0, -50, -100].map(v => `<line x1="${P}" x2="${W-40}" y1="${yB(v)}" y2="${yB(v)}" stroke="var(--line)" ${v ? 'stroke-dasharray="2 4"' : ""}/><text x="${P-6}" y="${yB(v)+3}" fill="var(--faint)" font-size="9" text-anchor="end" font-family="IBM Plex Mono">${v}</text>`).join("")}
+    ${prices.length > 1 ? line(v => v[2] || null, yP, "#6b7775") + `<text x="${W-36}" y="${yP(pMax)+3}" fill="var(--faint)" font-size="9" font-family="IBM Plex Mono">${price(pMax)}</text><text x="${W-36}" y="${yP(pMin)+3}" fill="var(--faint)" font-size="9" font-family="IBM Plex Mono">${price(pMin)}</text>` : ""}
+    ${line(v => v[0], yB, "#7cc4ff")}${line(v => v[1], yB, "#f0b43c")}${line(v => (v[0] - v[1]) / 2, yB, "#e6ebea", true)}
+    <line x1="${P}" x2="${W-40}" y1="${y2(0)}" y2="${y2(0)}" stroke="var(--line)"/>
+    <text x="${P-6}" y="${y2(nMax)+8}" fill="var(--faint)" font-size="9" text-anchor="end" font-family="IBM Plex Mono">+${kfmt(nMax)}</text><text x="${P-6}" y="${y2(-nMax)}" fill="var(--faint)" font-size="9" text-anchor="end" font-family="IBM Plex Mono">-${kfmt(nMax)}</text>
+    ${nets.length ? line(v => v.length > 4 ? v[3] + v[4] : null, y2, "#1fb58a") + line(v => v.length > 4 ? v[3] : null, y2, "#c58af0", true) : `<text x="${W/2}" y="${y2(0)-4}" fill="var(--faint)" font-size="10" text-anchor="middle">Smart $ history starts with this update</text>`}
+    <text x="${P}" y="${Ht-2}" fill="var(--faint)" font-size="9" font-family="IBM Plex Mono">${tl(t0)}</text><text x="${W-40}" y="${Ht-2}" fill="var(--faint)" font-size="9" text-anchor="end" font-family="IBM Plex Mono">${tl(t1)}</text>
+  </svg>`;
+  return `<div class="chart"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><b style="font-size:12px">Bias (−100 short … +100 long) and price</b><span>${btns}</span></div>${svg}
+    <div class="legend"><span><i style="background:#7cc4ff"></i>Smart bias</span><span><i style="background:#f0b43c"></i>Fools bias</span><span><i style="background:#e6ebea"></i>Gap</span><span><i style="background:#6b7775"></i>Price</span><span><i style="background:#1fb58a"></i>Smart net $ (lower panel)</span><span><i style="background:#c58af0"></i>Extremely Profitable net $</span></div></div>`;
+}
+function windowTable(r){
+  const rows = ["1h","4h","24h","7d"].map(k => {
+    const v = r.tr[k];
+    if (!v) return `<tr><td>${k}</td><td colspan="5" style="text-align:left;color:var(--faint)">no history yet</td></tr>`;
+    const s = r.dir * v[0];
+    const kf = v[4] == null ? "–" : (v[4] > 0 ? "+" : "") + (Math.abs(v[4]) >= 1000 ? (v[4]/1000).toFixed(2) + "M" : v[4] + "K");
+    return `<tr><td>${k}</td><td class="${s >= 0 ? "L" : "S"}">${s > 0 ? "stronger" : s < 0 ? "weaker" : "flat"} ${Math.abs(s)}</td><td>${v[1] > 0 ? "+" : ""}${v[1]}</td><td>${v[2] > 0 ? "+" : ""}${v[2]}</td>
+      <td class="${(v[3] ?? 0) >= 0 ? "L" : "S"}">${v[3] == null ? "–" : (v[3] > 0 ? "+" : "") + v[3] + "%"} <span style="color:var(--faint)">${kf}</span></td><td class="${(v[5] ?? 0) >= 0 ? "L" : "S"}">${v[5] == null ? "–" : sgnPct(v[5], 2)}</td></tr>`;
+  }).join("");
+  return `<div class="card" style="padding:6px 10px"><table class="tr"><thead><tr><th>Window</th><th>Alignment</th><th>Smart bias Δ</th><th>Fools bias Δ</th><th>Smart $ on setup side</th><th>Price, smart side</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
 function minis(m, ids){
   return ids.map(id => {
     const i = DATA.pnl.findIndex(c => c.id === id); if (i < 0) return "";
@@ -389,7 +489,7 @@ function filtered(){
     (S.dir === "both" || (S.dir === "long" ? r.dir > 0 : r.dir < 0)) &&
     r.minN >= S.minN && r.score >= S.minScore &&
     (!S.hideRed || !r.red.length) && (!S.hideThin || !r.thin) &&
-    (!S.needOpt || r.tools.opt) && (!S.needLev || r.tools.same.length) && (!S.needPaid || (r.earn != null && r.earn > 0)) &&
+    (!S.needOpt || r.tools.opt) && (!S.needLev || r.tools.same.length) && (!S.needPaid || (r.earn != null && r.earn > 0)) && (!S.onlyExit || r.evs.length) &&
     (!q || r.coin.toUpperCase().includes(q)));
   const key = S.sort, sgn = S.desc ? -1 : 1;
   const val = (r) => key === "coin" ? r.sym : key === "sb" ? r.sm.b : key === "fb" ? r.fo.b : r[key];
@@ -400,7 +500,10 @@ function filtered(){
 function render(){
   if (!DATA) return;
   ROWS = compute();
+  renderEvCount();
   if (VIEW === "record") { renderRecord(); return; }
+  if (VIEW === "changes") { renderChanges(); return; }
+  if (VIEW !== "setups") return;
   const list = $("list");
   let rows = filtered();
   const total = rows.length; rows = rows.slice(0, S.maxRows);
@@ -409,6 +512,11 @@ function render(){
   list.innerHTML = rows.map((r, i) => {
     const dl = r.dir > 0;
     const flags = [];
+    const evOrder = { flip: 0, exit: 1, fade: 2 };
+    const seenT = new Set();
+    r.evs.slice().sort((a, b) => evOrder[a.type] - evOrder[b.type]).forEach(e => { if (seenT.has(e.type)) return; seenT.add(e.type);
+      const ago = Math.max(1, Math.round((Date.now() - Date.parse(e.t)) / 6e4));
+      flags.push(`<span class="flag ${e.type === "fade" ? "f-red" : "f-bad"}" title="${esc(e.text)}">${e.type === "exit" ? "⚠ Experts exiting" : e.type === "flip" ? "⚠ Experts flipped" : "Fading"} · ${ago < 90 ? ago + "m" : Math.round(ago/60) + "h"} ago</span>`); });
     r.red.forEach(x => flags.push(`<span class="flag f-red" title="This smart cohort holds the other side">⚠ ${esc(x.name)} ${pct(x.b)}</span>`));
     if (r.big && r.big.n >= S.minN) {
       if (Math.sign(r.big.b) === r.dir && Math.abs(r.big.b) >= 0.2) flags.push(`<span class="flag f-good" title="Apex + Whale size cohorts">Big money agrees</span>`);
@@ -439,7 +547,7 @@ function render(){
       <div class="side fo"><span class="big ${sideCls(r.fo.b)}">${pct(r.fo.b)}</span><span class="lbl">${label(r.fo.b, r.fo.n)}</span><div class="minis">${minis(r.m, S.fools)}</div></div>
       <div class="money">smart <b>${usd(r.sm.n)}</b> · ${r.sm.traders} tr<br>fools <b>${usd(r.fo.n)}</b> · ${r.fo.traders} tr<div class="flags" style="margin-top:4px">${fund}${flags.join("")}</div></div>
       <div class="tw">${tw.join("<br>")}</div>
-      <div class="trend">${spark(r.hist.pts)}<small>${heldTxt}${sinceTxt}</small></div>
+      <div class="trend">${tfChips(r)}${spark(r.hist.pts)}<small>${heldTxt}${sinceTxt}</small></div>
     </div>`;
     return row + (OPEN === r.coin ? detail(r) : "");
   }).join("") + (total > rows.length ? `<div class="empty">${total - rows.length} more markets. Raise "Rows to show" in Settings.</div>` : "");
@@ -488,7 +596,10 @@ function detail(r){
       ${t.other.length ? `<h4 style="margin-top:10px;color:var(--dim)">Other side</h4>${t.other.map(x => instRow(x)).join("")}` : ""}</div>` : "";
   const none = !us && !lev ? `<div class="card"><h4>US-listed</h4><div class="note">No US stock, proxy ETF or leveraged ETF found for this market. Trade the perp, or check the asset on other venues.</div></div>` : "";
 
+  const coinEvs = EVENTS && EVENTS.log ? EVENTS.log.filter(e => e.coin === r.coin).slice(0, 8) : [];
   return `<div class="detail">
+    <h3>Alignment over time</h3>${alignChart(r)}<div style="margin-top:8px">${windowTable(r)}</div>
+    ${coinEvs.length ? `<h3>Recent changes</h3><div class="card" style="padding:0">${coinEvs.map(evRow).join("")}</div>` : ""}
     <h3>How to trade it</h3><div class="cards">${perp}${us}${lev}${none}</div>
     <h3>PnL cohorts — white border = in your Smart or Fools group</h3>
     <div class="tiles">${DATA.pnl.map((c, i) => tile(c, r.m.p[i], S.smart.includes(c.id) || S.fools.includes(c.id))).join("")}</div>
@@ -496,6 +607,24 @@ function detail(r){
     <div class="tiles">${DATA.size.map((c, i) => tile(c, r.m.s[i], false)).join("")}</div>
     <div class="why">${lines.join("<br>")}</div>
   </div>`;
+}
+
+// ---------- Changes ----------
+const EV_LABEL = { exit: "Exit", flip: "Flip", fade: "Fade", add: "Add", new: "New" };
+function evRow(e){
+  return `<div class="ev"><span class="tm">${new Date(e.t).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+    <span class="et ${e.type}">${EV_LABEL[e.type] || e.type}${e.win && e.win !== "5m" ? " · " + e.win : ""}</span>
+    <b><a href="#" data-goto="${esc(e.coin)}">${esc(e.coin)}</a></b><span class="tx">${esc(e.text)}</span></div>`;
+}
+function renderEvCount(){
+  const n = EVENTS && EVENTS.log ? EVENTS.log.filter(e => (e.type === "exit" || e.type === "flip") && Date.now() - Date.parse(e.t) < EV_RECENT_H * 36e5).length : 0;
+  $("evCount").textContent = n ? `(${n})` : "";
+}
+function renderChanges(){
+  chips($("evChips"), [["all","All"],["exit","Exits"],["flip","Flips"],["fade","Fades"],["add","Adds"],["new","New setups"]], EV_TYPE, v => { EV_TYPE = v; renderChanges(); });
+  const q = $("evQ").value.trim().toUpperCase();
+  const list = (EVENTS && EVENTS.log || []).filter(e => (EV_TYPE === "all" || e.type === EV_TYPE) && (!q || e.coin.toUpperCase().includes(q)));
+  $("events").innerHTML = list.length ? list.slice(0, 300).map(evRow).join("") : `<div class="empty">No events yet. Events need at least 1 hour of 5-minute history.</div>`;
 }
 
 // ---------- Track record ----------
@@ -540,11 +669,12 @@ function renderRecord(){
 function renderStat(){
   if (!DATA) return;
   const t = Date.parse(DATA.t), age = (Date.now() - t) / 6e4;
-  const cls = age > 60 ? "bad" : age > 30 ? "old" : "";
+  const cls = age > 30 ? "bad" : age > 12 ? "old" : "";
   const ageTxt = age < 1 ? "just now" : age < 90 ? Math.round(age) + " min ago" : (age/60).toFixed(1) + " h ago";
-  $("stat").innerHTML = `<span class="dot ${cls}"></span>Data <b>${ageTxt}</b> · ${new Date(t).toLocaleString()}<br>${Object.keys(DATA.m).length} markets · ${HIST && HIST.snapshots ? HIST.snapshots.length : 0} snapshots${INST && INST.counts ? ` · ${INST.counts.levEtfs} leveraged ETFs scanned` : ""}`;
+  const lAge = LIVE_T ? Math.round((Date.now() - LIVE_T) / 1000) : null;
+  $("stat").innerHTML = `<span class="dot ${cls}"></span>Cohorts <b>${ageTxt}</b> · ${new Date(t).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})} (Hyperdash updates every 5 min)<br>${lAge != null && lAge < 120 ? `<span class="live"></span>Prices + funding <b>live</b> · ` : ""}${Object.keys(DATA.m).length} markets · ${HIST && HIST.snapshots ? HIST.snapshots.length : 0} snapshots${INST && INST.counts ? ` · ${INST.counts.levEtfs} lev ETFs` : ""}`;
   if (STATUS && STATUS.ok === false) $("msg").innerHTML = `<div class="err">The last update run failed: ${esc(STATUS.error || "unknown error")}. The table shows the last good data.</div>`;
-  else if (age > 60) $("msg").innerHTML = `<div class="err">The data is more than 1 hour old. Check the Actions tab in the GitHub repo.</div>`;
+  else if (age > 30) $("msg").innerHTML = `<div class="err">The cohort data is more than 30 minutes old. The data job may be between runs, or stopped. Check the Actions tab in the GitHub repo.</div>`;
   else $("msg").innerHTML = "";
 }
 
@@ -567,20 +697,70 @@ function csv(){
 }
 
 // ---------- Data ----------
-async function getJson(name){
-  const r = await fetch(dataBase() + name + "?t=" + Math.floor(Date.now() / 60000), { cache: "no-store" });
+// The data branch changes every 5 minutes. raw.githubusercontent.com caches a branch URL
+// for up to 5 minutes, so the page asks GitHub for the newest commit and loads files by commit id.
+function repoInfo(){
+  const b = dataBase(), m = b.match(/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/data\/$/);
+  return m ? { owner: m[1], repo: m[2] } : null;
+}
+let shaFails = 0;
+async function newestSha(){
+  const ri = repoInfo(); if (!ri || shaFails > 3) return null;
+  try {
+    const r = await fetch(`https://api.github.com/repos/${ri.owner}/${ri.repo}/git/ref/heads/data`, { cache: "no-store" });
+    if (!r.ok) throw new Error(r.status);
+    shaFails = 0; return (await r.json()).object.sha;
+  } catch { shaFails++; return null; }
+}
+async function getJson(name, sha){
+  const ri = repoInfo();
+  const url = sha && ri ? `https://raw.githubusercontent.com/${ri.owner}/${ri.repo}/${sha}/${name}` : dataBase() + name + "?t=" + Math.floor(Date.now() / 60000);
+  const r = await fetch(url, { cache: sha ? "default" : "no-store" });
   if (!r.ok) throw new Error(name + ": HTTP " + r.status);
   return r.json();
 }
-async function refresh(){
+let loading = false;
+async function refresh(force){
+  if (loading) return; loading = true;
   try {
-    const [d, h, s, inst, opts] = await Promise.all([getJson("latest.json"), getJson("history.json").catch(() => null), getJson("status.json").catch(() => null), getJson("instruments.json").catch(() => null), getJson("options.json").catch(() => null)]);
-    DATA = d; HIST = h; STATUS = s; INST = inst; OPTS = opts;
+    const sha = await newestSha();
+    if (sha && sha === SHA && !force) return;
+    const now = Date.now(), need = (k, mins) => force || !LOADED[k] || now - LOADED[k] > mins * 6e4;
+    const jobs = { d: getJson("latest.json", sha), s: getJson("status.json", sha).catch(() => null), e: getJson("events.json", sha).catch(() => null), o: getJson("options.json", sha).catch(() => null) };
+    if (need("h", 15)) jobs.h = getJson("history.json", sha).catch(() => null);
+    if (need("i", 60)) jobs.i = getJson("instruments.json", sha).catch(() => null);
+    const keys = Object.keys(jobs), vals = await Promise.all(Object.values(jobs)), R = {};
+    keys.forEach((k, i) => R[k] = vals[i]);
+    DATA = R.d; STATUS = R.s; EVENTS = R.e; OPTS = R.o;
+    if ("h" in R) { if (R.h) HIST = R.h; LOADED.h = now; }
+    if ("i" in R) { if (R.i) INST = R.i; LOADED.i = now; }
+    if (sha) SHA = sha;
     buildBoxes(); renderStat(); render();
   } catch (e) {
-    $("stat").innerHTML = `<span class="dot bad"></span>No data`;
-    $("msg").innerHTML = `<div class="err">Cannot load data from <code>${esc(dataBase())}</code>. ${esc(e.message)}.<br>Run the "Update Hyperdash data" workflow one time in the Actions tab. It makes the <b>data</b> branch.</div>`;
-  }
+    if (!DATA) {
+      $("stat").innerHTML = `<span class="dot bad"></span>No data`;
+      $("msg").innerHTML = `<div class="err">Cannot load data from <code>${esc(dataBase())}</code>. ${esc(e.message)}.<br>Run the "Update Hyperdash data" workflow one time in the Actions tab. It makes the <b>data</b> branch.</div>`;
+    }
+  } finally { loading = false; }
+}
+
+// Live prices and funding from Hyperliquid (the browser can call it directly).
+let DEXES = null;
+async function livePrices(){
+  if (document.hidden) return;
+  const post = body => fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(r => r.json());
+  try {
+    if (!DEXES) DEXES = (await post({ type: "perpDexs" })).map(d => d ? d.name : "");
+    const res = await Promise.all(DEXES.map(n => post({ type: "metaAndAssetCtxs", dex: n }).catch(() => null)));
+    const out = {};
+    res.forEach(r => { if (!r) return; const [meta, ctxs] = r; meta.universe.forEach((u, i) => {
+      const c = ctxs[i]; if (!c) return;
+      const name = u.name.includes(":") ? u.name.split(":")[0].toUpperCase() + ":" + u.name.split(":").slice(1).join(":") : u.name;
+      const px = +c.markPx || +c.oraclePx || 0, prev = +c.prevDayPx || 0;
+      out[name] = { px, ch: prev ? Math.round((px / prev - 1) * 10000) / 100 : null, f: +c.funding || 0, oi: Math.round((+c.openInterest || 0) * px), v: Math.round(+c.dayNtlVlm || 0) };
+    }); });
+    if (Object.keys(out).length) { LIVE = out; LIVE_T = Date.now(); if (VIEW === "setups") render(); renderStat(); }
+  } catch {}
 }
 
 // ---------- Controls ----------
@@ -588,7 +768,7 @@ function chips(el, items, cur, cb, cls){
   el.innerHTML = items.map(([v, t]) => `<button class="chip ${cls ? cls(v) : ""} ${v === cur ? "on" : ""}" data-v="${esc(v)}">${esc(t)}</button>`).join("");
   el.onclick = e => { const b = e.target.closest("button"); if (b) cb(b.dataset.v); };
 }
-const TOGGLES = ["hideRed", "hideThin", "needOpt", "needLev", "needPaid"];
+const TOGGLES = ["hideRed", "hideThin", "needOpt", "needLev", "needPaid", "onlyExit"];
 function drawChips(){
   chips($("classChips"), CLASSES.map(c => [c, c]), S.cls, v => { S.cls = v; save(); drawChips(); render(); });
   chips($("dirChips"), [["both","Both"],["long","Smart long"],["short","Smart short"]], S.dir, v => { S.dir = v; save(); drawChips(); render(); }, v => v);
@@ -614,10 +794,22 @@ document.addEventListener("change", e => {
 $("q").value = S.q; $("q").oninput = e => { S.q = e.target.value; save(); render(); };
 TOGGLES.forEach(k => $(k).onclick = () => { S[k] = !S[k]; save(); drawChips(); render(); });
 $("setBtn").onclick = () => $("settings").classList.toggle("open");
-$("refBtn").onclick = refresh;
+$("refBtn").onclick = () => { refresh(true); livePrices(); };
 $("csvBtn").onclick = csv;
 $("resetBtn").onclick = () => { S = Object.assign({}, DEFAULTS); save(); drawChips(); buildBoxes(); ["minN","minScore","maxRows"].forEach(id => $(id).value = S[id]); $("q").value = ""; render(); };
 $("hdr").onclick = e => { const k = e.target.dataset.sort; if (!k) return; if (S.sort === k) S.desc = !S.desc; else { S.sort = k; S.desc = k !== "coin"; } save(); render(); };
+function gotoCoin(coin){
+  OPEN = coin; S.q = ""; $("q").value = "";
+  document.querySelector('.tab[data-tab="setups"]').click();
+  const el = document.querySelector(`.row[data-coin="${CSS.escape(coin)}"]`);
+  if (el) el.scrollIntoView({ block: "start", behavior: "smooth" });
+  else $("msg").innerHTML = `<div class="info">${esc(coin)} is not in the table with the current filters.</div>`;
+}
+document.addEventListener("click", e => {
+  const g = e.target.closest("[data-goto]"); if (g) { e.preventDefault(); gotoCoin(g.dataset.goto); return; }
+  const w = e.target.closest(".wbtn"); if (w) { CHART_W = w.dataset.w; render(); }
+});
+$("evQ").oninput = () => renderChanges();
 $("list").onclick = e => {
   if (e.target.closest("a") || e.target.closest(".detail")) return;
   const r = e.target.closest(".row"); if (!r) return;
@@ -626,7 +818,7 @@ $("list").onclick = e => {
 document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
   VIEW = b.dataset.tab;
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
-  ["setups","record","alerts"].forEach(v => $("v-" + v).hidden = v !== VIEW);
+  ["setups","changes","record","alerts"].forEach(v => $("v-" + v).hidden = v !== VIEW);
   render();
 });
 $("trCls").innerHTML = CLASSES.map(c => `<option>${c}</option>`).join("");
@@ -634,9 +826,11 @@ $("trTh").onchange = $("trCls").onchange = () => renderRecord();
 $("rnd").textContent = Math.random().toString(36).slice(2, 10);
 
 drawChips();
-refresh();
-setInterval(refresh, 5 * 60 * 1000);
-setInterval(renderStat, 60 * 1000);
+refresh(true).then(livePrices);
+setInterval(() => refresh(false), 75 * 1000);   // new cohort snapshot check (GitHub allows 60 checks per hour)
+setInterval(livePrices, 20 * 1000);             // live prices and funding
+setInterval(renderStat, 30 * 1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { refresh(false); livePrices(); } });
 </script>
 </body>
 </html>
