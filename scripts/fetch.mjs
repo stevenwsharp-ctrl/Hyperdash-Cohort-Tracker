@@ -49,7 +49,9 @@ async function getCtx() {
       meta.universe.forEach((u, i) => {
         const c = ctxs[i]; if (!c || u.isDelisted) return;
         const px = +c.markPx || +c.oraclePx || 0, prev = +c.prevDayPx || 0;
-        out[normCoin(u.name)] = { px, ch: prev ? Math.round((px / prev - 1) * 10000) / 100 : null, f: +c.funding || 0, oi: Math.round((+c.openInterest || 0) * px), v: Math.round(+c.dayNtlVlm || 0) };
+        const key = normCoin(u.name), o = { px, ch: prev ? Math.round((px / prev - 1) * 10000) / 100 : null, f: +c.funding || 0, oi: Math.round((+c.openInterest || 0) * px), v: Math.round(+c.dayNtlVlm || 0) };
+        out[key] = o;
+        if (key.toUpperCase() !== key) out[key.toUpperCase()] = { ...o, n: u.name }; // Hyperdash uses KBONK, Hyperliquid uses kBONK
       });
     } catch (e) { note("hyperliquid " + name, e); }
   }));

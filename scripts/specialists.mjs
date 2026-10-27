@@ -10,7 +10,7 @@ import { http, makeIO, score } from "./lib.mjs";
 const OUT = process.argv[2] || "out";
 const io = makeIO(OUT);
 const K = 4;                 // shrinkage: a coin record counts like K extra trades at the trader's overall win rate
-const REFRESH_MIN = 15, PER_RUN = 2, MAX_STAT_CALLS = 45, CACHE_H = 3;
+const REFRESH_MIN = 15, PER_RUN = 2, MAX_STAT_CALLS = 70, CACHE_H = 3;
 const COH = { "Extremely Profitable": "EP", "Very Profitable": "VP", "Profitable": "P", "Unprofitable": "U", "Very Unprofitable": "VU", "Rekt": "R" };
 
 const gql = (query, variables) => http("https://api.hyperdash.com/graphql", {
@@ -93,7 +93,7 @@ async function main() {
 
   let statCalls = 0;
   for (const r of due) {
-    const coin = r.coin, hc = hdCoin(coin);
+    const coin = r.coin, hc = (latest.ctx && latest.ctx[coin] && latest.ctx[coin].n) || hdCoin(coin);
     try {
       const d = await gql(`query($coin:String!){analytics{p:perpsTickerPositions(coin:$coin,limit:30,offset:0,sortBy:{field:notional,order:desc}){totalCount positions{address label size notionalSize unrealizedPnl}}}}`, { coin: hc });
       const pos = (d.analytics.p.positions || []).filter(p => p.size && p.notionalSize > 0);

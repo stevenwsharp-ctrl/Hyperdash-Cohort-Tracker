@@ -367,7 +367,7 @@ function parse(coin){
   const venue = i < 0 ? "" : coin.slice(0, i), sym = i < 0 ? coin : coin.slice(i+1);
   return { venue, sym, cls: !venue ? "Crypto" : (CLASS_SET[sym] || "Stock") };
 }
-const hlName = coin => { const { venue, sym } = parse(coin); return venue ? venue.toLowerCase() + ":" + sym : sym; };
+const hlName = coin => { const { venue, sym } = parse(coin); const c = DATA && DATA.ctx && DATA.ctx[coin]; return c && c.n ? c.n : venue ? venue.toLowerCase() + ":" + sym : sym; };
 const hdLink = coin => "https://hyperdash.com/?chart1=" + encodeURIComponent(hlName(coin));
 const hlLink = coin => "https://app.hyperliquid.xyz/trade/" + encodeURIComponent(hlName(coin));
 const yf = s => "https://finance.yahoo.com/quote/" + encodeURIComponent(s);
@@ -993,7 +993,8 @@ async function livePrices(){
     const out = {};
     res.forEach(r => { if (!r) return; const [meta, ctxs] = r; meta.universe.forEach((u, i) => {
       const c = ctxs[i]; if (!c) return;
-      const name = u.name.includes(":") ? u.name.split(":")[0].toUpperCase() + ":" + u.name.split(":").slice(1).join(":") : u.name;
+      const name0 = u.name.includes(":") ? u.name.split(":")[0].toUpperCase() + ":" + u.name.split(":").slice(1).join(":") : u.name;
+      const name = name0.toUpperCase() === name0 ? name0 : name0.toUpperCase(); // Hyperdash uses KBONK, Hyperliquid kBONK
       const px = +c.markPx || +c.oraclePx || 0, prev = +c.prevDayPx || 0;
       out[name] = { px, ch: prev ? Math.round((px / prev - 1) * 10000) / 100 : null, f: +c.funding || 0, oi: Math.round((+c.openInterest || 0) * px), v: Math.round(+c.dayNtlVlm || 0) };
     }); });
