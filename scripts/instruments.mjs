@@ -146,7 +146,7 @@ export async function buildInstruments(coins) {
       byName([sym], levEtfs).forEach(s => { if (!lev.includes(s) && !proxies.includes(s)) lev.push(s); });
     } else {
       const terms = [sym, ...(ALIAS[sym] || [])];
-      if (!NO_TICKER_LOOKUP.has(sym) && L[sym] && !L[sym].etf) {
+      if (!NO_TICKER_LOOKUP.has(sym) && L[sym]) {   // US-listed share or ETF with the same ticker
         u = item(sym);
         const first = L[sym].n.split(/[\s,.]+/)[0];
         if (first && first.length >= 5 && !GENERIC.test(first)) terms.push(first);

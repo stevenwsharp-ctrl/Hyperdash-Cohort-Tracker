@@ -101,13 +101,30 @@ async function traderHistory(t) {
 async function hourly(name) {
   const c = await hl({ type: "candleSnapshot", req: { coin: name, interval: "1h", startTime: T0 - 8 * 24 * H, endTime: NOW + H } }, 60);
   const px = new Float64Array(NH + 73).fill(NaN);   // px[i] = close at time T0 + i*H (i may go to NH+72 for forward returns; future stays NaN)
+  const vn = new Float64Array(NH + 73 + 168).fill(0); // $ volume, offset by 168 so the 7 days before T0 are kept
+  const pc = new Float64Array(NH + 73 + 168).fill(NaN);
   const pre = [];                                    // closes before T0 (for momentum at the start)
   for (const k of Array.isArray(c) ? c : []) {
     const iEnd = Math.round((k.T + 1 - T0) / H);     // candle closes at T0 + iEnd*H
     if (iEnd >= 0 && iEnd < px.length) px[iEnd] = +k.c; else if (iEnd < 0) pre.push([iEnd, +k.c]);
+    const j = iEnd + 168; if (j >= 0 && j < vn.length) { vn[j] = (+k.v || 0) * (+k.c || 0); pc[j] = +k.c; }
   }
   for (let i = 1; i < px.length; i++) if (isNaN(px[i]) && !isNaN(px[i - 1]) && T0 + i * H <= NOW) px[i] = px[i - 1];
-  return { px, pre: new Map(pre) };
+  // 7-day volume profile at each hour (from closes and $ volume of the 168 hours before): value area low / high
+  const val = new Float64Array(NH + 1).fill(NaN), vah = new Float64Array(NH + 1).fill(NaN);
+  for (let i = 0; i <= NH; i++) {
+    let lo = Infinity, hi = -Infinity, n = 0;
+    for (let j = i; j < i + 168; j++) if (!isNaN(pc[j])) { if (pc[j] < lo) lo = pc[j]; if (pc[j] > hi) hi = pc[j]; n++; }
+    if (n < 100 || !(hi > lo)) continue;
+    const B = 40, step = (hi - lo) / B, b = new Float64Array(B); let tot = 0;
+    for (let j = i; j < i + 168; j++) if (!isNaN(pc[j])) { const k = Math.min(B - 1, Math.floor((pc[j] - lo) / step)); b[k] += vn[j]; tot += vn[j]; }
+    if (!tot) continue;
+    let poc = 0; for (let k = 1; k < B; k++) if (b[k] > b[poc]) poc = k;
+    let a = poc, z = poc, acc = b[poc];
+    while (acc < tot * 0.7 && (a > 0 || z < B - 1)) { const up = z < B - 1 ? b[z + 1] : -1, dn = a > 0 ? b[a - 1] : -1; if (up >= dn) { z++; acc += b[z]; } else { a--; acc += b[a]; } }
+    val[i] = lo + a * step; vah[i] = lo + (z + 1) * step;
+  }
+  return { px, pre: new Map(pre), val, vah };
 }
 async function daily(name) {
   const c = await hl({ type: "candleSnapshot", req: { coin: name, interval: "1d", startTime: T0 - 400 * 24 * H, endTime: NOW + H } }, 60);
@@ -259,6 +276,7 @@ async function main() {
         mom168: !isNaN(m.px[i - 168]) ? (m.px[i] / m.px[i - 168] - 1) * dir : null,
         earn: fn ? -f8 / fn * dir * 24 * 365 : null,                                                   // smart side earns (+) or pays (-) funding, per year
         cyc: !isNaN(m.cyc[i]) ? m.cyc[i] * dir : null, pos90: !isNaN(m.pos[i]) ? m.pos[i] : null,
+        vpPos: !isNaN(m.val[i]) ? (m.px[i] < m.val[i] ? -1 : m.px[i] > m.vah[i] ? 1 : 0) * dir : null,   // -1 = smart side trades from outside value back toward it, +1 = broke out in the smart direction
         whale: Math.abs(sbD - sbC) >= 0.5 && Math.sign(sbD) !== Math.sign(sbC),
         placebo: pb != null ? (pb - bias(Fg, i, 0.6)) / 2 : null, smartOnly: bias(Sg, i, 0.6), foolsOnly: -bias(Fg, i, 0.6),
         r4: fwd(4), r24: fwd(24), r72: fwd(72), raw4: fwd(4), raw24: fwd(24)
@@ -308,6 +326,8 @@ async function main() {
     ["cycle_with", "Cycle agrees (price on the smart side of its 50-day average)", r => r.cyc != null && r.cyc > 0.02, r => r.cyc != null && r.cyc < -0.02],
     ["range_extreme", "Price at a 90-day range extreme in the smart direction's favour (smart long near lows / smart short near highs)", r => r.pos90 != null && (r.dir > 0 ? r.pos90 <= 0.25 : r.pos90 >= 0.75), r => r.pos90 != null && (r.dir > 0 ? r.pos90 >= 0.75 : r.pos90 <= 0.25)],
     ["whale", "Whale-driven ($ and trader count disagree)", r => r.whale, r => !r.whale],
+    ["vp_cheap", "Smart side trades from outside the 7-day value area back toward it (long below value / short above)", r => r.vpPos === -1, r => r.vpPos === 1],
+    ["vp_break", "Price broke out of the 7-day value area in the smart direction", r => r.vpPos === 1, r => r.vpPos === 0],
     // combinations (compared with all other setups)
     ["adding_earns", "Smart adding AND smart side earns funding", r => r.sflow != null && r.sflow >= 0.05 && r.earn != null && r.earn >= 0.05, null],
     ["adding_counter", "Smart adding AGAINST the 50-day trend", r => r.sflow != null && r.sflow >= 0.05 && r.cyc != null && r.cyc < -0.02, null],

@@ -39,6 +39,9 @@ Site: https://stevenwsharp-ctrl.github.io/Hyperdash-Cohort-Tracker/
 - **Leverage, liquidations, stops**: open positions of the top holders from Hyperliquid (leverage, real exposure, entry, liquidation price, stop and target orders), good vs bad traders per side, a price ladder, "liquidation fuel" and "smart near liquidation" rating factors, and a Traders tab with the best and worst traders on these coins.
 - **Loss-cut habits and liquidation history**: for each top holder, the median move against them when they close a losing trade (last 100 closed trades), the implied exit for their open position, and how often they were liquidated in 60 days. Shown for good vs bad traders per coin and in the Traders tab.
 - **Froth / bloodbath**: per-market heat scores (fast moves vs normal volatility, funding, open interest, liquidations, RSI, stretch, volume), a Heat tab, row badges, popups and `froth` / `bloodbath` alerts (`ALERT_HEAT_MIN`, default 60).
+- **Funding card**: next-payment countdown (Hyperliquid pays hourly), cost or income per timeframe, Binance/Bybit comparison, 24h trend; carry over a 72h hold weighed against the backtested edge.
+- **Flow / liquidation map / volume profile** (`scripts/flow.mjs`): all traders' long/short flows, taker flow (CVD), resting liquidations ±30% with max-pain zones, options max pain, 30d/7d volume profile.
+- **Fidelity filter**: single stocks without a US listing are hidden and get no alerts (toggle in Settings).
 - **Live prices**: the page reads Hyperliquid prices and funding directly every 20 seconds.
 - **Alerts**: add repo secret `NTFY_TOPIC` (ntfy phone app) and/or `DISCORD_WEBHOOK_URL`. Optional repo variables: `ALERT_MIN_SCORE` (default 65) and `ALERT_TYPES` (default `setup,exit,flip`; also `fade`, `add`, `new`). Test: Actions → Run workflow → tick "Send a test alert".
 

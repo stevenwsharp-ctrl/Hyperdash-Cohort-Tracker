@@ -38,16 +38,21 @@ async function liqMap(name, px) {
   }
   return w;
 }
-// Max pain on each side: the window edge that maximizes (cumulative liquidations reached) / (distance in %)
+// Max pain on each side: the price zone with the densest liquidations ($ per 1% of price), mildly favouring closer zones.
+// The level is the biggest single liquidation inside that zone (or the zone middle). cum = all liquidations from price up to that zone.
 export function painLevels(w, px) {
   const side = (below) => {
     const ws = w.filter(x => below ? x.b <= 0 : x.a >= 0).sort((p, q) => below ? q.b - p.b : p.a - q.a);
     let cum = 0, best = null;
     for (const x of ws) {
       cum += x.usd;
-      const dist = below ? -x.a : x.b;          // far edge of the window, as a fraction
-      const per = cum / (dist * 100);
-      if (cum > 0 && (!best || per > best.per)) best = { per, cum, dist, edge: px * (1 + (below ? x.a : x.b)) };
+      const near = below ? -x.b : x.a, far = below ? -x.a : x.b, width = (far - near) * 100;
+      const dens = x.usd / width * (1 - Math.min(0.5, (near + far) / 2 / 0.6));
+      if (x.usd > 0 && (!best || dens > best.dens)) {
+        const top = (x.top || [])[0];
+        const lvl = top ? top[0] : px * (1 + (below ? -1 : 1) * (near + far) / 2);
+        best = { dens, cum, dist: Math.abs(lvl / px - 1), edge: lvl };
+      }
     }
     // biggest single position level on that side within the map
     const tops = ws.flatMap(x => x.top).sort((p, q) => q[1] - p[1]);

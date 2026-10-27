@@ -228,6 +228,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
         <label><input type="checkbox" id="useCtx"> Adjust for liquidity, funding, trend, momentum, earnings, macro, news</label>
         <label><input type="checkbox" id="useBT"> Use backtest-tuned factor sizes and $ weight</label>
         <label><input type="checkbox" id="showKP"> Show Key points / Things to look for on each row</label>
+        <label><input type="checkbox" id="fidOnly"> Only stocks tradable at Fidelity (US-listed). Crypto, indices, commodities, FX and ETFs always show. Every market is on Hyperdash.</label>
         <label><input type="checkbox" id="toastsOn"> News and exit popups on this page</label>
         <button class="ghost" id="deskBtn" style="margin-top:6px">Turn on desktop notifications</button>
       </fieldset>
@@ -238,6 +239,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
     </div>
 
     <div id="msg"></div>
+    <div id="fidNote" class="note" style="max-width:none;margin:4px 0 8px"></div>
     <div class="hdr" id="hdr">
       <div>#</div><div data-sort="coin">Market</div><div>Setup</div><div data-sort="rating">Rating · gap</div>
       <div data-sort="sb">Smart bias</div><div data-sort="fb">Fools bias</div><div data-sort="minN">Money · funding</div>
@@ -324,6 +326,11 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
       <li><b>Leverage, liquidations, stops</b>: for the top holders, the page reads each open position from Hyperliquid: leverage, real exposure (position ÷ account value), entry, liquidation price, and open stop and target orders. It compares good traders with bad traders on each side. <b>Liquidation fuel</b> = losing-side money that gets liquidated or stopped within 10% in the smart direction (forced closes push price further that way; up to +8% rating). <b>Smart near liq</b> = good traders on the smart side who get liquidated within 7% (up to −10%). The <b>Traders</b> tab lists the best and worst traders on these coins and their habits.</li>
       <li><b>Listing filters</b>: S&P 500 members (and sector), NYSE (NYSE, NYSE American, NYSE Arca) and Nasdaq. They use the US stock, or the first proxy ETF for index and commodity markets.</li>
       <li><b>News</b>: headlines are matched to markets every minute. Big stories on markets rated 30+ and big macro stories pop up at the bottom right. Turn on desktop notifications in Settings to get them while the tab is in the background.</li>
+      <li><b>Funding</b> (Hyperliquid): a payment between longs and shorts every hour, on the hour (UTC), that keeps the perp price near the spot price. + = longs pay shorts (longs crowded), − = shorts pay longs. The rate is computed as an 8-hour rate and 1/8 is paid each hour; the premium is sampled every 5 seconds and averaged over the hour, plus a fixed interest part of 0.00125%/h (~11%/yr) that longs pay. Cap: 4%/h. The countdown is the time to the next hourly payment. Chart timeframes (5m, 1h, 1D) do not change it: only how long you hold matters, so the funding card shows the cost or income for 1h, 4h, 8h (the Binance/Bybit basis), 24h, 7d, 30d and a year. In the rating: "Funding · backtested" is the crowding signal the backtest confirmed; "Funding carry (72h hold)" weighs the cost or income of holding 72 hours against the backtested edge for that score.</li>
+      <li><b>Flow</b>: all traders' long and short money every 5 minutes, read together with price: price up + longs growing = new longs; price up + shorts shrinking = short covering; price down + shorts growing = new shorts; price down + longs shrinking = long liquidation. Taker flow = market buy minus market sell orders (Hyperdash CVD).</li>
+      <li><b>Liquidation map and max pain</b>: every open position's liquidation price in windows from 2% to 30% each side. Max pain = the price zone on each side with the densest liquidations (money per 1% of price, slightly favouring closer zones). Options max pain (stocks with options) = the strike where option buyers lose the most at the next expiry. "Liquidation map · live" and "Taker flow · live" adjust the rating by at most ±10% together and are marked as not backtested.</li>
+      <li><b>Volume profile</b>: traded volume by price over 30 and 7 days. Point of control = the busiest price; value area = where 70% of volume traded; thin zones are crossed fast. The backtest tests "trading back toward value" and "breaking out of value"; they change the rating only if they hold in both test periods.</li>
+      <li><b>Fidelity filter</b>: single stocks without a US exchange listing (pre-IPO, foreign-only) are hidden by default and get no alerts. Every market shown is tradable on Hyperdash. Turn the filter off in Settings.</li>
       <li><b>Froth / bloodbath</b>: how fast a market rises or falls compared with its own normal daily move, plus crowded funding, open interest building or flushing, liquidations, RSI, stretch from the 20-day average and volume. See the Heat tab. A high score means a big move is likely in either direction.</li>
       <li><b>Alignment trend</b>: the change of the gap over 1h, 4h, 24h and 7d. ▲ green = the two groups moved further apart on the setup side (stronger). ▼ red = they moved closer (weaker). Hover a box to see the smart bias, fools bias and smart $ change.</li>
       <li><b>Experts exiting</b>: the Extremely + Very Profitable cohorts cut 30% or more of their position on the setup side within 1h or 4h (and at least $100K). <b>Experts flipped</b>: their bias changed side. These show as red badges for 6 hours and in the Changes tab.</li>
@@ -347,14 +354,14 @@ const CLASS = {
 const CLASS_SET = {}; for (const k in CLASS) CLASS[k].split(" ").forEach(s => CLASS_SET[s] = k);
 const CLASSES = ["All", "Crypto", "Stock", "Index", "ETF", "Commodity", "FX / Rates"];
 const DEFAULTS = {
-  cls: "All", dir: "both", hideRed: false, hideThin: false, needOpt: false, needLev: false, needPaid: false, onlyExit: false, needSpec: false, needHeat: false, q: "",
+  cls: "All", dir: "both", hideRed: false, hideThin: false, needOpt: false, needLev: false, needPaid: false, onlyExit: false, needSpec: false, needHeat: false, fidOnly: true, q: "",
   smart: ["extremely_profitable", "very_profitable"],
   fools: ["unprofitable", "very_unprofitable", "rekt"],
   minN: 50000, minScore: 0, maxRows: 60, sort: "rating", desc: true, wD: 0.6, wDUser: false, useCtx: true, useBT: true, listing: "any", toasts: true, showKP: true
 };
 let S = load();
 let DATA = null, HIST = null, STATUS = null, INST = null, OPTS = null, EVENTS = null, ROWS = [], OPEN = null, VIEW = "setups";
-let LIVE = {}, LIVE_T = 0, SPEC = null, LEVELS = null, CYCLE = null, HEAT = null, SEEN_HEAT = null, BT = null, BT_T = 0, CONTEXT = null, NEWS = null, NEWS_BY = {}, SEEN_NEWS = null, SEEN_EV = null, SHA = null, LOADED = {}, CHART_W = "24h", EV_TYPE = "all";
+let LIVE = {}, LIVE_T = 0, SPEC = null, LEVELS = null, CYCLE = null, HEAT = null, FLOW = null, SEEN_HEAT = null, BT = null, BT_T = 0, CONTEXT = null, NEWS = null, NEWS_BY = {}, SEEN_NEWS = null, SEEN_EV = null, SHA = null, LOADED = {}, CHART_W = "24h", EV_TYPE = "all";
 const EV_RECENT_H = 6;
 
 function load(){ try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem("cohortSniper") || "{}")); } catch { return Object.assign({}, DEFAULTS); } }
@@ -475,6 +482,9 @@ function contextFactors(r, MAC){
   const net = ns.reduce((a, n) => a + (n.s === "bull" ? 1 : n.s === "bear" ? -1 : 0), 0) * r.dir;
   if (net <= -2) add("News", 0.9, `Recent big news leans against the smart side.`);
   else if (net >= 2) add("News", 1.04, `Recent big news leans with the smart side.`);
+  for (const lf of liveFactors(r)) f.push(lf);
+  const cf = carryFactor(r);
+  if (cf) add("Funding carry (72h hold)", cf.mult, `Holding the smart side 72 hours ${cf.carry72 >= 0 ? "earns" : "costs"} ${Math.abs(cf.carry72).toFixed(2)}% in funding, against a backtested 72h edge of about ${cf.edge.toFixed(1)}% for this score band.`);
   return btTune(r, f);
 }
 
@@ -490,6 +500,8 @@ const BT_COND = {
   earns:         { name: "Funding", replaces: ["Funding"], test: r => r.earn != null ? (r.earn >= 5 ? 1 : r.earn <= -5 ? 0 : null) : null, txt: ["Smart side earns funding", "Smart side pays funding"] },
   cycle_with:    { name: "Cycle", replaces: [], test: r => r.cy && r.cy.vs50 != null ? (r.dir * r.cy.vs50 > 2 ? 1 : r.dir * r.cy.vs50 < -2 ? 0 : null) : null, txt: ["Price is on the smart side of its 50-day average", "Price is on the wrong side of its 50-day average"] },
   range_extreme: { name: "Range position", replaces: [], test: r => r.cy && r.cy.pos90 != null ? ((r.dir > 0 ? r.cy.pos90 <= 0.25 : r.cy.pos90 >= 0.75) ? 1 : (r.dir > 0 ? r.cy.pos90 >= 0.75 : r.cy.pos90 <= 0.25) ? 0 : null) : null, txt: ["Smart side is buying low / selling high in the 90-day range", "Smart side is chasing: buying highs / selling lows of the 90-day range"] },
+  vp_cheap:      { name: "Volume profile", replaces: [], test: r => { const V = r.fl && r.fl.vp7, px = r.ctx && r.ctx.px; if (!V || !px) return null; const cheap = r.dir > 0 ? px < V.val : px > V.vah, chase = r.dir > 0 ? px > V.vah : px < V.val; return cheap ? 1 : chase ? 0 : null; }, txt: ["Smart side trades from outside the 7-day value area back toward it", "Price already broke out of value in the smart direction"] },
+  vp_break:      { name: "Value breakout", replaces: [], test: r => { const V = r.fl && r.fl.vp7, px = r.ctx && r.ctx.px; if (!V || !px) return null; const brk = r.dir > 0 ? px > V.vah : px < V.val, inside = px >= V.val && px <= V.vah; return brk ? 1 : inside ? 0 : null; }, txt: ["Price broke out of the 7-day value area in the smart direction", "Price is inside the 7-day value area"] },
   whale:         { name: "Whale-driven", replaces: ["Whale-driven"], test: r => r.whale ? 1 : 0, txt: ["Whale-driven smart side", "Broad smart side (count agrees with $)"] }
 };
 function btOk(){ return S.useBT && BT && BT.factors && BT.samples24 >= 150; }
@@ -523,6 +535,130 @@ function specState(r){
   if (!r.spx) return 0;
   const A = r.spx.agg; if (A.conf < 0.5 || Math.abs(A.sig) < 0.3) return 0;
   return Math.sign(A.sig) === r.dir ? 1 : -1;
+}
+
+// ---------- Funding ----------
+// Hyperliquid: funding is paid every hour, at the top of the hour (UTC). The formula gives an 8-hour rate and 1/8 of it is paid
+// each hour. The shown rate (ctx.f) is the HOURLY rate. + = longs pay shorts. Interest floor: 0.00125%/h (0.01% per 8h, ~11%/yr) paid by longs.
+const F_FLOOR = 0.0000125;
+function nextFunding(){ const n = Date.now(), t = Math.ceil(n / 36e5) * 36e5; return { t, ms: t - n }; }
+const mmss = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
+function fundingInfo(r){
+  const c = r.ctx; if (!c || c.f == null) return null;
+  const f = c.f, side = r.dir;                       // hourly rate; smart side earns when -side*f > 0
+  const earnH = -side * f;                           // fraction per hour for the smart side (+ earns, - pays)
+  const regime = Math.abs(f - F_FLOOR) <= F_FLOOR * 0.25 ? "floor" : f > F_FLOOR ? "longs crowded" : f < 0 ? "shorts crowded" : "below floor";
+  // 24h average and change from history (funding stored as rate x 1e7)
+  let avg24 = null, chg24 = null;
+  if (HIST && HIST.snapshots) { const t0 = Date.parse(HIST.snapshots[HIST.snapshots.length - 1].t) - 24 * 36e5; const xs = HIST.snapshots.filter(s => Date.parse(s.t) >= t0 && s.d[r.coin] && s.d[r.coin][7] != null).map(s => s.d[r.coin][7] / 1e7);
+    if (xs.length >= 3) { avg24 = xs.reduce((a, b) => a + b, 0) / xs.length; chg24 = f - xs[0]; } }
+  const pf = c.pf || {}, hourly = v => v ? v[0] / (v[1] || 8) : null;
+  return { f, earnH, regime, avg24, chg24, bin: pf.bin ? { h: hourly(pf.bin), int: pf.bin[1], next: pf.bin[2] } : null, byb: pf.byb ? { h: hourly(pf.byb), int: pf.byb[1], next: pf.byb[2] } : null, hlNext: pf.hl ? pf.hl[0] : null };
+}
+const fp = (x, d = 4) => (x > 0 ? "+" : "") + (x * 100).toFixed(d) + "%";
+function fundingCard(r){
+  const F = fundingInfo(r); if (!F) return "";
+  const side = r.dir > 0 ? "long" : "short", pay = F.f > 0 ? "longs pay shorts" : F.f < 0 ? "shorts pay longs" : "nobody pays";
+  const tf = [["1 hour", 1], ["4 hours", 4], ["8 hours (Binance/Bybit basis)", 8], ["24 hours", 24], ["7 days", 168], ["30 days", 720], ["1 year (APR)", 8760]];
+  const nf = nextFunding();
+  return `<div class="card"><h4>Funding · next payment in <span class="fcd">${mmss(nf.ms)}</span></h4>
+    <div class="kv"><span>Current rate (paid hourly)</span><b class="${F.f > 0 ? "S" : "L"}">${fp(F.f)} per hour · ${pay}</b></div>
+    <div class="kv"><span>Regime</span><b>${F.regime === "floor" ? "Interest floor only (no premium)" : F.regime === "longs crowded" ? "Premium: longs crowded" : F.regime === "shorts crowded" ? "Negative: shorts crowded" : "Below floor"}</b></div>
+    ${F.avg24 != null ? `<div class="kv"><span>24h average · change in 24h</span><b>${fp(F.avg24)} · ${fp(F.chg24)}</b></div>` : ""}
+    ${F.bin || F.byb ? `<div class="kv"><span>Other venues (per hour)</span><b>${F.bin ? `Binance ${fp(F.bin.h)} (${F.bin.int}h)` : ""}${F.bin && F.byb ? " · " : ""}${F.byb ? `Bybit ${fp(F.byb.h)} (${F.byb.int}h)` : ""}</b></div>
+      <div class="kv"><span>Hyperliquid vs Binance</span><b class="${F.bin && F.f - F.bin.h > 0.00002 ? "S" : F.bin && F.f - F.bin.h < -0.00002 ? "L" : ""}">${F.bin ? (F.f - F.bin.h > 0.00002 ? "longs more crowded here" : F.f - F.bin.h < -0.00002 ? "shorts more crowded here" : "about the same") : "–"}</b></div>` : ""}
+    <div style="overflow-x:auto;margin-top:8px"><table class="tr" style="min-width:330px"><thead><tr><th>Hold for</th><th>Smart ${side} ${F.earnH >= 0 ? "earns" : "pays"}</th><th>On $10,000</th></tr></thead><tbody>
+      ${tf.map(([n, h]) => `<tr><td style="text-align:left">${n}</td><td class="${F.earnH >= 0 ? "L" : "S"}">${fp(F.earnH * h, h >= 168 ? 2 : 4)}</td><td class="${F.earnH >= 0 ? "L" : "S"}">${F.earnH >= 0 ? "+" : "−"}$${Math.abs(F.earnH * h * 10000).toFixed(h >= 24 ? 0 : 2)}</td></tr>`).join("")}</tbody></table></div>
+    <div class="note" style="max-width:none;margin-top:6px">Hyperliquid pays funding every hour on the hour (UTC), on the oracle price. The rate is an 8-hour rate paid 1/8 each hour, so the chart timeframe does not matter: a 5-minute or a daily chart sees the same hourly payment. Only the time you hold the position counts. The rate for the hour is the average premium sampled every 5 seconds, plus an interest floor of 0.00125%/h that longs pay. Cap: 4% per hour. Stock markets on the xyz and other builder venues use a faster premium and their own settings.</div></div>`;
+}
+// Funding carry vs expected edge over a typical 72h hold (edge from the backtest for this score band)
+function carryFactor(r){
+  const F = fundingInfo(r); if (!F) return null;
+  const carry72 = F.earnH * 72 * 100;                // % of position, + = earned
+  let edge = 2;                                       // default 72h edge in % if no backtest
+  if (BT && BT.calib) { const b = BT.calib.find(x => r.score >= x.lo && r.score < x.hi); const e = b && b.test && b.test.r72; if (e && e.n >= 20 && e.avg > 0.3) edge = e.avg; }
+  const ratio = carry72 / edge, mult = 1 + Math.max(-0.15, Math.min(0.05, ratio * 0.5));
+  return Math.abs(mult - 1) < 0.01 ? null : { mult, carry72, edge };
+}
+
+// ---------- Order flow, liquidation map, volume profile ----------
+// Price / positioning pattern over a window: who is opening or closing
+function flowState(r, w){
+  const v = r.tr[w]; if (!v || v[6] == null || v[7] == null || v[5] == null) return null;
+  const pxCh = v[5] * r.dir, dL = v[6], dS = v[7];            // raw price change %, all longs %, all shorts %
+  const up = pxCh > 0.3, dn = pxCh < -0.3;
+  let label, kind;
+  if (up && dL >= 2 && dL >= dS) { label = "New longs opening (fuel for the rise)"; kind = 1; }
+  else if (up && dS <= -2) { label = "Short covering (rise driven by shorts closing)"; kind = 1; }
+  else if (dn && dS >= 2 && dS >= dL) { label = "New shorts opening (fuel for the drop)"; kind = -1; }
+  else if (dn && dL <= -2) { label = "Longs closing / liquidating"; kind = -1; }
+  else if (dL >= 2 && dS >= 2) { label = "Both sides adding (leverage building)"; kind = 0; }
+  else if (dL <= -2 && dS <= -2) { label = "Both sides closing (deleveraging)"; kind = 0; }
+  else { label = "Quiet positioning"; kind = 0; }
+  return { label, kind, pxCh, dL, dS };
+}
+function takerFlow(r){
+  const c = r.fl && r.fl.cvd; if (!c || !c.vol24) return null;
+  const share = (d, h) => d / Math.max(1, c.vol24 * h / 24);   // net taker $ as a share of normal volume for that window
+  return { d1: c.d1, d4: c.d4, d24: c.d24, i4: share(c.d4, 4), i24: share(c.d24, 24), h: c.h };
+}
+function liqInfo(r){
+  const L = r.fl && r.fl.liq; if (!L || !L.long) return null;
+  return L;
+}
+// Live factors (not backtested): liquidation map and order flow. Kept small and capped together.
+function liveFactors(r){
+  const out = []; let prod = 1;
+  const L = liqInfo(r);
+  if (L) { const tot = L.long.within10 + L.short.within10; const a = L.asym10 * r.dir;
+    if (tot >= 100000 && Math.abs(a) >= 0.25) { const m = 1 + 0.06 * a; out.push({ name: "Liquidation map · live", mult: m, why: `Within 10% of price: ${usd(L.short.within10)} of shorts liquidate above, ${usd(L.long.within10)} of longs below. ${a > 0 ? "More forced closes sit in the smart direction (fuel)." : "More forced closes sit against the smart side (squeeze risk)."} Not backtested: no history of this map.` }); prod *= m; } }
+  const T = takerFlow(r);
+  if (T && Math.abs(T.i4) >= 0.15) { const a = Math.max(-1, Math.min(1, T.i4 * r.dir * 2)); const m = 1 + 0.04 * a;
+    out.push({ name: "Taker flow 4h · live", mult: m, why: `Aggressive ${T.d4 > 0 ? "buying" : "selling"} of ${usd(Math.abs(T.d4))} in 4h (${Math.round(Math.abs(T.i4) * 100)}% of normal 4h volume), ${a > 0 ? "with" : "against"} the smart side. Not backtested.` }); prod *= m; }
+  // cap the combined live effect
+  if (prod > 1.10 || prod < 0.88) { const k = Math.log(prod > 1 ? 1.10 : 0.88) / Math.log(prod); out.forEach(f => f.mult = Math.pow(f.mult, k)); }
+  return out;
+}
+function flowCard(r){
+  const L = liqInfo(r), T = takerFlow(r), V7 = r.fl && r.fl.vp7, V30 = r.fl && r.fl.vp30, px = r.ctx && r.ctx.px;
+  const o = r.tools && r.tools.optSym && OPTS && OPTS.m ? OPTS.m[r.tools.optSym] : null;
+  const rows = [];
+  for (const w of ["1h", "4h", "24h"]) { const f = flowState(r, w); if (f) rows.push(`<div class="kv"><span>${w}: price ${pc(f.pxCh)} · longs ${pc(f.dL)} · shorts ${pc(f.dS)}</span><b class="${f.kind > 0 ? "L" : f.kind < 0 ? "S" : ""}">${f.label}</b></div>`); }
+  if (T) rows.push(`<div class="kv"><span>Taker flow (aggressive buy − sell) 1h · 4h · 24h</span><b class="${T.d4 >= 0 ? "L" : "S"}">${usd(T.d1)} · ${usd(T.d4)} · ${usd(T.d24)}</b></div>`);
+  const liqRows = L ? `<div class="kv"><span>Longs liquidating below: within 2% · 5% · 10% · 30%</span><b class="S">${usd(L.long.within2)} · ${usd(L.long.within5)} · ${usd(L.long.within10)} · ${usd(L.long.within30)}</b></div>
+    <div class="kv"><span>Shorts liquidating above: within 2% · 5% · 10% · 30%</span><b class="L">${usd(L.short.within2)} · ${usd(L.short.within5)} · ${usd(L.short.within10)} · ${usd(L.short.within30)}</b></div>
+    ${L.long.pain ? `<div class="kv"><span>Max pain for longs (densest liquidation zone)</span><b>${price(L.long.pain.px)} (−${L.long.pain.dist}%) · ${usd(L.long.pain.cum)}</b></div>` : ""}
+    ${L.short.pain ? `<div class="kv"><span>Max pain for shorts</span><b>${price(L.short.pain.px)} (+${L.short.pain.dist}%) · ${usd(L.short.pain.cum)}</b></div>` : ""}
+    ${L.long.big || L.short.big ? `<div class="kv"><span>Biggest single liquidation · below / above</span><b>${L.long.big ? price(L.long.big.px) + " " + usd(L.long.big.usd) : "–"} / ${L.short.big ? price(L.short.big.px) + " " + usd(L.short.big.usd) : "–"}</b></div>` : ""}` : `<div class="note">The liquidation map loads for the top setups and heat markets (about every 10 minutes).</div>`;
+  const vpRows = V30 ? `<div class="kv"><span>Volume profile 30d: point of control · value area</span><b>${price(V30.poc)} · ${price(V30.val)}–${price(V30.vah)}</b></div>
+    ${V7 ? `<div class="kv"><span>Volume profile 7d: point of control · value area</span><b>${price(V7.poc)} · ${price(V7.val)}–${price(V7.vah)}</b></div>` : ""}
+    ${px ? `<div class="kv"><span>Price vs 7d value</span><b>${vpLoc(px, V7 || V30)}</b></div>` : ""}` : "";
+  const mp = o && o.maxPain ? `<div class="kv"><span>Options max pain (${esc(o.s)}, ${esc(o.mpExp)})</span><b>${price(o.maxPain)} (${o.mpDist > 0 ? "+" : ""}${o.mpDist}% vs the stock)</b></div>` : "";
+  return `<div class="card wide"><h4>Flow, liquidations and volume profile</h4>${rows.join("")}${liqRows}${vpRows}${mp}${flowChart(r)}
+    <div class="note" style="max-width:none;margin-top:6px">Flow uses all traders' long and short money from the Hyperdash cohorts (5-minute snapshots). Taker flow = market orders that buy minus market orders that sell. The liquidation map counts every open position on Hyperliquid with a liquidation price in each window. "Max pain" = the price zone on each side with the densest liquidations: prices often get pulled toward big clusters (stop and liquidation hunts), and a break through one can cascade. The volume profile shows where most trading happened (point of control = most volume; value area = 70% of volume). Thin-volume zones tend to be crossed fast.</div></div>`;
+}
+function vpLoc(px, V){ if (!V) return "–"; return px > V.vah ? `above value (${pc((px / V.vah - 1) * 100)} over the high)` : px < V.val ? `below value (${pc((px / V.val - 1) * 100)} under the low)` : `inside value (${pc((px / V.poc - 1) * 100)} vs control)`; }
+function flowChart(r){
+  const L = liqInfo(r), V = (r.fl && (r.fl.vp30 || r.fl.vp7)), px = r.ctx && r.ctx.px; if (!px || (!L && !V)) return "";
+  const lo = px * 0.7, hi = px * 1.3, W = 1100, P = 20, H1 = 120, H2 = 70, H = H1 + H2 + 34;
+  const x = p => P + (Math.min(hi, Math.max(lo, p)) - lo) / (hi - lo) * (W - 2 * P);
+  let g = "";
+  if (L) { const mx = Math.max(1, ...L.w.map(w => w.usd));
+    for (const w of L.w) { const x0 = x(px * (1 + w.a)), x1 = x(px * (1 + w.b)), h = w.usd / mx * (H1 - 18); const below = w.b <= 0;
+      g += `<rect x="${x0 + 1}" y="${H1 - h}" width="${Math.max(1, x1 - x0 - 2)}" height="${h}" fill="${below ? "#e04a5a" : "#1fb58a"}" fill-opacity=".55"><title>${below ? "Longs" : "Shorts"} liquidating ${Math.round(w.a * 100)}% to ${Math.round(w.b * 100)}%: ${usd(w.usd)} (${w.n} positions)</title></rect>`;
+      if (w.usd >= mx * 0.25) g += `<text x="${(x0 + x1) / 2}" y="${H1 - h - 4}" fill="var(--dim)" font-size="10" text-anchor="middle" font-family="IBM Plex Mono">${usd(w.usd)}</text>`; }
+    for (const s of [L.long.pain, L.short.pain]) if (s) g += `<line x1="${x(s.px)}" x2="${x(s.px)}" y1="6" y2="${H1}" stroke="#f0b43c" stroke-dasharray="3 3"/><text x="${Math.max(60, Math.min(W - 60, x(s.px)))}" y="14" fill="#f0b43c" font-size="10" text-anchor="middle" font-family="IBM Plex Sans">max pain ${price(s.px)}</text>`; }
+  if (V) { const b = V.v, n = b.length, mx = Math.max(1, ...b);
+    for (let i = 0; i < n; i++) { const p0 = V.lo + i * V.step, p1 = p0 + V.step; if (p1 < lo || p0 > hi) continue; const h = b[i] / mx * (H2 - 8); const inVA = p0 >= V.val - 1e-12 && p1 <= V.vah + 1e-12;
+      g += `<rect x="${x(p0)}" y="${H1 + 12}" width="${Math.max(1, x(p1) - x(p0) - 1)}" height="${h}" fill="${inVA ? "#7cc4ff" : "#5b6664"}" fill-opacity="${inVA ? 0.5 : 0.35}"><title>Volume ${price(p0)}–${price(p1)}: ${(b[i] / 10).toFixed(1)}%</title></rect>`; }
+    g += `<line x1="${x(V.poc)}" x2="${x(V.poc)}" y1="${H1 + 8}" y2="${H1 + H2 + 6}" stroke="#7cc4ff"/><text x="${x(V.poc)}" y="${H1 + H2 + 18}" fill="#7cc4ff" font-size="10" text-anchor="middle" font-family="IBM Plex Sans">POC ${price(V.poc)}</text>`; }
+  const o = r.tools && r.tools.optSym && OPTS && OPTS.m ? OPTS.m[r.tools.optSym] : null;
+  if (o && o.maxPain && o.price) { const mp = px * o.maxPain / o.price; g += `<line x1="${x(mp)}" x2="${x(mp)}" y1="6" y2="${H1 + H2 + 6}" stroke="#c58af0" stroke-dasharray="2 3"/><text x="${x(mp)}" y="${H1 + 4}" fill="#c58af0" font-size="10" text-anchor="middle">options max pain</text>`; }
+  g += `<line x1="${x(px)}" x2="${x(px)}" y1="4" y2="${H - 14}" stroke="#e6ebea" stroke-dasharray="3 3"/>`;
+  const ticks = [lo, px * 0.85, px, px * 1.15, hi];
+  g += ticks.map(t => `<text x="${x(t)}" y="${H - 2}" fill="var(--faint)" font-size="10" text-anchor="middle" font-family="IBM Plex Mono">${price(t)}${t === px ? " now" : ` (${pc((t / px - 1) * 100)})`}</text>`).join("");
+  return `<div class="chart" style="margin-top:10px"><svg viewBox="0 0 ${W} ${H}" style="max-height:250px">${g}</svg>
+    <div class="legend"><span><i style="background:#e04a5a"></i>Longs liquidating (below)</span><span><i style="background:#1fb58a"></i>Shorts liquidating (above)</span><span><i style="background:#f0b43c"></i>Max pain</span><span><i style="background:#7cc4ff"></i>Volume in value area / POC</span>${o && o.maxPain ? `<span><i style="background:#c58af0"></i>Options max pain</span>` : ""}<span>Range ±30%</span></div></div>`;
 }
 
 // ---------- Froth / bloodbath ----------
@@ -588,8 +724,13 @@ function keyPoints(r){
     if (s) K.push({ c: "", t: `Good traders on the ${side} side: ${s.lev}x${s.liqD != null ? `, liquidation ${pctCap(s.liqD)} away` : ""}${s.lc != null ? `, usually cut at −${s.lc}%` : ""}.` }); }
   // Heat
   { const x = heatOf(r.ht); if (x) K.unshift({ c: x.k === "fr" ? "L" : "S", t: `${x.k === "fr" ? "Froth" : "Bloodbath"} ${x.s} (${x.lvl}): ${heatWhy(r.ht, x.k)}.` }); }
+  // Flow
+  { const f4 = flowState(r, "4h"), T = takerFlow(r); if (f4 || T) { const bits = []; if (f4) bits.push(`4h: ${f4.label.toLowerCase()} (longs ${pc(f4.dL)}, shorts ${pc(f4.dS)})`); if (T) bits.push(`taker flow ${usd(T.d4)} in 4h`);
+    K.push({ c: f4 && f4.kind ? (f4.kind === r.dir ? "L" : "S") : "", t: `Order flow: ${bits.join("; ")}.` }); } }
+  { const L = liqInfo(r); if (L) K.push({ c: L.asym10 * r.dir > 0.25 ? "L" : L.asym10 * r.dir < -0.25 ? "S" : "", t: `Liquidation map (±10%): ${usd(L.long.within10)} of longs below, ${usd(L.short.within10)} of shorts above${L.long.pain ? `; longs' max pain ${price(L.long.pain.px)} (−${L.long.pain.dist}%)` : ""}${L.short.pain ? `; shorts' max pain ${price(L.short.pain.px)} (+${L.short.pain.dist}%)` : ""}.` }); }
+  { const V = r.fl && (r.fl.vp7 || r.fl.vp30), px = r.ctx && r.ctx.px; if (V && px) K.push({ c: "", t: `Volume profile (7d): price ${vpLoc(px, V)}; control ${price(V.poc)}, value ${price(V.val)}–${price(V.vah)}.` }); }
   // 5. Funding
-  if (r.earn != null && Math.abs(r.earn) >= 3) K.push({ c: r.earn > 0 ? "L" : "S", t: `Funding: the smart side ${r.earn > 0 ? "earns" : "pays"} ${Math.abs(r.earn).toFixed(0)}%/yr${r.earn > 0 ? " (fools pay to hold)" : ""}.` });
+  { const F = fundingInfo(r); if (F && Math.abs(r.earn) >= 3) K.push({ c: r.earn > 0 ? "L" : "S", t: `Funding: the smart side ${r.earn > 0 ? "earns" : "pays"} ${fp(Math.abs(F.earnH))} per hour = ${fp(Math.abs(F.earnH * 24), 3)}/day = ${Math.abs(r.earn).toFixed(0)}%/yr${r.earn > 0 ? " (fools pay to hold)" : ""}${F.bin ? `; Binance ${fp(F.bin.h)}/h` : ""}.` }); }
   // 6. Specialists / big money
   const ss = specState(r);
   if (ss) K.push({ c: ss > 0 ? "L" : "S", t: `Coin specialists ${ss > 0 ? "agree" : "disagree"} (${r.spx.agg.nS} specialists, ${r.spx.agg.nL} coin losers).` });
@@ -604,7 +745,7 @@ function keyPoints(r){
   return K;
 }
 function lookFor(r){
-  const L = [], dl = r.dir > 0, side = dl ? "long" : "short", px = r.ctx && r.ctx.px;
+  const L = [], L_ = L, dl = r.dir > 0, side = dl ? "long" : "short", px = r.ctx && r.ctx.px;
   const fuel = clusterLevel(r, "fuel"), risk = clusterLevel(r, "risk");
   if (fuel) L.push({ c: "L", t: `${dl ? "Above" : "Below"} ${price(fuel.p)} (${dl ? "+" : "−"}${fuel.d.toFixed(1)}%): ${usd(fuel.usd)} of fool ${fuel.side}s hit their ${fuel.kinds.join(" / ")} — forced closes could speed the move.` });
   if (risk) L.push({ c: "S", t: `${dl ? "Below" : "Above"} ${price(risk.p)} (${dl ? "−" : "+"}${risk.d.toFixed(1)}%): ${usd(risk.usd)} of good-trader ${risk.side}s liquidate — squeeze risk.` });
@@ -620,6 +761,18 @@ function lookFor(r){
     L.unshift({ c: withSmart ? "L" : "S", t: up
       ? `Froth ${x.s}: fast rise with crowded longs — big moves both ways are likely. ${withSmart ? "It runs with the smart long, but a blow-off top can reverse hard." : "The smart side is short into it: a squeeze can run first; watch funding and open interest roll over before the reversal."}`
       : `Bloodbath ${x.s}: forced selling — big moves both ways are likely. ${withSmart ? "It runs with the smart short, but capitulation often ends in a sharp bounce." : "The smart side is long into it: wait for liquidations and open interest to stop falling before expecting the bounce."}` }); } }
+  { const L = liqInfo(r), px = r.ctx && r.ctx.px;
+    if (L && px) { const fuel = r.dir > 0 ? L.short : L.long, risk = r.dir > 0 ? L.long : L.short;
+      if (fuel.pain && fuel.pain.cum >= 50000) L_.push({ c: "L", t: `Max pain in the smart direction: ${price(fuel.pain.px)} (${r.dir > 0 ? "+" : "−"}${fuel.pain.dist}%) liquidates ${usd(fuel.pain.cum)} of ${r.dir > 0 ? "shorts" : "longs"} — a magnet; a break through it can cascade.` });
+      if (risk.pain && risk.pain.cum >= 50000 && risk.pain.dist <= 10) L_.push({ c: "S", t: `Against the smart side: ${usd(risk.pain.cum)} of ${r.dir > 0 ? "longs" : "shorts"} liquidate by ${price(risk.pain.px)} (${r.dir > 0 ? "−" : "+"}${risk.pain.dist}%) — a stop hunt there would hit the smart side first.` }); } }
+  { const V = r.fl && r.fl.vp7, px = r.ctx && r.ctx.px;
+    if (V && px) { if (px >= V.val && px <= V.vah) L_.push({ c: "", t: `Inside the 7-day value area: a break ${r.dir > 0 ? `above ${price(V.vah)}` : `below ${price(V.val)}`} would confirm; the control price ${price(V.poc)} is a magnet.` });
+      const gap = (V.lvn || []).filter(p => r.dir > 0 ? p > px && p < px * 1.1 : p < px && p > px * 0.9);
+      if (gap.length) L_.push({ c: "L", t: `Thin-volume zone near ${price(gap[0])} in the smart direction — price tends to move fast through it.` }); } }
+  { const F = fundingInfo(r); if (F) { const nf = nextFunding();
+    if (F.chg24 != null && Math.sign(F.f) !== Math.sign(F.f - F.chg24) && Math.abs(F.f) > F_FLOOR) L_.push({ c: "", t: `Funding flipped sign in 24h (now ${fp(F.f)}/h): crowding changed sides.` });
+    if (F.bin && Math.abs(F.f - F.bin.h) > 0.00003) L_.push({ c: "", t: `Funding gap vs Binance (${fp(F.f)}/h here, ${fp(F.bin.h)}/h there): ${F.f > F.bin.h ? "longs" : "shorts"} are more crowded on Hyperliquid; arbitrage tends to pull it back.` });
+    if (Math.abs(F.earnH) >= 0.0001) L_.push({ c: F.earnH > 0 ? "L" : "S", t: `Next funding in ${mmss(nf.ms)}: the smart side ${F.earnH > 0 ? "receives" : "pays"} ${fp(Math.abs(F.earnH))} of position value.` }); } }
   const t4 = r.tr["4h"];
   if (t4 && t4[3] != null && t4[3] <= -15) L.push({ c: "S", t: `Smart $ on its side fell ${pc(t4[3])} in 4h — watch for an "experts exiting" alert.` });
   else if (t4 && t4[3] != null && t4[3] >= 20) L.push({ c: "L", t: `Smart $ on its side rose ${pc(t4[3])} in 4h — conviction building.` });
@@ -682,7 +835,10 @@ function compute(){
     const lv = LEVELS && LEVELS.m && LEVELS.m[coin] && LEVELS.m[coin].groups ? LEVELS.m[coin] : null;
     const cy = CYCLE && CYCLE.m && CYCLE.m[coin] && CYCLE.m[coin].phase ? CYCLE.m[coin] : null;
     const ht = HEAT && HEAT.m && HEAT.m[coin] ? HEAT.m[coin] : null;
-    const r = { coin, ...p, m, sm, fo, gap, dir, agree, red, score, minN: minSide, big, thin, ctx, earn, hist: h, held: h.heldH, since, inst, tools, ntools: tools.n, tr, d4, evs, whale, lst, er, news, spx, lv, cy, ht };
+    const fl = FLOW && FLOW.m && FLOW.m[coin] ? FLOW.m[coin] : null;
+    // Fidelity: a single stock passes only with a US exchange listing; crypto and non-stock markets always pass
+    const fid = p.cls !== "Stock" || !INST || !!(inst && inst.u);
+    const r = { coin, ...p, m, sm, fo, gap, dir, agree, red, score, minN: minSide, big, thin, ctx, earn, hist: h, held: h.heldH, since, inst, tools, ntools: tools.n, tr, d4, evs, whale, lst, er, news, spx, lv, cy, ht, fl, fid };
     r.factors = S.useCtx ? contextFactors(r, MAC) : [];
     r.rating = Math.min(100, Math.round(score * r.factors.reduce((a, f) => a * f.mult, 1)));
     out.push(r);
@@ -805,7 +961,7 @@ function filtered(){
     r.minN >= S.minN && r.rating >= S.minScore &&
     (S.listing === "any" || (S.listing === "sp500" ? r.lst && r.lst.sp : S.listing === "nyse" ? r.lst && /^NYSE/.test(r.lst.ex || "") : r.lst && r.lst.ex === "Nasdaq")) &&
     (!S.hideRed || !r.red.length) && (!S.hideThin || !r.thin) &&
-    (!S.needOpt || r.tools.opt) && (!S.needLev || r.tools.same.length) && (!S.needPaid || (r.earn != null && r.earn > 0)) && (!S.onlyExit || r.evs.length) && (!S.needSpec || specState(r) > 0) && (!S.needHeat || (r.ht && Math.max(r.ht.fr, r.ht.bb) >= 40)) &&
+    (!S.needOpt || r.tools.opt) && (!S.needLev || r.tools.same.length) && (!S.needPaid || (r.earn != null && r.earn > 0)) && (!S.onlyExit || r.evs.length) && (!S.needSpec || specState(r) > 0) && (!S.fidOnly || r.fid) && (!S.needHeat || (r.ht && Math.max(r.ht.fr, r.ht.bb) >= 40)) &&
     (!q || r.coin.toUpperCase().includes(q)));
   const key = S.sort, sgn = S.desc ? -1 : 1;
   const val = (r) => key === "coin" ? r.sym : key === "sb" ? r.sm.b : key === "fb" ? r.fo.b : r[key];
@@ -830,6 +986,9 @@ function render(){
   let rows = filtered();
   const total = rows.length; rows = rows.slice(0, S.maxRows);
   document.querySelectorAll("#hdr [data-sort]").forEach(el => el.classList.toggle("act", el.dataset.sort === S.sort));
+  const hiddenFid = S.fidOnly ? ROWS.filter(r => !r.fid).length : 0;
+  $("fidNote").innerHTML = hiddenFid ? `${hiddenFid} stocks hidden: no US exchange listing, so not tradable at Fidelity (pre-IPO or foreign-only, for example ${ROWS.filter(r => !r.fid).slice(0, 4).map(r => esc(r.sym)).join(", ")}). <a href="#" id="fidShow">Show them</a>` : "";
+  if ($("fidShow")) $("fidShow").onclick = e => { e.preventDefault(); S.fidOnly = false; save(); $("fidOnly").checked = false; render(); };
   if (!rows.length) { list.innerHTML = `<div class="empty">No markets match these filters. Lower the min notional or min score in Settings, or turn off a filter.</div>`; return; }
   list.innerHTML = rows.map((r, i) => {
     const dl = r.dir > 0;
@@ -935,6 +1094,7 @@ function detail(r){
     <h3>Alignment over time</h3>${alignChart(r)}<div style="margin-top:8px">${windowTable(r)}</div>
     ${coinEvs.length ? `<h3>Recent changes</h3><div class="card" style="padding:0">${coinEvs.map(evRow).join("")}</div>` : ""}
     <h3>Key points · Things to look for</h3><div class="cards"><div class="card"><h4>Key points</h4><ul class="kl">${bullets(keyPoints(r), 20)}</ul></div><div class="card"><h4>Things to look for</h4><ul class="kl">${(() => { const lf = lookFor(r); return lf.length ? bullets(lf, 20) : `<li class="N">Nothing stands out.</li>`; })()}</ul></div>${r.cy ? cycleCard(r) : ""}</div>
+    <h3>Funding · flow · liquidation map · volume profile</h3><div class="cards">${fundingCard(r)}${flowCard(r)}</div>
     <h3>Why this rating</h3><div class="cards">${ratingCard(r)}${newsCard(r)}</div>
     <h3>How good and bad traders hold it · leverage, liquidations, stops</h3>${behaviorCard(r)}
     <h3>Top holders on this coin · overall record vs this coin</h3>${holdersTable(r)}
@@ -1340,7 +1500,7 @@ function renderStat(){
   const cls = age > 30 ? "bad" : age > 12 ? "old" : "";
   const ageTxt = age < 1 ? "just now" : age < 90 ? Math.round(age) + " min ago" : (age/60).toFixed(1) + " h ago";
   const lAge = LIVE_T ? Math.round((Date.now() - LIVE_T) / 1000) : null;
-  $("stat").innerHTML = `<span class="dot ${cls}"></span>Cohorts <b>${ageTxt}</b> · ${new Date(t).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})} (Hyperdash updates every 5 min)<br>${lAge != null && lAge < 120 ? `<span class="live"></span>Prices + funding <b>live</b> · ` : ""}${Object.keys(DATA.m).length} markets · ${HIST && HIST.snapshots ? HIST.snapshots.length : 0} snapshots${INST && INST.counts ? ` · ${INST.counts.levEtfs} lev ETFs` : ""}`;
+  $("stat").innerHTML = `<span title="Hyperliquid pays funding every hour on the hour">Next funding <b class="fcd">${mmss(nextFunding().ms)}</b></span> · <span class="dot ${cls}"></span>Cohorts <b>${ageTxt}</b> · ${new Date(t).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})} (Hyperdash updates every 5 min)<br>${lAge != null && lAge < 120 ? `<span class="live"></span>Prices + funding <b>live</b> · ` : ""}${Object.keys(DATA.m).length} markets · ${HIST && HIST.snapshots ? HIST.snapshots.length : 0} snapshots${INST && INST.counts ? ` · ${INST.counts.levEtfs} lev ETFs` : ""}`;
   if (STATUS && STATUS.ok === false) $("msg").innerHTML = `<div class="err">The last update run failed: ${esc(STATUS.error || "unknown error")}. The table shows the last good data.</div>`;
   else if (age > 30) $("msg").innerHTML = `<div class="err">The cohort data is more than 30 minutes old. The data job may be between runs, or stopped. Check the Actions tab in the GitHub repo.</div>`;
   else $("msg").innerHTML = "";
@@ -1394,12 +1554,12 @@ async function refresh(force){
     const sha = await newestSha();
     if (sha && sha === SHA && !force) return;
     const now = Date.now(), need = (k, mins) => force || !LOADED[k] || now - LOADED[k] > mins * 6e4;
-    const jobs = { d: getJson("latest.json", sha), s: getJson("status.json", sha).catch(() => null), e: getJson("events.json", sha).catch(() => null), o: getJson("options.json", sha).catch(() => null), n: getJson("news.json", sha).catch(() => null), c: getJson("context.json", sha).catch(() => null), sp: getJson("specialists.json", sha).catch(() => null), lv: getJson("levels.json", sha).catch(() => null), cy: getJson("cycle.json", sha).catch(() => null), ht: getJson("heat.json", sha).catch(() => null) };
+    const jobs = { d: getJson("latest.json", sha), s: getJson("status.json", sha).catch(() => null), e: getJson("events.json", sha).catch(() => null), o: getJson("options.json", sha).catch(() => null), n: getJson("news.json", sha).catch(() => null), c: getJson("context.json", sha).catch(() => null), sp: getJson("specialists.json", sha).catch(() => null), lv: getJson("levels.json", sha).catch(() => null), cy: getJson("cycle.json", sha).catch(() => null), ht: getJson("heat.json", sha).catch(() => null), fl: getJson("flow.json", sha).catch(() => null) };
     if (need("h", 15)) jobs.h = getJson("history.json", sha).catch(() => null);
     if (need("i", 60)) jobs.i = getJson("instruments.json", sha).catch(() => null);
     const keys = Object.keys(jobs), vals = await Promise.all(Object.values(jobs)), R = {};
     keys.forEach((k, i) => R[k] = vals[i]);
-    DATA = R.d; STATUS = R.s; EVENTS = R.e; OPTS = R.o; if (R.n) NEWS = R.n; if (R.c) CONTEXT = R.c; if (R.sp) SPEC = R.sp; if (R.lv) LEVELS = R.lv; if (R.cy) CYCLE = R.cy; if (R.ht) HEAT = R.ht; indexNews();
+    DATA = R.d; STATUS = R.s; EVENTS = R.e; OPTS = R.o; if (R.n) NEWS = R.n; if (R.c) CONTEXT = R.c; if (R.sp) SPEC = R.sp; if (R.lv) LEVELS = R.lv; if (R.cy) CYCLE = R.cy; if (R.ht) HEAT = R.ht; if (R.fl) FLOW = R.fl; indexNews();
     if (Date.now() - BT_T > 30 * 6e4) { BT_T = Date.now(); loadBT(); }
     if ("h" in R) { if (R.h) HIST = R.h; LOADED.h = now; }
     if ("i" in R) { if (R.i) INST = R.i; LOADED.i = now; }
@@ -1477,6 +1637,7 @@ $("wD").value = Math.round(S.wD * 100); $("wDv").textContent = Math.round(S.wD *
 $("wD").oninput = e => { S.wD = +e.target.value / 100; S.wDUser = true; $("wDv").textContent = e.target.value + "%"; save(); render(); };
 $("useCtx").checked = S.useCtx; $("useCtx").onchange = e => { S.useCtx = e.target.checked; save(); render(); };
 $("useBT").checked = S.useBT; $("useBT").onchange = e => { S.useBT = e.target.checked; if (!S.useBT && !S.wDUser) { S.wD = 0.6; $("wD").value = 60; $("wDv").textContent = "60%"; } save(); BT_T = 0; refresh(true); };
+$("fidOnly").checked = S.fidOnly; $("fidOnly").onchange = e => { S.fidOnly = e.target.checked; save(); render(); };
 $("showKP").checked = S.showKP; $("showKP").onchange = e => { S.showKP = e.target.checked; save(); render(); };
 $("toastsOn").checked = S.toasts; $("toastsOn").onchange = e => { S.toasts = e.target.checked; save(); };
 $("deskBtn").onclick = async () => { if (!("Notification" in window)) { alert("This browser has no desktop notifications."); return; } const p = await Notification.requestPermission(); S.desktop = p === "granted"; save(); $("deskBtn").textContent = S.desktop ? "Desktop notifications on" : "Blocked by the browser"; };
@@ -1521,6 +1682,7 @@ refresh(true).then(livePrices);
 setInterval(() => refresh(false), 75 * 1000);   // new cohort snapshot check (GitHub allows 60 checks per hour)
 setInterval(livePrices, 20 * 1000);             // live prices and funding
 setInterval(renderStat, 30 * 1000);
+setInterval(() => { const t = mmss(nextFunding().ms); document.querySelectorAll(".fcd").forEach(e => e.textContent = t); }, 1000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { refresh(false); livePrices(); } });
 </script>
 </body>
