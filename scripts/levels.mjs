@@ -11,7 +11,7 @@ import { http, makeIO, score } from "./lib.mjs";
 
 const OUT = process.argv[2] || "out";
 const io = makeIO(OUT);
-const REFRESH_MIN = 20, HIST_PER_RUN = 3, HIST_TTL_H = 24, LIQ_DAYS = 60;
+const REFRESH_MIN = 20, HIST_PER_RUN = 4, HIST_TTL_H = 24, LIQ_DAYS = 60;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const post = body => http("https://api.hyperliquid.xyz/info", { method: "POST", tries: 2, timeoutMs: 15000, body: JSON.stringify(body), headers: { "content-type": "application/json" } });
 
@@ -190,7 +190,8 @@ async function main() {
         if (b.lcC != null) l.lcC = b.lcC;
         const cut = b.lcC != null ? b.lcC : b.lc;
         // Implied stop: entry moved by the usual loss cut. Only when it is still ahead (not already passed).
-        if (cut != null && cut >= 0.3 && l.ep) {
+        const scalper = b.lc != null && b.lc < 0.5 && b.hold != null && b.hold < 120; // market maker / scalper: no stop level
+        if (!scalper && cut != null && cut >= 0.3 && l.ep) {
           const is = l.ep * (1 - side * cut / 100);
           if (side > 0 ? is < px : is > px) l.is = +is.toPrecision(6);
         }
