@@ -46,7 +46,7 @@ jobs:
         run: |
           mkdir -p out
           if git fetch --depth=1 origin data 2>/dev/null; then
-            for f in latest.json history.json events.json news.json context.json specialists.json spcache.json tcache.json levels.json cycle.json instruments.json options.json alerts.json status.json; do
+            for f in latest.json history.json events.json news.json context.json specialists.json spcache.json tcache.json levels.json cycle.json heat.json heatstate.json instruments.json options.json alerts.json status.json; do
               git show origin/data:$f > out/$f 2>/dev/null || rm -f out/$f
             done
           fi
@@ -66,6 +66,7 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           ALERT_MIN_SCORE: ${{ vars.ALERT_MIN_SCORE }}
           ALERT_TYPES: ${{ vars.ALERT_TYPES }}
+          ALERT_HEAT_MIN: ${{ vars.ALERT_HEAT_MIN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LOOP_MIN: ${{ inputs.loop_minutes || '55' }}
           FORCE_INSTRUMENTS_IN: ${{ inputs.force_instruments && '1' || '' }}
@@ -82,8 +83,8 @@ jobs:
           FIRST=1
           while :; do
             if [ -n "$FORCE_INSTRUMENTS_IN" ] && [ $FIRST = 1 ]; then export FORCE_INSTRUMENTS=1 FORCE_RUN=1; else unset FORCE_INSTRUMENTS FORCE_RUN; fi
-            set +e; node scripts/fetch.mjs out; rc=$?; node scripts/news.mjs out; rn=$?; node scripts/specialists.mjs out; rs=$?; node scripts/levels.mjs out; rl=$?; node scripts/cycle.mjs out; ry=$?; set -e
-            if [ $rc -eq 0 ] || [ $rn -eq 0 ] || [ $rs -eq 0 ] || [ $rl -eq 0 ] || [ $ry -eq 0 ]; then
+            set +e; node scripts/fetch.mjs out; rc=$?; node scripts/news.mjs out; rn=$?; node scripts/specialists.mjs out; rs=$?; node scripts/levels.mjs out; rl=$?; node scripts/cycle.mjs out; ry=$?; node scripts/heat.mjs out; rh=$?; set -e
+            if [ $rc -eq 0 ] || [ $rn -eq 0 ] || [ $rs -eq 0 ] || [ $rl -eq 0 ] || [ $ry -eq 0 ] || [ $rh -eq 0 ]; then
               (cd out && git add -A && { git commit -q --amend -m "data $(date -u +%FT%TZ)" 2>/dev/null || git commit -q -m "data $(date -u +%FT%TZ)"; } && git push -f -q "$REMOTE" data) || echo "push failed"
             fi
             FIRST=0

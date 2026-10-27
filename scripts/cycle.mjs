@@ -6,7 +6,7 @@ import { http, makeIO } from "./lib.mjs";
 
 const OUT = process.argv[2] || "out";
 const io = makeIO(OUT);
-const PER_RUN = 30, TTL_H = 3, VERSION = 2;
+const PER_RUN = 30, TTL_H = 3, VERSION = 3;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const r2 = x => x == null || !isFinite(x) ? null : Math.round(x * 100) / 100;
 const sma = (a, n) => a.length >= n ? a.slice(-n).reduce((s, x) => s + x, 0) / n : null;
@@ -26,6 +26,7 @@ function vol(c, n) { // annualized from daily log returns
 
 export function cycleOf(candles) {
   const c = candles.map(k => +k.c), hi = candles.map(k => +k.h), lo = candles.map(k => +k.l);
+  const vn = candles.map(k => (+k.v || 0) * (+k.c || 0));     // daily notional volume
   const n = c.length; if (n < 10) return { days: n, phase: "New listing", why: "Less than 10 days of history." };
   const px = c[n - 1];
   const ma20 = sma(c, 20), ma50 = sma(c, 50), ma200 = sma(c, 200);
@@ -39,7 +40,8 @@ export function cycleOf(candles) {
   const o = {
     days: n, px, ma20: r2(ma20), ma50: r2(ma50), ma200: r2(ma200), slope50: r2(slope50),
     pos30: r2(r30.pos), pos90: r2(r90.pos), hi90: r90.h, lo90: r90.l, hi30: r30.h, lo30: r30.l,
-    dd: r2(dd), r7: r2(ret(7)), r30: r2(ret(30)), r90: r2(ret(90)), rsi: r2(R), v30: r2(v30), v90: r2(v90)
+    dd: r2(dd), r7: r2(ret(7)), r30: r2(ret(30)), r90: r2(ret(90)), rsi: r2(R), v30: r2(v30), v90: r2(v90),
+    vAvg30: n >= 8 ? Math.round(vn.slice(Math.max(0, n - 31), n - 1).reduce((a, b) => a + b, 0) / Math.min(30, n - 1)) : null   // average of the last 30 full days
   };
   const up = ma50 != null && px > ma50 && slope50 > 0, down = ma50 != null && px < ma50 && slope50 < 0;
   const ma = ma50 != null ? ma50 : ma20;

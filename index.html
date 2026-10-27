@@ -62,7 +62,7 @@ button.ghost:hover{color:var(--text)}
 .tag{display:inline-block;font:500 10px var(--mono);color:var(--dim);border:1px solid var(--line);border-radius:4px;padding:1px 5px;margin:3px 4px 0 0;text-transform:uppercase}
 .setup{font:600 12px var(--mono);line-height:1.5}
 .setup .s{display:block}
-.L{color:var(--bull)} .S{color:var(--bear)} .N{color:var(--dim)}
+.L{color:var(--bull)} .S{color:var(--bear)} .N{color:var(--dim)} .W{color:#ffb35c}
 .score{font:600 18px var(--mono)}
 .score small{font:500 11px var(--mono);margin-left:6px}
 .meter{height:5px;background:var(--line);border-radius:3px;margin-top:5px;overflow:hidden}
@@ -104,6 +104,9 @@ svg.spark{display:block}
 .live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--bull);margin-right:5px;animation:pulse 2s infinite;vertical-align:1px}
 @keyframes pulse{50%{opacity:.25}}
 @media (min-width:900px){.wide{grid-column:span 2}}
+.f-froth{background:#4a2a0d;color:#ffb35c;border:1px solid #7a4512}
+.f-blood{background:#4a0d16;color:#ff7a8a;border:1px solid #7a1220}
+.hbar{display:inline-block;height:6px;border-radius:3px;vertical-align:middle;margin-right:6px}
 .kp{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:-2px;padding:6px 0 2px;border-top:1px dashed var(--line)}
 .kp .kh{font:600 10px var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
 .kp ul,.kl{margin:3px 0 0;padding-left:16px;font-size:12.5px;line-height:1.5;color:var(--dim)}
@@ -123,7 +126,7 @@ svg.spark{display:block}
 .nw .nm{font-size:11.5px;color:var(--faint);margin-top:2px} .nw .nm a{color:var(--accent)}
 .toasts{position:fixed;right:16px;bottom:16px;z-index:50;display:flex;flex-direction:column;gap:8px;width:min(380px,calc(100vw - 32px))}
 .toast{background:#151a1b;border:1px solid #33403f;border-left:4px solid var(--accent);border-radius:8px;padding:10px 30px 10px 12px;font-size:13px;line-height:1.45;box-shadow:0 8px 28px rgba(0,0,0,.5);cursor:pointer;position:relative;transition:opacity .8s}
-.toast.tl{border-left-color:var(--bull)} .toast.ts{border-left-color:var(--bear)} .toast.out{opacity:0}
+.toast.tf{border-left-color:#ff8a1f} .toast.tl{border-left-color:var(--bull)} .toast.ts{border-left-color:var(--bear)} .toast.out{opacity:0}
 .toast small{display:block;color:var(--faint);margin-top:3px} .toast .x{position:absolute;top:4px;right:6px;background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer}
 @media (max-width:700px){.ev{grid-template-columns:1fr 1fr;row-gap:4px}.ev .tx{grid-column:1/-1}}
 .detail{background:var(--panel2);border-bottom:1px solid var(--line);padding:4px 14px 16px}
@@ -185,7 +188,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
   </header>
   <div class="macro" id="macro"></div>
   <div id="toasts" class="toasts" aria-live="polite"></div>
-  <div class="tabs"><button class="tab on" data-tab="setups">Setups</button><button class="tab" data-tab="news">News</button><button class="tab" data-tab="traders">Traders</button><button class="tab" data-tab="changes">Changes <span id="evCount" style="color:var(--bear)"></span></button><button class="tab" data-tab="backtest">Backtest</button><button class="tab" data-tab="record">Track record</button><button class="tab" data-tab="alerts">Alerts setup</button></div>
+  <div class="tabs"><button class="tab on" data-tab="setups">Setups</button><button class="tab" data-tab="news">News</button><button class="tab" data-tab="traders">Traders</button><button class="tab" data-tab="changes">Changes <span id="evCount" style="color:var(--bear)"></span></button><button class="tab" data-tab="heat">Heat <span id="heatCount" style="color:#ffb35c"></span></button><button class="tab" data-tab="backtest">Backtest</button><button class="tab" data-tab="record">Track record</button><button class="tab" data-tab="alerts">Alerts setup</button></div>
 
   <section id="v-setups">
     <div class="bar">
@@ -203,6 +206,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
         <button class="chip" id="needPaid">Smart side earns funding</button>
         <button class="chip" id="onlyExit">Experts exiting (6h)</button>
         <button class="chip" id="needSpec">Specialists agree</button>
+        <button class="chip" id="needHeat">Froth / bloodbath</button>
       </div>
       <input type="search" id="q" placeholder="Search ticker">
       <button class="ghost" id="setBtn">Settings</button>
@@ -275,6 +279,8 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
     <div id="record"></div>
   </section>
 
+  <section id="v-heat" hidden><div id="heatBody" style="margin-top:12px"></div></section>
+
   <section id="v-backtest" hidden><div id="btBody" style="margin-top:12px"></div></section>
 
   <section id="v-alerts" hidden>
@@ -286,7 +292,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
         4. Go to the <b>Actions</b> tab → "Update Hyperdash data" → <b>Run workflow</b> → tick <b>Send a test alert</b>. Your phone gets a test push.<br>
         You get a push when experts exit or flip a setup, and when a market reaches the alert score.</div>
       <div class="card"><h4>Which alerts</h4>
-        Default: <code>setup,exit,flip,news</code>. To change it, add a repository <b>variable</b> named <code>ALERT_TYPES</code> with any of: <code>setup</code> (score reaches the alert score), <code>exit</code> (experts cut the position), <code>flip</code> (experts change side), <code>fade</code> (gap shrinks), <code>add</code> (experts add), <code>new</code> (gap crosses 50), <code>news</code> (big story on a market with score 40+), <code>macro</code> (big macro story: Fed, CPI, jobs, tariffs). Example: <code>setup,exit,flip,news,macro</code>.<br>
+        Default: <code>setup,exit,flip,news,froth,bloodbath</code>. To change it, add a repository <b>variable</b> named <code>ALERT_TYPES</code> with any of: <code>setup</code> (score reaches the alert score), <code>exit</code> (experts cut the position), <code>flip</code> (experts change side), <code>fade</code> (gap shrinks), <code>add</code> (experts add), <code>new</code> (gap crosses 50), <code>news</code> (big story on a market with score 40+), <code>macro</code> (big macro story: Fed, CPI, jobs, tariffs), <code>froth</code> and <code>bloodbath</code> (a liquid market's heat score reaches 60, or the whole market heats up). Default: <code>setup,exit,flip,news,froth,bloodbath</code>. Change the heat level with a variable named <code>ALERT_HEAT_MIN</code> (for example <code>70</code> for fewer alerts).<br>
         Cooldowns stop repeats: exit 4h, fade 6h, flip and add 8h, new 12h, setup 24h.</div>
       <div class="card"><h4>Discord</h4>
         1. In your Discord server: channel settings → Integrations → Webhooks → New Webhook → Copy Webhook URL.<br>
@@ -318,6 +324,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
       <li><b>Leverage, liquidations, stops</b>: for the top holders, the page reads each open position from Hyperliquid: leverage, real exposure (position ÷ account value), entry, liquidation price, and open stop and target orders. It compares good traders with bad traders on each side. <b>Liquidation fuel</b> = losing-side money that gets liquidated or stopped within 10% in the smart direction (forced closes push price further that way; up to +8% rating). <b>Smart near liq</b> = good traders on the smart side who get liquidated within 7% (up to −10%). The <b>Traders</b> tab lists the best and worst traders on these coins and their habits.</li>
       <li><b>Listing filters</b>: S&P 500 members (and sector), NYSE (NYSE, NYSE American, NYSE Arca) and Nasdaq. They use the US stock, or the first proxy ETF for index and commodity markets.</li>
       <li><b>News</b>: headlines are matched to markets every minute. Big stories on markets rated 30+ and big macro stories pop up at the bottom right. Turn on desktop notifications in Settings to get them while the tab is in the background.</li>
+      <li><b>Froth / bloodbath</b>: how fast a market rises or falls compared with its own normal daily move, plus crowded funding, open interest building or flushing, liquidations, RSI, stretch from the 20-day average and volume. See the Heat tab. A high score means a big move is likely in either direction.</li>
       <li><b>Alignment trend</b>: the change of the gap over 1h, 4h, 24h and 7d. ▲ green = the two groups moved further apart on the setup side (stronger). ▼ red = they moved closer (weaker). Hover a box to see the smart bias, fools bias and smart $ change.</li>
       <li><b>Experts exiting</b>: the Extremely + Very Profitable cohorts cut 30% or more of their position on the setup side within 1h or 4h (and at least $100K). <b>Experts flipped</b>: their bias changed side. These show as red badges for 6 hours and in the Changes tab.</li>
       <li><b>Live data</b>: Hyperdash makes a new cohort snapshot every 5 minutes. The data job checks it about every 45 seconds and publishes each new one. Prices and funding come straight from Hyperliquid every 20 seconds.</li>
@@ -340,14 +347,14 @@ const CLASS = {
 const CLASS_SET = {}; for (const k in CLASS) CLASS[k].split(" ").forEach(s => CLASS_SET[s] = k);
 const CLASSES = ["All", "Crypto", "Stock", "Index", "ETF", "Commodity", "FX / Rates"];
 const DEFAULTS = {
-  cls: "All", dir: "both", hideRed: false, hideThin: false, needOpt: false, needLev: false, needPaid: false, onlyExit: false, needSpec: false, q: "",
+  cls: "All", dir: "both", hideRed: false, hideThin: false, needOpt: false, needLev: false, needPaid: false, onlyExit: false, needSpec: false, needHeat: false, q: "",
   smart: ["extremely_profitable", "very_profitable"],
   fools: ["unprofitable", "very_unprofitable", "rekt"],
   minN: 50000, minScore: 0, maxRows: 60, sort: "rating", desc: true, wD: 0.6, wDUser: false, useCtx: true, useBT: true, listing: "any", toasts: true, showKP: true
 };
 let S = load();
 let DATA = null, HIST = null, STATUS = null, INST = null, OPTS = null, EVENTS = null, ROWS = [], OPEN = null, VIEW = "setups";
-let LIVE = {}, LIVE_T = 0, SPEC = null, LEVELS = null, CYCLE = null, BT = null, BT_T = 0, CONTEXT = null, NEWS = null, NEWS_BY = {}, SEEN_NEWS = null, SEEN_EV = null, SHA = null, LOADED = {}, CHART_W = "24h", EV_TYPE = "all";
+let LIVE = {}, LIVE_T = 0, SPEC = null, LEVELS = null, CYCLE = null, HEAT = null, SEEN_HEAT = null, BT = null, BT_T = 0, CONTEXT = null, NEWS = null, NEWS_BY = {}, SEEN_NEWS = null, SEEN_EV = null, SHA = null, LOADED = {}, CHART_W = "24h", EV_TYPE = "all";
 const EV_RECENT_H = 6;
 
 function load(){ try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem("cohortSniper") || "{}")); } catch { return Object.assign({}, DEFAULTS); } }
@@ -518,6 +525,24 @@ function specState(r){
   return Math.sign(A.sig) === r.dir ? 1 : -1;
 }
 
+// ---------- Froth / bloodbath ----------
+const heatLvl = (s, k) => s >= 75 ? (k === "fr" ? "Blow-off risk" : "Capitulation") : s >= 55 ? (k === "fr" ? "Frothy" : "Bloodbath") : s >= 40 ? (k === "fr" ? "Warm" : "Heavy selling") : "";
+function heatOf(h){ if (!h) return null; const k = h.fr >= h.bb ? "fr" : "bb", s = h[k]; return s >= 40 ? { k, s, lvl: heatLvl(s, k) } : null; }
+function heatBadge(h){ const x = heatOf(h); if (!x) return "";
+  return `<span class="flag ${x.k === "fr" ? "f-froth" : "f-blood"}" title="${esc(heatWhy(h, x.k))}">${x.k === "fr" ? "🔥" : "🩸"} ${x.lvl} ${x.s}</span>`; }
+function heatWhy(h, k){
+  const up = k === "fr", p = [];
+  if (h.r24 != null) p.push(`${h.r24 > 0 ? "+" : ""}${h.r24}% in 24h (${Math.abs(h.z24).toFixed(1)}× its normal daily move)`);
+  if (h.r4 != null) p.push(`${h.r4 > 0 ? "+" : ""}${h.r4}% in 4h`);
+  if (Math.abs(h.f) >= 15) p.push(`funding ${h.f > 0 ? "+" : ""}${Math.round(h.f)}%/yr (${h.f > 0 ? "longs" : "shorts"} pay)`);
+  if (h.oi24 != null) p.push(`open interest ${h.oi24 > 0 ? "+" : ""}${Math.round(h.oi24)}% in 24h`);
+  const lq = up ? h.lqS24 : h.lqL24; if (lq >= 20000) p.push(`${usd(lq)} of ${up ? "shorts" : "longs"} liquidated in 24h`);
+  if (h.rsi != null) p.push(`RSI ${Math.round(h.rsi)}`);
+  if (h.vs20 != null) p.push(`${h.vs20 > 0 ? "+" : ""}${Math.round(h.vs20)}% vs 20-day avg`);
+  if (h.vr != null) p.push(`volume ${h.vr.toFixed(1)}× normal`);
+  return p.join(" · ");
+}
+
 // ---------- Key Points and Things to Look For ----------
 const pc = v => (v > 0 ? "+" : "") + (Math.abs(v) >= 10 ? v.toFixed(0) : v.toFixed(1)) + "%";
 // Price where losing-side (or smart-side) money clusters: liquidations, stop orders, usual loss cuts
@@ -561,6 +586,8 @@ function keyPoints(r){
   if (r.lv && r.lv.groups) { const foolSide = dl ? "short" : "long", g = r.lv.groups["bad_" + foolSide], s = r.lv.groups["good_" + side];
     if (g) K.push({ c: "", t: `Fools on the ${foolSide} side: ${g.lev}x avg leverage${g.liqD != null ? `, liquidation ${pctCap(g.liqD)} away` : ""}${g.under != null ? `, ${g.under}% under water` : ""}${g.liqTr != null && g.hist >= 2 ? `, ${g.liqTr}% liquidated in 60d` : ""}.` });
     if (s) K.push({ c: "", t: `Good traders on the ${side} side: ${s.lev}x${s.liqD != null ? `, liquidation ${pctCap(s.liqD)} away` : ""}${s.lc != null ? `, usually cut at −${s.lc}%` : ""}.` }); }
+  // Heat
+  { const x = heatOf(r.ht); if (x) K.unshift({ c: x.k === "fr" ? "L" : "S", t: `${x.k === "fr" ? "Froth" : "Bloodbath"} ${x.s} (${x.lvl}): ${heatWhy(r.ht, x.k)}.` }); }
   // 5. Funding
   if (r.earn != null && Math.abs(r.earn) >= 3) K.push({ c: r.earn > 0 ? "L" : "S", t: `Funding: the smart side ${r.earn > 0 ? "earns" : "pays"} ${Math.abs(r.earn).toFixed(0)}%/yr${r.earn > 0 ? " (fools pay to hold)" : ""}.` });
   // 6. Specialists / big money
@@ -589,6 +616,10 @@ function lookFor(r){
       if (!dl && toLo > -4) L.push({ c: "", t: `Near the 30-day low ${price(y.lo30)} (${pc(toLo)}): a break opens new lows; a hold is support against the short.` });
       if (dl && toHi < 4) L.push({ c: "", t: `Near the 30-day high ${price(y.hi30)} (${pc(toHi)}): a breakout helps the long; a rejection is resistance.` }); }
     if (y.rsi != null && ((dl && y.rsi >= 75) || (!dl && y.rsi <= 25))) L.push({ c: "S", t: `RSI ${Math.round(y.rsi)}: stretched in the smart direction — a snap-back is likely before more follow-through.` }); }
+  { const x = heatOf(r.ht); if (x) { const up = x.k === "fr", withSmart = (up && r.dir > 0) || (!up && r.dir < 0);
+    L.unshift({ c: withSmart ? "L" : "S", t: up
+      ? `Froth ${x.s}: fast rise with crowded longs — big moves both ways are likely. ${withSmart ? "It runs with the smart long, but a blow-off top can reverse hard." : "The smart side is short into it: a squeeze can run first; watch funding and open interest roll over before the reversal."}`
+      : `Bloodbath ${x.s}: forced selling — big moves both ways are likely. ${withSmart ? "It runs with the smart short, but capitulation often ends in a sharp bounce." : "The smart side is long into it: wait for liquidations and open interest to stop falling before expecting the bounce."}` }); } }
   const t4 = r.tr["4h"];
   if (t4 && t4[3] != null && t4[3] <= -15) L.push({ c: "S", t: `Smart $ on its side fell ${pc(t4[3])} in 4h — watch for an "experts exiting" alert.` });
   else if (t4 && t4[3] != null && t4[3] >= 20) L.push({ c: "L", t: `Smart $ on its side rose ${pc(t4[3])} in 4h — conviction building.` });
@@ -650,7 +681,8 @@ function compute(){
     const spx = SPEC && SPEC.m && SPEC.m[coin] && SPEC.m[coin].agg ? SPEC.m[coin] : null;
     const lv = LEVELS && LEVELS.m && LEVELS.m[coin] && LEVELS.m[coin].groups ? LEVELS.m[coin] : null;
     const cy = CYCLE && CYCLE.m && CYCLE.m[coin] && CYCLE.m[coin].phase ? CYCLE.m[coin] : null;
-    const r = { coin, ...p, m, sm, fo, gap, dir, agree, red, score, minN: minSide, big, thin, ctx, earn, hist: h, held: h.heldH, since, inst, tools, ntools: tools.n, tr, d4, evs, whale, lst, er, news, spx, lv, cy };
+    const ht = HEAT && HEAT.m && HEAT.m[coin] ? HEAT.m[coin] : null;
+    const r = { coin, ...p, m, sm, fo, gap, dir, agree, red, score, minN: minSide, big, thin, ctx, earn, hist: h, held: h.heldH, since, inst, tools, ntools: tools.n, tr, d4, evs, whale, lst, er, news, spx, lv, cy, ht };
     r.factors = S.useCtx ? contextFactors(r, MAC) : [];
     r.rating = Math.min(100, Math.round(score * r.factors.reduce((a, f) => a * f.mult, 1)));
     out.push(r);
@@ -773,7 +805,7 @@ function filtered(){
     r.minN >= S.minN && r.rating >= S.minScore &&
     (S.listing === "any" || (S.listing === "sp500" ? r.lst && r.lst.sp : S.listing === "nyse" ? r.lst && /^NYSE/.test(r.lst.ex || "") : r.lst && r.lst.ex === "Nasdaq")) &&
     (!S.hideRed || !r.red.length) && (!S.hideThin || !r.thin) &&
-    (!S.needOpt || r.tools.opt) && (!S.needLev || r.tools.same.length) && (!S.needPaid || (r.earn != null && r.earn > 0)) && (!S.onlyExit || r.evs.length) && (!S.needSpec || specState(r) > 0) &&
+    (!S.needOpt || r.tools.opt) && (!S.needLev || r.tools.same.length) && (!S.needPaid || (r.earn != null && r.earn > 0)) && (!S.onlyExit || r.evs.length) && (!S.needSpec || specState(r) > 0) && (!S.needHeat || (r.ht && Math.max(r.ht.fr, r.ht.bb) >= 40)) &&
     (!q || r.coin.toUpperCase().includes(q)));
   const key = S.sort, sgn = S.desc ? -1 : 1;
   const val = (r) => key === "coin" ? r.sym : key === "sb" ? r.sm.b : key === "fb" ? r.fo.b : r[key];
@@ -785,11 +817,13 @@ function render(){
   if (!DATA) return;
   ROWS = compute();
   renderEvCount();
+  { const n = HEAT && HEAT.m ? Object.values(HEAT.m).filter(h => Math.max(h.fr, h.bb) >= 55).length : 0; $("heatCount").textContent = n ? `(${n})` : ""; }
   renderMacro();
   if (VIEW === "record") { renderRecord(); return; }
   if (VIEW === "changes") { renderChanges(); return; }
   if (VIEW === "news") { renderNews(); return; }
   if (VIEW === "backtest") { renderBT(); return; }
+  if (VIEW === "heat") { renderHeat(); return; }
   if (VIEW === "traders") { renderTraders(); return; }
   if (VIEW !== "setups") return;
   const list = $("list");
@@ -816,6 +850,7 @@ function render(){
       if (ss) flags.push(`<span class="flag ${ss > 0 ? "f-good" : "f-bad"}" title="Coin specialists (win more on this coin than overall): ${A.nS}, ${specSide(A.sb)}. Coin losers: ${A.nL}, ${specSide(A.lb)}.">Specialists ${ss > 0 ? "agree" : "disagree"} · ${A.nS}/${A.nL}</span>`); }
     if (r.lv && r.lv.dir === r.dir && r.lv.fuelPct >= 10) flags.push(`<span class="flag f-good" title="${usd(r.lv.fuelUsd)} of losing-side positions get liquidated or stopped within 10% in the smart direction">Liq fuel ${r.lv.fuelPct}%</span>`);
     if (r.lv && r.lv.dir === r.dir && r.lv.riskPct >= 10) flags.push(`<span class="flag f-bad" title="Good traders on the smart side with liquidation within 7%">Smart near liq ${r.lv.riskPct}%</span>`);
+    { const hb = heatBadge(r.ht); if (hb) flags.unshift(hb); }
     if (r.whale) flags.push(`<span class="flag f-red" title="$ bias ${pct(r.sm.bd)}, trader-count bias ${pct(r.sm.bc)}. A few big accounts set the $ side.">Whale-driven</span>`);
     if (r.er) { const dd = Math.round((Date.parse(r.er.d + "T12:00:00Z") - Date.now()) / 864e5); flags.push(`<span class="flag ${dd <= 3 ? "f-red" : "f-thin"}" title="${esc(r.er.tm || "")} ${esc(r.er.est ? "EPS est " + r.er.est : "")}">Earnings ${new Date(r.er.d + "T12:00:00Z").toLocaleDateString([], {month:"short", day:"numeric"})}</span>`); }
     const n24 = r.news.filter(n => Date.now() - n.t < 24 * 36e5), nb = n24.filter(n => n.b);
@@ -1087,6 +1122,44 @@ function renderTraders(){
     <div class="note" style="margin-top:6px;max-width:none">Good = Extremely/Very Profitable or a coin specialist. Bad = Unprofitable/Very Unprofitable/Rekt or loses on the coin. Loss cut and take profit come from each trader's last 100 closed trades; market makers and scalpers (tiny moves, short holds) are left out. Histories load a few traders per minute, so the counts grow over the next hours.</div></div>`;
 }
 
+// ---------- Heat tab ----------
+function renderHeat(){
+  const el = $("heatBody");
+  if (!HEAT || !HEAT.m) { el.innerHTML = `<div class="empty">Heat data loads with the next data run.</div>`; return; }
+  const M = HEAT.mkt, rows = Object.entries(HEAT.m);
+  const pctc = (v, inv) => v == null ? "–" : `<span class="${(inv ? -v : v) > 0 ? "L" : (inv ? -v : v) < 0 ? "S" : ""}">${v > 0 ? "+" : ""}${v}%</span>`;
+  const tbl = (k) => {
+    const up = k === "fr";
+    const list = rows.filter(([, h]) => h[k] >= 25).sort((a, b) => b[1][k] - a[1][k]).slice(0, 30);
+    if (!list.length) return `<div class="empty">No market is ${up ? "frothy" : "in a bloodbath"} right now.</div>`;
+    return `<div class="card" style="overflow-x:auto;padding:4px 10px"><table class="tr" style="min-width:1080px"><thead><tr><th>Market</th><th>Score</th><th>24h · 4h · 1h</th><th title="24h move ÷ normal daily move">× normal</th><th>Funding /yr</th><th>Open interest 4h · 24h</th><th>${up ? "Shorts" : "Longs"} liquidated 4h · 24h</th><th>RSI</th><th>vs 20d avg</th><th>Volume × normal</th><th>24h volume</th></tr></thead><tbody>
+      ${list.map(([c, h]) => { const s = h[k], col = s >= 75 ? (up ? "#ff8a1f" : "#ff3355") : s >= 55 ? (up ? "#ffb35c" : "#ff6677") : "#7a8584";
+        return `<tr><td style="text-align:left"><a href="#" data-goto="${esc(c)}">${esc(parse(c).sym)}</a> <span class="tag">${esc(parse(c).cls)}</span></td>
+          <td style="text-align:left"><span class="hbar" style="width:${Math.max(4, s * 0.6)}px;background:${col}"></span><b>${s}</b> <span style="color:var(--faint)">${heatLvl(s, k)}</span></td>
+          <td>${pctc(h.r24)} · ${pctc(h.r4)} · ${pctc(h.r1)}</td><td>${h.z24 != null ? Math.abs(h.z24).toFixed(1) + "×" : "–"}</td>
+          <td class="${up ? (h.f >= 40 ? "S" : "") : (h.f <= -20 ? "S" : "")}">${h.f != null ? (h.f > 0 ? "+" : "") + Math.round(h.f) + "%" : "–"}</td>
+          <td>${h.oi4 != null ? (h.oi4 > 0 ? "+" : "") + Math.round(h.oi4) + "%" : "–"} · ${h.oi24 != null ? (h.oi24 > 0 ? "+" : "") + Math.round(h.oi24) + "%" : "–"}</td>
+          <td>${usd(up ? h.lqS4 : h.lqL4)} · ${usd(up ? h.lqS24 : h.lqL24)}</td><td class="${up ? (h.rsi >= 70 ? "S" : "") : (h.rsi <= 30 ? "S" : "")}">${h.rsi != null ? Math.round(h.rsi) : "–"}</td>
+          <td>${h.vs20 != null ? (h.vs20 > 0 ? "+" : "") + Math.round(h.vs20) + "%" : "–"}</td><td>${h.vr != null ? h.vr.toFixed(1) + "×" : "–"}</td><td>${usd(h.vol)}</td></tr>`; }).join("")}</tbody></table></div>`;
+  };
+  const ev = (HEAT.ev || []).slice(0, 40);
+  el.innerHTML = `
+    <div class="cards" style="margin-bottom:12px">
+      <div class="card"><h4>Market heat · <span class="${/blood|Selling/.test(M.state) ? "S" : /froth|Heating/.test(M.state) ? "W" : ""}">${esc(M.state)}</span></h4>
+        <div class="kv"><span>Liquid markets ($10M+ 24h volume)</span><b>${M.n}</b></div>
+        <div class="kv"><span>Frothy (55+) · warm or more (40+)</span><b class="W">${M.frothy} · ${M.frPct}%</b></div>
+        <div class="kv"><span>Bloodbath (55+) · heavy selling or more (40+)</span><b class="S">${M.bloody} · ${M.bbPct}%</b></div>
+        <div class="kv"><span>Liquidated last 1h · longs / shorts</span><b>${usd(M.lqL1)} / ${usd(M.lqS1)}</b></div>
+        <div class="kv"><span>Liquidated last 24h · longs / shorts</span><b>${usd(M.lqL24)} / ${usd(M.lqS24)}</b></div>
+        ${M.btcFr != null ? `<div class="kv"><span>BTC froth · bloodbath</span><b>${M.btcFr} · ${M.btcBb}</b></div>` : ""}</div>
+      <div class="card"><h4>How the scores work</h4><div class="note" style="max-width:none">Each market's move is compared with its own normal daily move (30-day volatility), so a 6% day counts more for a stock than for a small coin. <b>Froth</b> adds: longs paying high funding, open interest building, shorts being liquidated, RSI high, price stretched above its 20-day average, volume spike. <b>Bloodbath</b> adds: longs being liquidated, open interest flushed out, shorts paying funding, RSI low, price stretched below the average, volume spike. Without a real move the score stays at 30 or less. 40+ warm / heavy selling, 55+ frothy / bloodbath, 75+ blow-off risk / capitulation. Both mean big moves are likely <b>in either direction</b>: continuation or a sharp reversal. Markets with less than $1M of 24h volume are left out.</div></div>
+    </div>
+    <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:#ffb35c;margin:16px 0 8px">🔥 Froth: fast rises, crowded longs</h3>${tbl("fr")}
+    <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:#ff6677;margin:22px 0 8px">🩸 Bloodbath: fast drops, forced selling</h3>${tbl("bb")}
+    <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:22px 0 8px">Recent heat alerts (score ${ev.length ? "" : ""}60+)</h3>
+    ${ev.length ? `<div class="card" style="padding:0">${ev.map(e => `<div class="ev"><span class="tm">${new Date(e.t).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span><span class="flag ${e.type === "froth" ? "f-froth" : "f-blood"}" style="text-align:center">${e.type === "froth" ? "🔥" : "🩸"} ${esc(e.lvl)}${e.coin === "MARKET" ? "" : " " + e.score}</span><b>${e.coin === "MARKET" ? "Whole market" : `<a href="#" data-goto="${esc(e.coin)}">${esc(e.coin)}</a>`}</b><span class="tx">${esc(e.text)}</span></div>`).join("")}</div>` : `<div class="empty">No heat alerts in the last 3 days.</div>`}`;
+}
+
 // ---------- Backtest tab ----------
 function renderBT(){
   const el = $("btBody");
@@ -1152,6 +1225,7 @@ function renderMacro(){
   $("macro").innerHTML = `<span class="reg ${M.regime === "Risk-on" ? "L" : M.regime === "Risk-off" ? "S" : "N"}">${M.regime}</span>
     ${M.vix != null ? `<span><i>VIX</i><b class="${M.vix >= 22 ? "S" : M.vix <= 16 ? "L" : ""}">${M.vix.toFixed(1)}</b></span>` : ""}
     ${cell("S&P 500", M.sp)}${cell("Nasdaq 100", M.nq)}${cell("BTC", M.btc)}${cell("Gold", M.gold)}${cell("Oil", M.oil)}${cell("EUR/USD", M.eur)}${cell("US 10Y", M.y10, true)}
+    ${HEAT && HEAT.mkt ? `<span title="Liquid markets (24h volume $10M+): ${HEAT.mkt.frothy} frothy, ${HEAT.mkt.bloody} in a bloodbath. Liquidated last 1h: ${usd(HEAT.mkt.lqL1)} longs / ${usd(HEAT.mkt.lqS1)} shorts; 24h: ${usd(HEAT.mkt.lqL24)} / ${usd(HEAT.mkt.lqS24)}."><i>Heat</i><b class="${/blood|Selling/.test(HEAT.mkt.state) ? "S" : /froth|Heating/.test(HEAT.mkt.state) ? "W" : ""}">${HEAT.mkt.state}</b> <span style="color:var(--faint)">liq 1h ${usd(HEAT.mkt.lqL1)}L/${usd(HEAT.mkt.lqS1)}S</span></span>` : ""}
     ${top.length ? `<span class="mnews">${top.map(n => `<a href="${esc(n.url || "#")}" target="_blank" rel="noopener" title="${esc(n.src)}">${esc(n.h)}</a>`).join(" · ")}</span>` : ""}`;
 }
 
@@ -1181,6 +1255,14 @@ function popNew(){
     toast(`${tag}<div>${esc(n.h)}</div><small>${esc(n.src)}${n.s === "bull" ? " · bullish" : n.s === "bear" ? " · bearish" : ""} · ${ago(n.t)} ago${n.url ? ` · <a href="${esc(n.url)}" target="_blank" rel="noopener">read</a>` : ""}</small>`, r ? (r.dir > 0 ? "tl" : "ts") : "", rc ? () => gotoCoin(rc) : null);
     desktopNote(r ? `${r.sym}: news on a smart ${r.dir > 0 ? "long" : "short"}` : "Macro news", n.h, n.url);
   });
+  // froth / bloodbath events
+  const firstH = SEEN_HEAT == null; if (firstH) SEEN_HEAT = new Set();
+  for (const e of (HEAT && HEAT.ev || [])) {
+    const k = e.coin + e.type + e.t; if (SEEN_HEAT.has(k)) continue; SEEN_HEAT.add(k);
+    if (firstH || Date.now() - Date.parse(e.t) > 36e5) continue;
+    toast(`<b class="${e.type === "froth" ? "W" : "S"}">${e.type === "froth" ? "🔥 Froth" : "🩸 Bloodbath"} · ${esc(e.coin === "MARKET" ? e.lvl : e.coin + " · " + e.lvl + " " + e.score)}</b><div>${esc(e.text)}</div>`, e.type === "froth" ? "tf" : "ts", e.coin !== "MARKET" ? () => gotoCoin(e.coin) : () => document.querySelector('.tab[data-tab="heat"]').click());
+    desktopNote(`${e.type === "froth" ? "Froth" : "Bloodbath"}: ${e.coin === "MARKET" ? e.lvl : e.coin}`, e.text);
+  }
   // expert exits / flips
   const firstE = SEEN_EV == null; if (firstE) SEEN_EV = new Set();
   for (const e of (EVENTS && EVENTS.log || [])) {
@@ -1312,12 +1394,12 @@ async function refresh(force){
     const sha = await newestSha();
     if (sha && sha === SHA && !force) return;
     const now = Date.now(), need = (k, mins) => force || !LOADED[k] || now - LOADED[k] > mins * 6e4;
-    const jobs = { d: getJson("latest.json", sha), s: getJson("status.json", sha).catch(() => null), e: getJson("events.json", sha).catch(() => null), o: getJson("options.json", sha).catch(() => null), n: getJson("news.json", sha).catch(() => null), c: getJson("context.json", sha).catch(() => null), sp: getJson("specialists.json", sha).catch(() => null), lv: getJson("levels.json", sha).catch(() => null), cy: getJson("cycle.json", sha).catch(() => null) };
+    const jobs = { d: getJson("latest.json", sha), s: getJson("status.json", sha).catch(() => null), e: getJson("events.json", sha).catch(() => null), o: getJson("options.json", sha).catch(() => null), n: getJson("news.json", sha).catch(() => null), c: getJson("context.json", sha).catch(() => null), sp: getJson("specialists.json", sha).catch(() => null), lv: getJson("levels.json", sha).catch(() => null), cy: getJson("cycle.json", sha).catch(() => null), ht: getJson("heat.json", sha).catch(() => null) };
     if (need("h", 15)) jobs.h = getJson("history.json", sha).catch(() => null);
     if (need("i", 60)) jobs.i = getJson("instruments.json", sha).catch(() => null);
     const keys = Object.keys(jobs), vals = await Promise.all(Object.values(jobs)), R = {};
     keys.forEach((k, i) => R[k] = vals[i]);
-    DATA = R.d; STATUS = R.s; EVENTS = R.e; OPTS = R.o; if (R.n) NEWS = R.n; if (R.c) CONTEXT = R.c; if (R.sp) SPEC = R.sp; if (R.lv) LEVELS = R.lv; if (R.cy) CYCLE = R.cy; indexNews();
+    DATA = R.d; STATUS = R.s; EVENTS = R.e; OPTS = R.o; if (R.n) NEWS = R.n; if (R.c) CONTEXT = R.c; if (R.sp) SPEC = R.sp; if (R.lv) LEVELS = R.lv; if (R.cy) CYCLE = R.cy; if (R.ht) HEAT = R.ht; indexNews();
     if (Date.now() - BT_T > 30 * 6e4) { BT_T = Date.now(); loadBT(); }
     if ("h" in R) { if (R.h) HIST = R.h; LOADED.h = now; }
     if ("i" in R) { if (R.i) INST = R.i; LOADED.i = now; }
@@ -1367,7 +1449,7 @@ function chips(el, items, cur, cb, cls){
   el.innerHTML = items.map(([v, t]) => `<button class="chip ${cls ? cls(v) : ""} ${v === cur ? "on" : ""}" data-v="${esc(v)}">${esc(t)}</button>`).join("");
   el.onclick = e => { const b = e.target.closest("button"); if (b) cb(b.dataset.v); };
 }
-const TOGGLES = ["hideRed", "hideThin", "needOpt", "needLev", "needPaid", "onlyExit", "needSpec"];
+const TOGGLES = ["hideRed", "hideThin", "needOpt", "needLev", "needPaid", "onlyExit", "needSpec", "needHeat"];
 function drawChips(){
   chips($("classChips"), CLASSES.map(c => [c, c]), S.cls, v => { S.cls = v; save(); drawChips(); render(); });
   chips($("listChips"), [["any","Any listing"],["sp500","S&P 500"],["nyse","NYSE"],["nasdaq","Nasdaq"]], S.listing, v => { S.listing = v; save(); drawChips(); render(); });
@@ -1427,7 +1509,7 @@ $("list").onclick = e => {
 document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
   VIEW = b.dataset.tab;
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
-  ["setups","news","traders","changes","backtest","record","alerts"].forEach(v => $("v-" + v).hidden = v !== VIEW);
+  ["setups","news","traders","changes","heat","backtest","record","alerts"].forEach(v => $("v-" + v).hidden = v !== VIEW);
   render();
 });
 $("trCls").innerHTML = CLASSES.map(c => `<option>${c}</option>`).join("");
