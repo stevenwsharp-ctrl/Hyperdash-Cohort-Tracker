@@ -45,7 +45,7 @@ export function buildMatcher(latest, inst) {
     const { venue, sym } = splitCoin(coin);
     (bySym[sym] = bySym[sym] || []).push(coin);
     rules.push({ coin, re: new RegExp(`\\$${esc(sym)}\\b`) }); // cashtag
-    if (!venue) { (CRYPTO[sym] || []).forEach(t => add(coin, t, t.length > 4)); if (sym.length >= 3 && !STOP.has(sym)) add(coin, sym, false); continue; }
+    if (!venue) { (CRYPTO[sym] || []).forEach(t => add(coin, t, /[a-z]/.test(t))); if (sym.length >= 3 && !STOP.has(sym)) add(coin, sym, false); continue; }
     (TERMS[sym] || []).forEach(t => add(coin, t, false));
     (ALIAS[sym] || []).forEach(t => add(coin, t, false));
     const I = inst && inst.m[coin];

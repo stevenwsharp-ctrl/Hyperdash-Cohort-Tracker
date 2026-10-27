@@ -142,7 +142,7 @@ async function main() {
   const hist = io.read("history.json", { snapshots: [] });
   const tNow = Date.parse(p.timestamp) || Date.now();
   let snaps = (hist.snapshots || []).filter(s => Date.parse(s.t) < tNow);
-  snaps.push({ t: p.timestamp, d });
+  snaps.push({ t: p.timestamp, v: 2, d }); // v2 = bias blends $ and trader count
   snaps = downsample(snaps, tNow);
   io.write("history.json", { smart: SMART, fools: FOOLS, fields: ["smartBias", "foolBias", "price", "epNetK", "vpNetK", "smartGrossK", "foolNetK"], snapshots: snaps });
 
@@ -150,6 +150,13 @@ async function main() {
   const tr = computeTrends(snaps);
   const evFile = io.read("events.json", { last: {}, log: [] });
   evFile.last = evFile.last || {};
+  // Drop fade/flip events that compared v2 (blended) biases with older $-only snapshots.
+  const firstV2 = snaps.find(s => s.v === 2);
+  if (firstV2) {
+    const cut = Date.parse(firstV2.t) + 5 * 6e4;
+    const bad = (evFile.log || []).filter(e => (e.type === "fade" || e.type === "flip") && Date.parse(e.t) <= cut && !e.v);
+    if (bad.length) { evFile.log = evFile.log.filter(e => !bad.includes(e)); bad.forEach(e => delete evFile.last[e.coin + "|" + e.type]); }
+  }
   const evs = detectEvents(snaps, evFile);
   evFile.log = [...evs, ...(evFile.log || [])].filter(e => tNow - Date.parse(e.t) < 7 * 864e5).slice(0, 800);
   for (const k in evFile.last) if (tNow - evFile.last[k] > 2 * 864e5) delete evFile.last[k];

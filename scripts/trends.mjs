@@ -15,7 +15,10 @@ export function snapAt(snaps, T, t, tol) {
 }
 
 // Per market, per window: [dGap, dSmartBias, dFoolBias, smartNetChangePct (on setup side), smartNetChangeK, smartSidePriceMovePct]
+const sameKind = snaps => { const v = snaps.length ? snaps[snaps.length - 1].v : undefined; return snaps.filter(s => s.v === v); };
+
 export function computeTrends(snaps) {
+  snaps = sameKind(snaps);
   if (!snaps.length) return {};
   const T = snaps.map(s => Date.parse(s.t));
   const iNow = snaps.length - 1, now = snaps[iNow].d, tNow = T[iNow];
@@ -47,6 +50,7 @@ const COOLDOWN_H = { exit: 4, flip: 8, fade: 6, add: 8, new: 12 };
 
 // Find events in the newest snapshot. state = { last: { "coin|type": ms } }
 export function detectEvents(snaps, state) {
+  snaps = sameKind(snaps);
   const evs = [];
   if (snaps.length < 2) return evs;
   const T = snaps.map(s => Date.parse(s.t));
@@ -57,7 +61,7 @@ export function detectEvents(snaps, state) {
     const key = coin + "|" + type, last = state.last[key] || 0;
     if (tNow - last < COOLDOWN_H[type] * 36e5) return;
     state.last[key] = tNow;
-    evs.push({ t: snaps[iNow].t, coin, type, win, text, ...extra });
+    evs.push({ t: snaps[iNow].t, v: 2, coin, type, win, text, ...extra });
   };
   for (const coin in now) {
     const v = now[coin], g = gapOf(v);
