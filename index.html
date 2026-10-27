@@ -548,7 +548,7 @@ function keyPoints(r){
     if (y.pos90 != null) bits.push(`${Math.round(y.pos90 * 100)}% of ${y.days >= 90 ? "90" : y.days}-day range`);
     if (y.r30 != null) bits.push(`30d ${pc(y.r30)}`);
     if (y.rsi != null) bits.push(`RSI ${Math.round(y.rsi)}`);
-    const withC = y.trend === 0 ? null : y.trend === r.dir;
+    const withC = !y.trend ? null : y.trend === r.dir;
     K.push({ c: withC == null ? "" : withC ? "L" : "S", t: `Cycle: ${y.phase}${bits.length ? " · " + bits.join(" · ") : ""}${withC == null ? "" : withC ? " · trend agrees" : " · against the trend"}.` }); }
   // 3. Flow
   const t24 = r.tr["24h"], t4 = r.tr["4h"];

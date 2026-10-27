@@ -1,6 +1,6 @@
 name: Update Hyperdash data
 
-# Each run stays on for about 55 minutes and checks Hyperdash every 45 seconds.
+# Each run stays on for about 55 minutes and checks Hyperdash every 45 seconds, then starts the next run.
 # Hyperdash makes a new cohort snapshot every 5 minutes; each new one is pushed to the data branch.
 # The schedule starts a new run every 20 minutes. Only one run works at a time; the next one
 # waits in the queue and starts when the current one ends, so there is no gap.
@@ -25,6 +25,7 @@ on:
 
 permissions:
   contents: write
+  actions: write     # lets each run start the next one
 
 concurrency:
   group: hyperdash-data
@@ -89,3 +90,9 @@ jobs:
             [ $SECONDS -ge $END ] && break
             sleep 45
           done
+
+      - name: Start the next run (keeps the data job on all the time; the schedule is only a backup)
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run update.yml --ref "${GITHUB_REF_NAME}" -R "${GITHUB_REPOSITORY}" || echo "could not start the next run"
