@@ -26,7 +26,9 @@ h1 span{color:var(--bear)} h1 em{font-style:normal;color:var(--bull)}
 .stat b{color:var(--text);font-weight:500}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bull);margin-right:6px;vertical-align:1px}
 .dot.old{background:var(--warn)} .dot.bad{background:var(--bear)}
-.tabs{display:flex;gap:4px;margin-top:12px;border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:4px;margin-top:12px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto}
 .tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--dim);padding:8px 12px;font:600 13px var(--sans);cursor:pointer}
 .tab.on{color:var(--text);border-bottom-color:var(--accent)}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 0}
@@ -112,7 +114,7 @@ svg.spark{display:block}
 .macro{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font:12px var(--mono)}
 .macro span i{font-style:normal;color:var(--faint);margin-right:5px}
 .macro .reg{font:700 11px var(--sans);text-transform:uppercase;letter-spacing:.06em;border:1px solid currentColor;border-radius:4px;padding:2px 7px}
-.macro .mnews{flex:1 1 300px;font:12px var(--sans);color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.macro .mnews{flex:1 1 300px;min-width:0;max-width:100%;font:12px var(--sans);color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .macro .mnews a{color:var(--dim)}
 .nw{display:grid;grid-template-columns:42px 1fr;gap:8px;padding:7px 0;border-top:1px dashed var(--line);font-size:13px;line-height:1.45}
 .nw:first-of-type{border-top:none}
@@ -743,7 +745,7 @@ function windowTable(r){
     return `<tr><td>${k}</td><td class="${s >= 0 ? "L" : "S"}">${s > 0 ? "stronger" : s < 0 ? "weaker" : "flat"} ${Math.abs(s)}</td><td>${v[1] > 0 ? "+" : ""}${v[1]}</td><td>${v[2] > 0 ? "+" : ""}${v[2]}</td>
       <td class="${(v[3] ?? 0) >= 0 ? "L" : "S"}">${v[3] == null ? "–" : (v[3] > 0 ? "+" : "") + v[3] + "%"} <span style="color:var(--faint)">${kf}</span></td><td class="${(v[5] ?? 0) >= 0 ? "L" : "S"}">${v[5] == null ? "–" : sgnPct(v[5], 2)}</td></tr>`;
   }).join("");
-  return `<div class="card" style="padding:6px 10px"><table class="tr"><thead><tr><th>Window</th><th>Alignment</th><th>Smart bias Δ</th><th>Fools bias Δ</th><th>Smart $ on setup side</th><th>Price, smart side</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="tr" style="min-width:560px"><thead><tr><th>Window</th><th>Alignment</th><th>Smart bias Δ</th><th>Fools bias Δ</th><th>Smart $ on setup side</th><th>Price, smart side</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function minis(m, ids){
