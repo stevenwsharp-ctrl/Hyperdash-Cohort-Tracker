@@ -6,7 +6,7 @@ import { http, makeIO } from "./lib.mjs";
 
 const OUT = process.argv[2] || "out";
 const io = makeIO(OUT);
-const PER_RUN = 30, TTL_H = 3;
+const PER_RUN = 30, TTL_H = 3, VERSION = 2;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const r2 = x => x == null || !isFinite(x) ? null : Math.round(x * 100) / 100;
 const sma = (a, n) => a.length >= n ? a.slice(-n).reduce((s, x) => s + x, 0) / n : null;
@@ -51,6 +51,8 @@ export function cycleOf(candles) {
   else if (r90.pos >= 0.65 && ma20 && px < ma20) { phase = "Distribution (topping)"; why = `High in the 90-day range but below the 20-day average: momentum is fading.`; }
   else if (down && r90.pos <= 0.15 && R <= 32) { phase = "Capitulation (oversold)"; why = `Near the 90-day low with RSI ${R.toFixed(0)}.`; }
   else if (down) { phase = "Markdown (downtrend)"; why = `Below a falling 50-day average.`; }
+  else if (ma50 && px < ma50 * 0.95 && ret(30) != null && ret(30) <= -10) { phase = "Breakdown (early markdown)"; why = `${((1 - px / ma50) * 100).toFixed(0)}% below the 50-day average after a ${ret(30).toFixed(0)}% month; the average has not turned down yet.`; }
+  else if (ma50 && px > ma50 * 1.05 && ret(30) != null && ret(30) >= 10) { phase = "Breakout (early markup)"; why = `${((px / ma50 - 1) * 100).toFixed(0)}% above the 50-day average after a +${ret(30).toFixed(0)}% month; the average has not turned up yet.`; }
   else if (r90.pos <= 0.35 && v30 != null && v90 != null && v30 < v90) { phase = "Accumulation (basing)"; why = `Lower part of the range with falling volatility.`; }
   else { phase = "Range (no clear trend)"; why = `Price near a flat 50-day average.`; }
   o.phase = phase; o.why = why; o.trend = up ? 1 : down ? -1 : 0;
@@ -65,14 +67,14 @@ async function main() {
   const now = Date.now();
   const coins = Object.keys(latest.m).filter(c => latest.ctx && latest.ctx[c])
     .sort((a, b) => (CY.m[a] ? Date.parse(CY.m[a].t) : 0) - (CY.m[b] ? Date.parse(CY.m[b].t) : 0));
-  const due = coins.filter(c => !CY.m[c] || now - Date.parse(CY.m[c].t) > TTL_H * 36e5).slice(0, PER_RUN);
+  const due = coins.filter(c => !CY.m[c] || CY.m[c].v !== VERSION || now - Date.parse(CY.m[c].t) > TTL_H * 36e5).slice(0, PER_RUN);
   if (!due.length) process.exit(3);
   for (const coin of due) {
     const ctx = latest.ctx[coin];
     const name = ctx.n || (coin.includes(":") ? coin.split(":")[0].toLowerCase() + ":" + coin.split(":").slice(1).join(":") : coin);
     try {
       const k = await http("https://api.hyperliquid.xyz/info", { method: "POST", tries: 1, timeoutMs: 20000, headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: name, interval: "1d", startTime: now - 400 * 864e5, endTime: now } }) });
-      CY.m[coin] = { t: new Date().toISOString(), ...cycleOf(Array.isArray(k) ? k : []) };
+      CY.m[coin] = { t: new Date().toISOString(), v: VERSION, ...cycleOf(Array.isArray(k) ? k : []) };
     } catch (e) { if (/429/.test(e.message)) break; }
     await sleep(250);
   }
