@@ -102,6 +102,13 @@ svg.spark{display:block}
 .live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--bull);margin-right:5px;animation:pulse 2s infinite;vertical-align:1px}
 @keyframes pulse{50%{opacity:.25}}
 @media (min-width:900px){.wide{grid-column:span 2}}
+.kp{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:-2px;padding:6px 0 2px;border-top:1px dashed var(--line)}
+.kp .kh{font:600 10px var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.kp ul,.kl{margin:3px 0 0;padding-left:16px;font-size:12.5px;line-height:1.5;color:var(--dim)}
+.kl{font-size:13px;color:var(--text)} .kl li{margin:3px 0}
+.kp li.L::marker,.kl li.L::marker{color:var(--bull)} .kp li.S::marker,.kl li.S::marker{color:var(--bear)}
+.kp li.L,.kp li.S{color:var(--text)}
+.btt td,.btt th{white-space:nowrap}
 .macro{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font:12px var(--mono)}
 .macro span i{font-style:normal;color:var(--faint);margin-right:5px}
 .macro .reg{font:700 11px var(--sans);text-transform:uppercase;letter-spacing:.06em;border:1px solid currentColor;border-radius:4px;padding:2px 7px}
@@ -150,7 +157,8 @@ code{font-family:var(--mono);font-size:12px;background:var(--bg);padding:1px 4px
 footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
 @media (max-width:1060px){
   .hdr{display:none}
-  .row{grid-template-columns:28px 1fr 1fr;grid-template-areas:"rank mkt score" "setup setup setup" "smart smart fools" "tw tw tw" "money money trend";row-gap:8px}
+  .row{grid-template-columns:28px 1fr 1fr;grid-template-areas:"rank mkt score" "setup setup setup" "smart smart fools" "tw tw tw" "money money trend" "kp kp kp";row-gap:8px}
+  .row>.kp{grid-area:kp;grid-template-columns:1fr}
   .row>.rank{grid-area:rank}.row>.mkt{grid-area:mkt}.row>.sc{grid-area:score;text-align:right}
   .row>.setup{grid-area:setup}.row>.sm{grid-area:smart}.row>.fo{grid-area:fools}
   .row>.tw{grid-area:tw}.row>.money{grid-area:money}.row>.trend{grid-area:trend;justify-self:end}
@@ -175,7 +183,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
   </header>
   <div class="macro" id="macro"></div>
   <div id="toasts" class="toasts" aria-live="polite"></div>
-  <div class="tabs"><button class="tab on" data-tab="setups">Setups</button><button class="tab" data-tab="news">News</button><button class="tab" data-tab="traders">Traders</button><button class="tab" data-tab="changes">Changes <span id="evCount" style="color:var(--bear)"></span></button><button class="tab" data-tab="record">Track record</button><button class="tab" data-tab="alerts">Alerts setup</button></div>
+  <div class="tabs"><button class="tab on" data-tab="setups">Setups</button><button class="tab" data-tab="news">News</button><button class="tab" data-tab="traders">Traders</button><button class="tab" data-tab="changes">Changes <span id="evCount" style="color:var(--bear)"></span></button><button class="tab" data-tab="backtest">Backtest</button><button class="tab" data-tab="record">Track record</button><button class="tab" data-tab="alerts">Alerts setup</button></div>
 
   <section id="v-setups">
     <div class="bar">
@@ -212,6 +220,8 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
         <label>Weight of $ vs trader count: <b id="wDv"></b><br><input type="range" id="wD" min="0" max="100" step="5" style="width:200px"></label>
         <div class="note">100% = only dollars. 0% = only how many accounts are long or short. Default 60%.</div>
         <label><input type="checkbox" id="useCtx"> Adjust for liquidity, funding, trend, momentum, earnings, macro, news</label>
+        <label><input type="checkbox" id="useBT"> Use backtest-tuned factor sizes and $ weight</label>
+        <label><input type="checkbox" id="showKP"> Show Key points / Things to look for on each row</label>
         <label><input type="checkbox" id="toastsOn"> News and exit popups on this page</label>
         <button class="ghost" id="deskBtn" style="margin-top:6px">Turn on desktop notifications</button>
       </fieldset>
@@ -262,6 +272,8 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
     </div>
     <div id="record"></div>
   </section>
+
+  <section id="v-backtest" hidden><div id="btBody" style="margin-top:12px"></div></section>
 
   <section id="v-alerts" hidden>
     <div class="cards" style="margin-top:14px">
@@ -329,11 +341,11 @@ const DEFAULTS = {
   cls: "All", dir: "both", hideRed: false, hideThin: false, needOpt: false, needLev: false, needPaid: false, onlyExit: false, needSpec: false, q: "",
   smart: ["extremely_profitable", "very_profitable"],
   fools: ["unprofitable", "very_unprofitable", "rekt"],
-  minN: 50000, minScore: 0, maxRows: 60, sort: "rating", desc: true, wD: 0.6, useCtx: true, listing: "any", toasts: true
+  minN: 50000, minScore: 0, maxRows: 60, sort: "rating", desc: true, wD: 0.6, wDUser: false, useCtx: true, useBT: true, listing: "any", toasts: true, showKP: true
 };
 let S = load();
 let DATA = null, HIST = null, STATUS = null, INST = null, OPTS = null, EVENTS = null, ROWS = [], OPEN = null, VIEW = "setups";
-let LIVE = {}, LIVE_T = 0, SPEC = null, LEVELS = null, CONTEXT = null, NEWS = null, NEWS_BY = {}, SEEN_NEWS = null, SEEN_EV = null, SHA = null, LOADED = {}, CHART_W = "24h", EV_TYPE = "all";
+let LIVE = {}, LIVE_T = 0, SPEC = null, LEVELS = null, CYCLE = null, BT = null, BT_T = 0, CONTEXT = null, NEWS = null, NEWS_BY = {}, SEEN_NEWS = null, SEEN_EV = null, SHA = null, LOADED = {}, CHART_W = "24h", EV_TYPE = "all";
 const EV_RECENT_H = 6;
 
 function load(){ try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem("cohortSniper") || "{}")); } catch { return Object.assign({}, DEFAULTS); } }
@@ -454,7 +466,44 @@ function contextFactors(r, MAC){
   const net = ns.reduce((a, n) => a + (n.s === "bull" ? 1 : n.s === "bear" ? -1 : 0), 0) * r.dir;
   if (net <= -2) add("News", 0.9, `Recent big news leans against the smart side.`);
   else if (net >= 2) add("News", 1.04, `Recent big news leans with the smart side.`);
+  return btTune(r, f);
+}
+
+// ---------- Backtest-tuned factors ----------
+// Each condition the backtest tested replaces the hand-set factor of the same kind:
+// a stable effect (same sign in the fit period and the check period) sets the size; no stable effect removes it.
+const BT_COND = {
+  trend_up:      { name: "Alignment trend (24h)", replaces: ["Alignment trend"], test: r => { const v = r.tr["24h"]; if (!v) return null; const d = r.dir * v[0]; return d >= 5 ? 1 : d <= -5 ? 0 : null; }, txt: ["Gap widened in 24h", "Gap narrowed in 24h"] },
+  smart_adding:  { name: "Smart flow (24h)", replaces: [], test: r => { const v = r.tr["24h"]; if (!v || v[3] == null) return null; return v[3] >= 5 ? 1 : v[3] <= -5 ? 0 : null; }, txt: ["Smart cohorts added to their side in 24h", "Smart cohorts cut their side in 24h"] },
+  fools_adding:  { name: "Fools flow (24h)", replaces: [], test: r => { const v = r.tr["24h"]; if (!v) return null; const d = -r.dir * v[2]; return d >= 5 ? 1 : d <= -5 ? 0 : null; }, txt: ["Fools added to the other side in 24h", "Fools moved toward the smart side in 24h"] },
+  mom_with:      { name: "Momentum (24h)", replaces: ["Momentum"], test: r => r.ctx && r.ctx.ch != null ? (r.dir * r.ctx.ch >= 2 ? 1 : r.dir * r.ctx.ch <= -2 ? 0 : null) : null, txt: ["Price moved with the smart side in 24h", "Price moved against the smart side in 24h"] },
+  mom7_with:     { name: "Momentum (7d)", replaces: [], test: r => r.cy && r.cy.r7 != null ? (r.dir * r.cy.r7 >= 5 ? 1 : r.dir * r.cy.r7 <= -5 ? 0 : null) : null, txt: ["Price moved with the smart side in 7 days", "Price moved against the smart side in 7 days"] },
+  earns:         { name: "Funding", replaces: ["Funding"], test: r => r.earn != null ? (r.earn >= 5 ? 1 : r.earn <= -5 ? 0 : null) : null, txt: ["Smart side earns funding", "Smart side pays funding"] },
+  cycle_with:    { name: "Cycle", replaces: [], test: r => r.cy && r.cy.vs50 != null ? (r.dir * r.cy.vs50 > 2 ? 1 : r.dir * r.cy.vs50 < -2 ? 0 : null) : null, txt: ["Price is on the smart side of its 50-day average", "Price is on the wrong side of its 50-day average"] },
+  range_extreme: { name: "Range position", replaces: [], test: r => r.cy && r.cy.pos90 != null ? ((r.dir > 0 ? r.cy.pos90 <= 0.25 : r.cy.pos90 >= 0.75) ? 1 : (r.dir > 0 ? r.cy.pos90 >= 0.75 : r.cy.pos90 <= 0.25) ? 0 : null) : null, txt: ["Smart side is buying low / selling high in the 90-day range", "Smart side is chasing: buying highs / selling lows of the 90-day range"] },
+  whale:         { name: "Whale-driven", replaces: ["Whale-driven"], test: r => r.whale ? 1 : 0, txt: ["Whale-driven smart side", "Broad smart side (count agrees with $)"] }
+};
+function btOk(){ return S.useBT && BT && BT.factors && BT.samples24 >= 150; }
+function btTune(r, f){
+  if (!btOk()) return f;
+  const tested = BT.conditions || [];
+  for (const c of tested) {
+    const def = BT_COND[c.id]; if (!def) continue;
+    // remove hand-set factors this condition replaces
+    for (const nm of def.replaces) { const i = f.findIndex(x => x.name === nm); if (i >= 0) f.splice(i, 1); }
+    const tf = BT.factors[c.id]; if (!tf) continue;
+    const st = def.test(r); if (st == null) continue;
+    const mult = st ? tf.yes : tf.no;
+    if (Math.abs(mult - 1) < 0.005) continue;
+    f.push({ name: def.name + " · backtested", mult, why: `${def.txt[st ? 0 : 1]}. In the backtest, setups with this condition had a ${Math.abs(tf.hitDiff).toFixed(1)}-point ${tf.hitDiff > 0 === !!st ? "higher" : "lower"} 24h hit rate (same direction in both test periods).` });
+  }
   return f;
+}
+// Historical 24h result for setups with this disparity score
+function btEdge(score){
+  if (!BT || !BT.calib) return null;
+  const b = BT.calib.find(x => score >= x.lo && score < x.hi); if (!b || !b.all || !b.all.r24 || b.all.r24.n < 20) return null;
+  return { lo: b.lo, hi: b.hi, ...b.all.r24 };
 }
 
 const specSide = b => b == null ? "nothing" : b > 0.2 ? "long" : b < -0.2 ? "short" : "both sides";
@@ -463,6 +512,90 @@ function specState(r){
   const A = r.spx.agg; if (A.conf < 0.5 || Math.abs(A.sig) < 0.3) return 0;
   return Math.sign(A.sig) === r.dir ? 1 : -1;
 }
+
+// ---------- Key Points and Things to Look For ----------
+const pc = v => (v > 0 ? "+" : "") + (Math.abs(v) >= 10 ? v.toFixed(0) : v.toFixed(1)) + "%";
+// Price where losing-side (or smart-side) money clusters: liquidations, stop orders, usual loss cuts
+function clusterLevel(r, which){
+  const V = r.lv; if (!V || V.dir !== r.dir || !r.ctx || !r.ctx.px) return null;
+  const px = r.ctx.px, foolSide = r.dir > 0 ? "short" : "long", smartSide = r.dir > 0 ? "long" : "short";
+  const side = which === "fuel" ? foolSide : smartSide, keys = which === "fuel" ? ["bad_" + side, "mid_" + side] : ["good_" + side];
+  const sgn = side === "long" ? 1 : -1;  // long loses when price falls
+  const pts = [];
+  let tot = 0;
+  for (const k of keys) { const g = V.groups[k]; if (!g) continue; tot += g.n;
+    const kinds = which === "fuel" ? [["liq", g.liq], ["stop", g.stops], ["usual exit", g.istops || []]] : [["liq", g.liq]];
+    for (const [kind, arr] of kinds) for (const [p, n] of arr || []) { const d = sgn * (px - p) / px; if (d > 0 && d <= 0.2) pts.push({ p, n, d, kind }); } }
+  if (!pts.length || !tot) return null;
+  pts.sort((a, b) => a.d - b.d);
+  let cum = 0; const kinds = new Set();
+  for (const q of pts) { cum += q.n; kinds.add(q.kind); if (cum >= tot * 0.25 || cum >= 1e6) return { p: q.p, d: q.d * 100, usd: cum, pct: Math.round(cum / tot * 100), kinds: [...kinds], side }; }
+  return { p: pts[pts.length - 1].p, d: pts[pts.length - 1].d * 100, usd: cum, pct: Math.round(cum / tot * 100), kinds: [...kinds], side };
+}
+function keyPoints(r){
+  const K = [], dl = r.dir > 0, side = dl ? "long" : "short";
+  // 1. Positioning and how long it held
+  const heldTxt = r.held >= 1 ? `, held ${r.held >= 48 ? Math.round(r.held / 24) + "d" : Math.round(r.held) + "h"}${r.since != null ? ` (price ${pc(r.since)} for the smart side since)` : ""}` : "";
+  K.push({ c: dl ? "L" : "S", t: `Smart ${pct(r.sm.b)} vs fools ${pct(r.fo.b)}: smart ${side}${heldTxt}.` });
+  // 2. Cycle
+  if (r.cy) { const y = r.cy, bits = [];
+    if (y.vs50 != null) bits.push(`${pc(y.vs50)} vs ${y.days >= 50 ? "50" : "20"}-day avg`);
+    if (y.pos90 != null) bits.push(`${Math.round(y.pos90 * 100)}% of ${y.days >= 90 ? "90" : y.days}-day range`);
+    if (y.r30 != null) bits.push(`30d ${pc(y.r30)}`);
+    if (y.rsi != null) bits.push(`RSI ${Math.round(y.rsi)}`);
+    const withC = y.trend === 0 ? null : y.trend === r.dir;
+    K.push({ c: withC == null ? "" : withC ? "L" : "S", t: `Cycle: ${y.phase}${bits.length ? " · " + bits.join(" · ") : ""}${withC == null ? "" : withC ? " · trend agrees" : " · against the trend"}.` }); }
+  // 3. Flow
+  const t24 = r.tr["24h"], t4 = r.tr["4h"];
+  if (t24 || t4) { const parts = [];
+    if (t24 && t24[3] != null) parts.push(`smart $ on its side ${pc(t24[3])} in 24h`);
+    if (t4 && t4[3] != null) parts.push(`${pc(t4[3])} in 4h`);
+    if (t24) { const f = -r.dir * t24[2]; if (Math.abs(f) >= 5) parts.push(f > 0 ? "fools piling in" : "fools backing off"); }
+    if (parts.length) K.push({ c: t24 && t24[3] != null ? (t24[3] >= 0 ? "L" : "S") : "", t: `Flow: ${parts.join(", ")}.` }); }
+  // 4. Crowd habits
+  if (r.lv && r.lv.groups) { const foolSide = dl ? "short" : "long", g = r.lv.groups["bad_" + foolSide], s = r.lv.groups["good_" + side];
+    if (g) K.push({ c: "", t: `Fools on the ${foolSide} side: ${g.lev}x avg leverage${g.liqD != null ? `, liquidation ${pctCap(g.liqD)} away` : ""}${g.under != null ? `, ${g.under}% under water` : ""}${g.liqTr != null && g.hist >= 2 ? `, ${g.liqTr}% liquidated in 60d` : ""}.` });
+    if (s) K.push({ c: "", t: `Good traders on the ${side} side: ${s.lev}x${s.liqD != null ? `, liquidation ${pctCap(s.liqD)} away` : ""}${s.lc != null ? `, usually cut at −${s.lc}%` : ""}.` }); }
+  // 5. Funding
+  if (r.earn != null && Math.abs(r.earn) >= 3) K.push({ c: r.earn > 0 ? "L" : "S", t: `Funding: the smart side ${r.earn > 0 ? "earns" : "pays"} ${Math.abs(r.earn).toFixed(0)}%/yr${r.earn > 0 ? " (fools pay to hold)" : ""}.` });
+  // 6. Specialists / big money
+  const ss = specState(r);
+  if (ss) K.push({ c: ss > 0 ? "L" : "S", t: `Coin specialists ${ss > 0 ? "agree" : "disagree"} (${r.spx.agg.nS} specialists, ${r.spx.agg.nL} coin losers).` });
+  // 7. Backtest edge
+  const e = btEdge(r.score);
+  if (e) K.push({ c: e.avg >= 0 ? "L" : "S", t: `Backtest: disparity ${e.lo}–${e.hi === 101 ? "100" : e.hi} moved ${pc(e.avg)} on average in 24h for the smart side, ${e.hit}% hit (${e.n} cases).` });
+  return K;
+}
+function lookFor(r){
+  const L = [], dl = r.dir > 0, side = dl ? "long" : "short", px = r.ctx && r.ctx.px;
+  const fuel = clusterLevel(r, "fuel"), risk = clusterLevel(r, "risk");
+  if (fuel) L.push({ c: "L", t: `${dl ? "Above" : "Below"} ${price(fuel.p)} (${dl ? "+" : "−"}${fuel.d.toFixed(1)}%): ${usd(fuel.usd)} of fool ${fuel.side}s hit their ${fuel.kinds.join(" / ")} — forced closes could speed the move.` });
+  if (risk) L.push({ c: "S", t: `${dl ? "Below" : "Above"} ${price(risk.p)} (${dl ? "−" : "+"}${risk.d.toFixed(1)}%): ${usd(risk.usd)} of good-trader ${risk.side}s liquidate — squeeze risk.` });
+  if (r.cy && px) { const y = r.cy, ma = y.days >= 50 ? y.ma50 : y.ma20, nm = y.days >= 50 ? "50-day" : "20-day";
+    if (ma) { const d = (ma / px - 1) * 100, onSmart = dl ? px > ma : px < ma;
+      if (onSmart && Math.abs(d) <= 12) L.push({ c: "S", t: `Invalidation: a move ${dl ? "back below" : "back above"} the ${nm} average ${price(ma)} (${pc(d)}) puts the ${side} against the trend.` });
+      else if (!onSmart && Math.abs(d) <= 12) L.push({ c: "L", t: `Confirmation: a ${dl ? "break above" : "break below"} the ${nm} average ${price(ma)} (${pc(d)}) would bring the trend in line with the smart ${side}.` }); }
+    if (y.lo30 && y.hi30) { const toLo = (y.lo30 / px - 1) * 100, toHi = (y.hi30 / px - 1) * 100;
+      if (!dl && toLo > -4) L.push({ c: "", t: `Near the 30-day low ${price(y.lo30)} (${pc(toLo)}): a break opens new lows; a hold is support against the short.` });
+      if (dl && toHi < 4) L.push({ c: "", t: `Near the 30-day high ${price(y.hi30)} (${pc(toHi)}): a breakout helps the long; a rejection is resistance.` }); }
+    if (y.rsi != null && ((dl && y.rsi >= 75) || (!dl && y.rsi <= 25))) L.push({ c: "S", t: `RSI ${Math.round(y.rsi)}: stretched in the smart direction — a snap-back is likely before more follow-through.` }); }
+  const t4 = r.tr["4h"];
+  if (t4 && t4[3] != null && t4[3] <= -15) L.push({ c: "S", t: `Smart $ on its side fell ${pc(t4[3])} in 4h — watch for an "experts exiting" alert.` });
+  else if (t4 && t4[3] != null && t4[3] >= 20) L.push({ c: "L", t: `Smart $ on its side rose ${pc(t4[3])} in 4h — conviction building.` });
+  r.evs.forEach(e => L.push({ c: "S", t: `${e.type === "flip" ? "Experts flipped" : e.type === "exit" ? "Experts exiting" : "Setup fading"} ${ago(Date.parse(e.t))} ago: ${e.text}` }));
+  if (r.earn != null && r.earn <= -20) L.push({ c: "S", t: `Funding costs the smart side ${Math.abs(r.earn).toFixed(0)}%/yr — a long hold gets expensive.` });
+  if (r.er) L.push({ c: "S", t: `Earnings ${new Date(r.er.d + "T12:00:00Z").toLocaleDateString([], { month: "short", day: "numeric" })}${r.er.tm ? " " + r.er.tm : ""}: price can gap either way.` });
+  const nb = r.news.filter(n => n.b && Date.now() - n.t < 6 * 36e5)[0];
+  if (nb) L.push({ c: "", t: `Big news ${ago(nb.t)} ago: ${nb.h}` });
+  if (specState(r) < 0) L.push({ c: "S", t: `Coin specialists hold the other side — check the holders table.` });
+  if (r.whale) L.push({ c: "S", t: `Whale-driven: a few big wallets set the smart side; one exit changes the picture.` });
+  if (r.red.length) L.push({ c: "S", t: `Red flag: ${r.red.map(x => x.name).join(", ")} on the other side.` });
+  // Backtest: conditions that hurt and apply now
+  if (btOk()) for (const c of BT.conditions || []) { const tf = BT.factors[c.id], def = BT_COND[c.id]; if (!tf || !def) continue; const st = def.test(r); if (st == null) continue;
+    const m = st ? tf.yes : tf.no; if (m <= 0.97) L.push({ c: "S", t: `Backtest warning: ${def.txt[st ? 0 : 1].toLowerCase()} — such setups hit ${Math.abs(tf.hitDiff).toFixed(0)} pts less often.` }); }
+  return L;
+}
+const bullets = (arr, n) => arr.slice(0, n).map(x => `<li class="${x.c || ""}">${esc(x.t)}</li>`).join("");
 
 // ---------- Scoring ----------
 function compute(){
@@ -506,7 +639,8 @@ function compute(){
     const news = NEWS_BY[coin] || [];
     const spx = SPEC && SPEC.m && SPEC.m[coin] && SPEC.m[coin].agg ? SPEC.m[coin] : null;
     const lv = LEVELS && LEVELS.m && LEVELS.m[coin] && LEVELS.m[coin].groups ? LEVELS.m[coin] : null;
-    const r = { coin, ...p, m, sm, fo, gap, dir, agree, red, score, minN: minSide, big, thin, ctx, earn, hist: h, held: h.heldH, since, inst, tools, ntools: tools.n, tr, d4, evs, whale, lst, er, news, spx, lv };
+    const cy = CYCLE && CYCLE.m && CYCLE.m[coin] && CYCLE.m[coin].phase ? CYCLE.m[coin] : null;
+    const r = { coin, ...p, m, sm, fo, gap, dir, agree, red, score, minN: minSide, big, thin, ctx, earn, hist: h, held: h.heldH, since, inst, tools, ntools: tools.n, tr, d4, evs, whale, lst, er, news, spx, lv, cy };
     r.factors = S.useCtx ? contextFactors(r, MAC) : [];
     r.rating = Math.min(100, Math.round(score * r.factors.reduce((a, f) => a * f.mult, 1)));
     out.push(r);
@@ -645,6 +779,7 @@ function render(){
   if (VIEW === "record") { renderRecord(); return; }
   if (VIEW === "changes") { renderChanges(); return; }
   if (VIEW === "news") { renderNews(); return; }
+  if (VIEW === "backtest") { renderBT(); return; }
   if (VIEW === "traders") { renderTraders(); return; }
   if (VIEW !== "setups") return;
   const list = $("list");
@@ -699,6 +834,7 @@ function render(){
       <div class="money">smart <b>${usd(r.sm.n)}</b> · ${r.sm.traders} tr<br>fools <b>${usd(r.fo.n)}</b> · ${r.fo.traders} tr<div class="flags" style="margin-top:4px">${fund}${flags.join("")}</div></div>
       <div class="tw">${tw.join("<br>")}</div>
       <div class="trend">${tfChips(r)}${spark(r.hist.pts)}<small>${heldTxt}${sinceTxt}</small></div>
+      ${S.showKP ? (() => { const kp = keyPoints(r), lf = lookFor(r); return `<div class="kp"><div><span class="kh">Key points</span><ul>${bullets(kp, 3)}</ul></div><div><span class="kh">Things to look for</span><ul>${lf.length ? bullets(lf, 3) : `<li class="N">Nothing stands out.</li>`}</ul></div></div>`; })() : ""}
     </div>`;
     return row + (OPEN === r.coin ? detail(r) : "");
   }).join("") + (total > rows.length ? `<div class="empty">${total - rows.length} more markets. Raise "Rows to show" in Settings.</div>` : "");
@@ -753,6 +889,7 @@ function detail(r){
   return `<div class="detail">
     <h3>Alignment over time</h3>${alignChart(r)}<div style="margin-top:8px">${windowTable(r)}</div>
     ${coinEvs.length ? `<h3>Recent changes</h3><div class="card" style="padding:0">${coinEvs.map(evRow).join("")}</div>` : ""}
+    <h3>Key points · Things to look for</h3><div class="cards"><div class="card"><h4>Key points</h4><ul class="kl">${bullets(keyPoints(r), 20)}</ul></div><div class="card"><h4>Things to look for</h4><ul class="kl">${(() => { const lf = lookFor(r); return lf.length ? bullets(lf, 20) : `<li class="N">Nothing stands out.</li>`; })()}</ul></div>${r.cy ? cycleCard(r) : ""}</div>
     <h3>Why this rating</h3><div class="cards">${ratingCard(r)}${newsCard(r)}</div>
     <h3>How good and bad traders hold it · leverage, liquidations, stops</h3>${behaviorCard(r)}
     <h3>Top holders on this coin · overall record vs this coin</h3>${holdersTable(r)}
@@ -854,9 +991,24 @@ function ladder(V){
     ${ticks.map(t => `<text x="${x(t)}" y="${H - 4}" fill="var(--faint)" font-size="10" text-anchor="middle" font-family="IBM Plex Mono">${price(t)}${t === V.px ? " now" : ""}</text>`).join("")}
   </svg><div class="legend"><span><i style="background:#7cc4ff"></i>Entry (size = money)</span><span><i style="background:#e04a5a"></i>✕ Liquidation</span><span><i style="background:#f0b43c"></i>Stop order</span><span><i style="background:transparent;outline:1px dashed #f0b43c"></i>Usual loss cut</span><span><i style="background:#1fb58a"></i>▲ Target</span><span>Range shown: ±40% of price</span></div></div>`;
 }
+function cycleCard(r){
+  const y = r.cy, row = (k, v) => v == null ? "" : `<div class="kv"><span>${k}</span><b>${v}</b></div>`;
+  return `<div class="card"><h4>Cycle · ${esc(y.phase)}</h4><div class="note" style="max-width:none;margin-bottom:6px">${esc(y.why)}</div>
+    ${row("Price vs 20 / 50 / 200-day avg", [y.ma20, y.ma50, y.ma200].map(m => m ? pc((y.px / m - 1) * 100) : "–").join(" / "))}
+    ${row("50-day avg slope (10 days)", y.slope50 != null ? pc(y.slope50) : null)}
+    ${row("Position in 30 / 90-day range", `${y.pos30 != null ? Math.round(y.pos30 * 100) + "%" : "–"} / ${y.pos90 != null ? Math.round(y.pos90 * 100) + "%" : "–"}`)}
+    ${row("90-day low · high", `${price(y.lo90)} · ${price(y.hi90)}`)}
+    ${row("From the high (all data)", y.dd != null ? pc(y.dd) : null)}
+    ${row("Return 7d / 30d / 90d", [y.r7, y.r30, y.r90].map(v => v != null ? pc(v) : "–").join(" / "))}
+    ${row("RSI (14d)", y.rsi != null ? Math.round(y.rsi) : null)}
+    ${row("Volatility 30d vs 90d (yearly)", y.v30 != null ? `${Math.round(y.v30)}% vs ${y.v90 != null ? Math.round(y.v90) : "–"}%` : null)}
+    <div class="note" style="max-width:none;margin-top:6px">Hyperliquid daily candles · ${y.days} days of history${y.days < 200 ? " (the 200-day average needs 200 days)" : ""}.</div></div>`;
+}
 function ratingCard(r){
   const rows = r.factors.map(f => `<div class="inst"><div><b class="${f.mult >= 1 ? "L" : "S"}">${f.mult >= 1 ? "+" : "−"}${Math.abs(Math.round((f.mult - 1) * 100))}%</b> ${esc(f.name)}<div class="nm" style="white-space:normal;max-width:none">${esc(f.why)}</div></div></div>`).join("");
+  const e = btEdge(r.score);
   return `<div class="card"><h4>Rating ${r.rating} = disparity ${r.score}${r.factors.length ? " × context" : ""}</h4>
+    ${e ? `<div class="kv"><span>Backtest: disparity ${e.lo}–${e.hi === 101 ? 100 : e.hi}, next 24h for the smart side</span><b class="${e.avg >= 0 ? "L" : "S"}">${pc(e.avg)} avg · ${e.hit}% hit · ${e.n} cases</b></div>` : ""}
     <div class="kv"><span>Smart bias ($ / count / blended)</span><b>${pct(r.sm.bd)} / ${pct(r.sm.bc)} / ${pct(r.sm.b)}</b></div>
     <div class="kv"><span>Fools bias ($ / count / blended)</span><b>${pct(r.fo.bd)} / ${pct(r.fo.bc)} / ${pct(r.fo.b)}</b></div>
     <div class="kv"><span>Weight</span><b>${Math.round(S.wD*100)}% $ · ${Math.round((1-S.wD)*100)}% count</b></div>
@@ -923,6 +1075,38 @@ function renderTraders(){
     <tr><td style="text-align:left" class="L">Good traders</td><td>${G.n}</td><td>${f(G.lev, "x")}</td><td>${G.lc != null ? "−" + f(G.lc, "%") : "–"}</td><td>${G.wt != null ? "+" + f(G.wt, "%") : "–"}</td><td>${f(G.stop, "%")}</td><td>${f(G.liqD, "%")}</td><td>${f(G.liqTr, "%")} <span style="color:var(--faint)">of ${G.hN}</span></td></tr>
     <tr><td style="text-align:left" class="S">Bad traders</td><td>${B.n}</td><td>${f(B.lev, "x")}</td><td>${B.lc != null ? "−" + f(B.lc, "%") : "–"}</td><td>${B.wt != null ? "+" + f(B.wt, "%") : "–"}</td><td>${f(B.stop, "%")}</td><td>${f(B.liqD, "%")}</td><td>${f(B.liqTr, "%")} <span style="color:var(--faint)">of ${B.hN}</span></td></tr></tbody></table>
     <div class="note" style="margin-top:6px;max-width:none">Good = Extremely/Very Profitable or a coin specialist. Bad = Unprofitable/Very Unprofitable/Rekt or loses on the coin. Loss cut and take profit come from each trader's last 100 closed trades; market makers and scalpers (tiny moves, short holds) are left out. Histories load a few traders per minute, so the counts grow over the next hours.</div></div>`;
+}
+
+// ---------- Backtest tab ----------
+function renderBT(){
+  const el = $("btBody");
+  if (!BT) { el.innerHTML = `<div class="empty">No backtest yet. It runs every Sunday, or by hand: Actions → "Backtest" → Run workflow (1–2 hours).</div>`; return; }
+  const f = (x, d = 2) => x == null ? "–" : (x > 0 ? "+" : "") + x.toFixed(d);
+  const evc = e => e && e.n ? `<td class="${e.avg >= 0 ? "L" : "S"}">${f(e.avg)}%</td><td>${e.hit}%</td><td style="color:var(--faint)">${e.n}</td>` : `<td>–</td><td>–</td><td style="color:var(--faint)">0</td>`;
+  const icc = x => `<td class="${x.ic > 0 ? "L" : x.ic < 0 ? "S" : ""}">${x.ic == null ? "–" : x.ic.toFixed(3)}</td><td style="color:var(--faint)">${x.t == null ? "" : "t " + x.t.toFixed(1)}</td>`;
+  const U = BT.universe;
+  el.innerHTML = `
+    <div class="info">The backtest rebuilds the hourly positions of ${U.active} active traders (sampled from the best and worst by all-time PnL) from their fills, over ${BT.window.days} days (${new Date(BT.window.from).toLocaleDateString()} – ${new Date(BT.window.to).toLocaleDateString()}). Each trader is placed in the cohort they were in <b>at that hour</b> (current PnL minus PnL realized later). It then recomputes the smart-vs-fools gap for ${BT.coins} markets (${BT.coinHours.toLocaleString()} market-hours) and checks the next 4h / 24h / 72h price move. <b>Fit</b> = first 60% of the window; <b>Check</b> = last 40% (from ${new Date(BT.window.split).toLocaleDateString()}). Returns are for the smart side, before fees and funding. One sample per market per 24h (${BT.samples24.toLocaleString()} samples).</div>
+    <div class="cards">
+      <div class="card"><h4>Does a higher disparity score do better?</h4><div style="overflow-x:auto"><table class="tr btt"><thead><tr><th>Disparity</th><th colspan="3">Fit · 24h avg / hit / n</th><th colspan="3">Check · 24h avg / hit / n</th><th>Check · 72h avg</th></tr></thead><tbody>
+        ${BT.calib.map(b => `<tr><td>${b.lo}–${b.hi === 101 ? 100 : b.hi}</td>${evc(b.train.r24)}${evc(b.test.r24)}<td class="${(b.test.r72.avg || 0) >= 0 ? "L" : "S"}">${b.test.r72.n ? f(b.test.r72.avg) + "%" : "–"}</td></tr>`).join("")}</tbody></table></div></div>
+      <div class="card"><h4>Score threshold: trade only above</h4><div style="overflow-x:auto"><table class="tr btt"><thead><tr><th>Score ≥</th><th colspan="3">Fit · 24h</th><th colspan="3">Check · 24h</th><th>Check 4h</th></tr></thead><tbody>
+        ${BT.thresholds.map(x => `<tr><td>${x.th}</td>${evc(x.train.r24)}${evc(x.test.r24)}<td class="${(x.test.r4.avg || 0) >= 0 ? "L" : "S"}">${x.test.r4.n ? f(x.test.r4.avg) + "%" : "–"}</td></tr>`).join("")}</tbody></table></div></div>
+    </div>
+    <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:18px 0 8px">Which version of the signal ranks markets best? (rank correlation with the next 24h move, averaged per hour)</h3>
+    <div class="card" style="overflow-x:auto"><table class="tr btt" style="min-width:760px"><thead><tr><th>Signal</th><th>Fit IC</th><th></th><th>Check IC</th><th></th><th style="text-align:left">Note</th></tr></thead><tbody>
+      ${BT.ic.map(x => `<tr><td style="text-align:left">${esc(x.name)}</td>${icc(x.train)}${icc(x.test)}<td style="text-align:left;color:var(--faint);white-space:normal">${esc(x.desc || "")}</td></tr>`).join("")}</tbody></table>
+      <div class="note" style="max-width:none;margin-top:6px">IC above 0 = markets with a higher signal went up more. 0.02–0.05 is a useful edge for a ranking signal; t = how sure (about 2+ is meaningful). ${BT.bestWeight ? `Best $ weight in the fit period: <b>${Math.round(BT.bestWeight.w * 100)}% $</b> (check IC ${BT.bestWeight.testIC == null ? "–" : BT.bestWeight.testIC.toFixed(3)}). ${S.useBT && !S.wDUser && BT.bestWeight.testIC > 0 ? "The site uses it now." : "Not applied."}` : ""}</div></div>
+    <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:18px 0 8px">What separates good setups from bad ones? (setups with score 30+, next 24h, smart side)</h3>
+    <div class="card" style="overflow-x:auto"><table class="tr btt" style="min-width:980px"><thead><tr><th>Condition</th><th colspan="3">Fit · yes</th><th colspan="3">Fit · opposite</th><th colspan="3">Check · yes</th><th colspan="3">Check · opposite</th><th>Result</th><th>Live factor</th></tr></thead><tbody>
+      ${BT.conditions.map(c => { const tf = BT.factors[c.id]; return `<tr><td style="text-align:left;white-space:normal;min-width:220px">${esc(c.label)}</td>${evc(c.train.yes)}${evc(c.train.no)}${evc(c.test.yes)}${evc(c.test.no)}<td style="text-align:left" class="${!tf ? "N" : tf.hitDiff > 0 ? "L" : "S"}">${esc(c.verdict || "")}</td><td>${tf ? `×${tf.yes} / ×${tf.no}` : "removed"}</td></tr>`; }).join("")}</tbody></table>
+      <div class="note" style="max-width:none;margin-top:6px">A condition changes the live rating only when it moved the hit rate the same way in both periods (25+ cases each side). The size is the smaller of the two effects, capped at ±15%. Conditions with no stable effect take out the hand-set factor of the same kind (momentum, funding, alignment trend, whale-driven). Turn this off in Settings.</div></div>
+    <div class="card" style="margin-top:12px"><h4>Limits — read before trusting the numbers</h4><ul class="kl" style="color:var(--dim)">
+      <li>The traders were picked by today's all-time PnL. Placing each one in their cohort at the time removes most of the look-ahead, but not all: traders who were bad before the window and then recovered are under-sampled, which can make "fade the fools" look better than it is. Compare with the placebo row: if the neutral cohort works almost as well as the smart one, much of the edge is just fading the crowd.</li>
+      <li>The sample (${U.active} traders) is far smaller than Hyperdash's full cohorts, so the gap here is noisier than the live one. High-frequency traders and market makers (${U.hftSkipped}) cannot be rebuilt and are left out.</li>
+      <li>${BT.window.days} days is one market regime. Results can change a lot in a different one. The test re-runs every Sunday.</li>
+      <li>The <b>Track record</b> tab measures the live signal going forward with no look-ahead — over time it is the better judge.</li></ul>
+      <div class="note" style="max-width:none">Run ${new Date(BT.t).toLocaleString()} · ${BT.runMinutes} min · cohorts at window start: ${Object.entries(U.cohortAtStart || {}).map(([k, v]) => k + " " + v).join(", ")}</div></div>`;
 }
 
 // ---------- News tab ----------
@@ -1104,12 +1288,13 @@ async function refresh(force){
     const sha = await newestSha();
     if (sha && sha === SHA && !force) return;
     const now = Date.now(), need = (k, mins) => force || !LOADED[k] || now - LOADED[k] > mins * 6e4;
-    const jobs = { d: getJson("latest.json", sha), s: getJson("status.json", sha).catch(() => null), e: getJson("events.json", sha).catch(() => null), o: getJson("options.json", sha).catch(() => null), n: getJson("news.json", sha).catch(() => null), c: getJson("context.json", sha).catch(() => null), sp: getJson("specialists.json", sha).catch(() => null), lv: getJson("levels.json", sha).catch(() => null) };
+    const jobs = { d: getJson("latest.json", sha), s: getJson("status.json", sha).catch(() => null), e: getJson("events.json", sha).catch(() => null), o: getJson("options.json", sha).catch(() => null), n: getJson("news.json", sha).catch(() => null), c: getJson("context.json", sha).catch(() => null), sp: getJson("specialists.json", sha).catch(() => null), lv: getJson("levels.json", sha).catch(() => null), cy: getJson("cycle.json", sha).catch(() => null) };
     if (need("h", 15)) jobs.h = getJson("history.json", sha).catch(() => null);
     if (need("i", 60)) jobs.i = getJson("instruments.json", sha).catch(() => null);
     const keys = Object.keys(jobs), vals = await Promise.all(Object.values(jobs)), R = {};
     keys.forEach((k, i) => R[k] = vals[i]);
-    DATA = R.d; STATUS = R.s; EVENTS = R.e; OPTS = R.o; if (R.n) NEWS = R.n; if (R.c) CONTEXT = R.c; if (R.sp) SPEC = R.sp; if (R.lv) LEVELS = R.lv; indexNews();
+    DATA = R.d; STATUS = R.s; EVENTS = R.e; OPTS = R.o; if (R.n) NEWS = R.n; if (R.c) CONTEXT = R.c; if (R.sp) SPEC = R.sp; if (R.lv) LEVELS = R.lv; if (R.cy) CYCLE = R.cy; indexNews();
+    if (Date.now() - BT_T > 30 * 6e4) { BT_T = Date.now(); loadBT(); }
     if ("h" in R) { if (R.h) HIST = R.h; LOADED.h = now; }
     if ("i" in R) { if (R.i) INST = R.i; LOADED.i = now; }
     if (sha) SHA = sha;
@@ -1120,6 +1305,15 @@ async function refresh(force){
       $("msg").innerHTML = `<div class="err">Cannot load data from <code>${esc(dataBase())}</code>. ${esc(e.message)}.<br>Run the "Update Hyperdash data" workflow one time in the Actions tab. It makes the <b>data</b> branch.</div>`;
     }
   } finally { loading = false; }
+}
+
+async function loadBT(){
+  const ri = repoInfo(); if (!ri) return;
+  try { const r = await fetch(`https://raw.githubusercontent.com/${ri.owner}/${ri.repo}/backtest/backtest.json?t=${Math.floor(Date.now() / 36e5)}`); if (!r.ok) return;
+    BT = await r.json();
+    if (!S.wDUser && BT.bestWeight && BT.bestWeight.testIC != null && BT.bestWeight.testIC > 0 && S.useBT) { S.wD = BT.bestWeight.w; $("wD").value = Math.round(S.wD * 100); $("wDv").textContent = Math.round(S.wD * 100) + "% (backtest)"; }
+    render();
+  } catch {}
 }
 
 // Live prices and funding from Hyperliquid (the browser can call it directly).
@@ -1172,8 +1366,10 @@ document.addEventListener("change", e => {
 });
 ["minN","minScore","maxRows"].forEach(id => { const el = $(id); el.value = S[id]; el.oninput = () => { S[id] = Math.max(0, +el.value || 0); save(); render(); }; });
 $("wD").value = Math.round(S.wD * 100); $("wDv").textContent = Math.round(S.wD * 100) + "%";
-$("wD").oninput = e => { S.wD = +e.target.value / 100; $("wDv").textContent = e.target.value + "%"; save(); render(); };
+$("wD").oninput = e => { S.wD = +e.target.value / 100; S.wDUser = true; $("wDv").textContent = e.target.value + "%"; save(); render(); };
 $("useCtx").checked = S.useCtx; $("useCtx").onchange = e => { S.useCtx = e.target.checked; save(); render(); };
+$("useBT").checked = S.useBT; $("useBT").onchange = e => { S.useBT = e.target.checked; if (!S.useBT && !S.wDUser) { S.wD = 0.6; $("wD").value = 60; $("wDv").textContent = "60%"; } save(); BT_T = 0; refresh(true); };
+$("showKP").checked = S.showKP; $("showKP").onchange = e => { S.showKP = e.target.checked; save(); render(); };
 $("toastsOn").checked = S.toasts; $("toastsOn").onchange = e => { S.toasts = e.target.checked; save(); };
 $("deskBtn").onclick = async () => { if (!("Notification" in window)) { alert("This browser has no desktop notifications."); return; } const p = await Notification.requestPermission(); S.desktop = p === "granted"; save(); $("deskBtn").textContent = S.desktop ? "Desktop notifications on" : "Blocked by the browser"; };
 if (S.desktop) $("deskBtn").textContent = "Desktop notifications on";
@@ -1205,7 +1401,7 @@ $("list").onclick = e => {
 document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
   VIEW = b.dataset.tab;
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
-  ["setups","news","traders","changes","record","alerts"].forEach(v => $("v-" + v).hidden = v !== VIEW);
+  ["setups","news","traders","changes","backtest","record","alerts"].forEach(v => $("v-" + v).hidden = v !== VIEW);
   render();
 });
 $("trCls").innerHTML = CLASSES.map(c => `<option>${c}</option>`).join("");
