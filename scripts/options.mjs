@@ -18,7 +18,7 @@ export async function optionStats(sym) {
     const oi = +o.open_interest || 0, vol = +o.volume || 0;
     if (type === "C") { cOI += oi; cV += vol; } else { pOI += oi; pV += vol; }
     if (!byExp.has(exp)) byExp.set(exp, { exp, dte, rows: [] });
-    byExp.get(exp).rows.push({ type, strike, iv: +o.iv || 0 });
+    byExp.get(exp).rows.push({ type, strike, iv: +o.iv || 0, oi });
   }
   const exps = [...byExp.values()].sort((a, b) => a.exp - b.exp);
   if (!exps.length || !price) return { s: sym, t: new Date().toISOString(), none: true };
@@ -29,6 +29,18 @@ export async function optionStats(sym) {
   const ivs = target.rows.filter(r => r.strike === atm && r.iv > 0).map(r => r.iv);
   const ivAtm = ivs.length ? ivs.reduce((a, b) => a + b, 0) / ivs.length : null;
   const weeklyCount = exps.filter(e => e.dte <= 35).length;
+  // Options max pain: the strike where option holders lose the most at expiry (nearest expiry 2+ days out with open interest)
+  const mpExp = exps.find(e => e.dte >= 2 && e.rows.reduce((a, r) => a + r.oi, 0) > 1000);
+  let maxPain = null;
+  if (mpExp) {
+    const ks = [...new Set(mpExp.rows.map(r => r.strike))].sort((a, b) => a - b);
+    let best = Infinity;
+    for (const K of ks) {
+      let pay = 0;
+      for (const r of mpExp.rows) pay += r.oi * (r.type === "C" ? Math.max(0, K - r.strike) : Math.max(0, r.strike - K));
+      if (pay < best) { best = pay; maxPain = K; }
+    }
+  }
   return {
     s: sym, t: new Date().toISOString(), price,
     ivAtm: ivAtm != null ? Math.round(ivAtm * 1000) / 10 : null, ivDte: Math.round(target.dte),
@@ -36,6 +48,7 @@ export async function optionStats(sym) {
     pcVol: cV ? Math.round(pV / cV * 100) / 100 : null,
     oi: cOI + pOI, vol: cV + pV,
     nExp: exps.length, near35: weeklyCount,
+    maxPain, mpExp: mpExp ? new Date(mpExp.exp).toISOString().slice(0, 10) : null, mpDist: maxPain ? Math.round((maxPain / price - 1) * 1000) / 10 : null,
     nextExp: new Date(exps[0].exp).toISOString().slice(0, 10)
   };
 }

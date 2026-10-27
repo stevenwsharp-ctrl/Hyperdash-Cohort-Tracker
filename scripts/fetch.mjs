@@ -11,7 +11,7 @@
 //   status.json      result of the last run
 // Usage: node scripts/fetch.mjs <outDir> [savedGraphqlResponse.json]
 import fs from "node:fs";
-import { http, makeIO, agg, score, normCoin, SMART, FOOLS } from "./lib.mjs";
+import { http, makeIO, agg, score, normCoin, SMART, FOOLS, fidelityOK } from "./lib.mjs";
 import { buildInstruments } from "./instruments.mjs";
 import { optionStats } from "./options.mjs";
 import { computeTrends, detectEvents } from "./trends.mjs";
@@ -55,6 +55,16 @@ async function getCtx() {
       });
     } catch (e) { note("hyperliquid " + name, e); }
   }));
+  // Predicted next funding on Hyperliquid (main venue) and on Binance / Bybit for the same coin
+  try {
+    const pf = await post({ type: "predictedFundings" });
+    for (const [coin, venues] of pf || []) {
+      const key = normCoin(coin), o = out[key] || out[key.toUpperCase()]; if (!o) continue;
+      const v = Object.fromEntries((venues || []).filter(x => x && x[1]).map(([name, x]) => [name, x]));
+      const pick = n => v[n] ? [+v[n].fundingRate, +v[n].fundingIntervalHours || 8, +v[n].nextFundingTime || null] : null;
+      o.pf = { hl: pick("HlPerp"), bin: pick("BinPerp"), byb: pick("BybitPerp") };
+    }
+  } catch (e) { note("predictedFundings", e); }
   return out;
 }
 
@@ -82,7 +92,8 @@ async function setupAlerts(latest, ctx) {
   const minScore = +process.env.ALERT_MIN_SCORE || 65;
   const state = io.read("alerts.json", {});
   const now = Date.now();
-  const hits = Object.keys(latest.m).map(c => score(latest, c)).filter(r => r.score >= minScore).sort((a, b) => b.score - a.score);
+  const inst = io.read("instruments.json", null);
+  const hits = Object.keys(latest.m).filter(c => fidelityOK(c, inst)).map(c => score(latest, c)).filter(r => r.score >= minScore).sort((a, b) => b.score - a.score);
   const fresh = hits.filter(r => { const s = state[r.coin]; return !s || s.dir !== r.dir || now - s.t > 24 * 36e5; }).slice(0, 5);
   for (const r of fresh) {
     const side = r.dir > 0 ? "SMART LONG" : "SMART SHORT";
@@ -139,14 +150,17 @@ async function main() {
     const sm = agg(sI.map(i => m[c].p[i])), fo = agg(fI.map(i => m[c].p[i]));
     if (sm.n < 20000 || fo.n < 20000) continue;
     const ep = epI >= 0 ? m[c].p[epI] : [0, 0, 0, 0], vp = vpI >= 0 ? m[c].p[vpI] : [0, 0, 0, 0];
-    d[c] = [Math.round(sm.b * 100), Math.round(fo.b * 100), ctx[c] ? +ctx[c].px.toPrecision(6) : null, K(ep[2] - ep[3]), K(vp[2] - vp[3]), K(sm.n), K(fo.L - fo.S)];
+    // all traders' long and short money (size cohorts cover everyone)
+    let tL = 0, tS = 0; for (const r of m[c].s) { tL += r[2]; tS += r[3]; }
+    d[c] = [Math.round(sm.b * 100), Math.round(fo.b * 100), ctx[c] ? +ctx[c].px.toPrecision(6) : null, K(ep[2] - ep[3]), K(vp[2] - vp[3]), K(sm.n), K(fo.L - fo.S),
+      ctx[c] ? Math.round(ctx[c].f * 1e7) : null, K(tL), K(tS)];
   }
   const hist = io.read("history.json", { snapshots: [] });
   const tNow = Date.parse(p.timestamp) || Date.now();
   let snaps = (hist.snapshots || []).filter(s => Date.parse(s.t) < tNow);
   snaps.push({ t: p.timestamp, v: 2, d }); // v2 = bias blends $ and trader count
   snaps = downsample(snaps, tNow);
-  io.write("history.json", { smart: SMART, fools: FOOLS, fields: ["smartBias", "foolBias", "price", "epNetK", "vpNetK", "smartGrossK", "foolNetK"], snapshots: snaps });
+  io.write("history.json", { smart: SMART, fools: FOOLS, fields: ["smartBias", "foolBias", "price", "epNetK", "vpNetK", "smartGrossK", "foolNetK", "funding1e7", "allLongK", "allShortK"], snapshots: snaps });
 
   // Trends and events
   const tr = computeTrends(snaps);
@@ -169,7 +183,8 @@ async function main() {
 
   // Event alerts (only for markets that are a real setup now or were 1-4h ago)
   if (process.env.NTFY_TOPIC || process.env.DISCORD_WEBHOOK_URL) {
-    const send = evs.filter(e => ALERT_TYPES.has(e.type)).slice(0, 6);
+    const instA = io.read("instruments.json", null);
+    const send = evs.filter(e => ALERT_TYPES.has(e.type) && fidelityOK(e.coin, instA)).slice(0, 6);
     for (const e of send) {
       const c = ctx[e.coin];
       try { await notify(`${EVENT_TITLE[e.type]}: ${e.coin}`, e.text + (c ? `\nPrice ${c.px} (${c.ch >= 0 ? "+" : ""}${c.ch}% 24h).` : ""), EVENT_TAG[e.type]); }

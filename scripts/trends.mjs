@@ -39,7 +39,11 @@ export function computeTrends(snaps) {
         pct = base > 0 ? Math.round((dir * n1 / base - 1) * 100) : null;
       }
       const pm = v[2] && w[2] ? Math.round(dir * (v[2] / w[2] - 1) * 10000) / 100 : null;
-      tr[k] = [Math.round((g - gapOf(w)) * 100), v[0] - w[0], v[1] - w[1], pct, dk, pm];
+      // 6,7: % change of all traders' long $ and short $; 8: funding change (hourly rate x1e7)
+      const chg = (a, b) => a != null && b != null && b > 0 ? Math.round((a / b - 1) * 1000) / 10 : null;
+      tr[k] = [Math.round((g - gapOf(w)) * 100), v[0] - w[0], v[1] - w[1], pct, dk, pm,
+        v.length > 9 && w.length > 9 ? chg(v[8], w[8]) : null, v.length > 9 && w.length > 9 ? chg(v[9], w[9]) : null,
+        v.length > 7 && w.length > 7 && v[7] != null && w[7] != null ? v[7] - w[7] : null];
     }
     if (Object.keys(tr).length) out[coin] = tr;
   }

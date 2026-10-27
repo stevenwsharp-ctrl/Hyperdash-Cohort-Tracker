@@ -6,7 +6,7 @@
 // Scores 0-100. Alerts (ntfy / Discord) when a liquid market reaches ALERT_HEAT_MIN (default 60),
 // again only if it climbs 15+ points or after 6 hours; plus market-wide alerts.
 // Exit 0 = updated, 3 = nothing new. Usage: node scripts/heat.mjs <outDir>
-import { http, makeIO } from "./lib.mjs";
+import { http, makeIO, fidelityOK } from "./lib.mjs";
 
 const OUT = process.argv[2] || "out";
 const io = makeIO(OUT);
@@ -151,7 +151,9 @@ async function main() {
   // Events and alerts
   const evs = [];
   const site = process.env.SITE_URL || "";
+  const instH = io.read("instruments.json", null);
   for (const [c, v] of list) for (const kind of ["fr", "bb"]) {
+    if (!fidelityOK(c, instH)) continue;
     const sc = v[kind], key = c + "|" + kind, prev = ST.last[key];
     if (sc < ALERT_MIN) { if (prev && sc < ALERT_MIN - 15) delete ST.last[key]; continue; }
     if (prev && now - prev.t < 6 * 36e5 && sc < prev.s + 15) continue;

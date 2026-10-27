@@ -63,6 +63,22 @@ export function score(latest, coin, minN = 50000) {
   return { coin, sm, fo, gap, dir, red, minSide, score: minSide >= minN ? Math.round(100 * Math.abs(gap) * agree * depth * tdepth) : 0 };
 }
 
+// Markets that are not single stocks (indices, commodities, FX, rates, ETFs). Same lists as the page.
+export const NONSTOCK = new Set(("SP500 XYZ100 JP225 KR200 US500 USTECH SMALL2000 BTCD TOTAL2 OTHERS BVIV " +
+  "BRENTOIL CL COPPER GOLD SILVER HO NATGAS PALLADIUM PLATINUM URANIUM WHEAT CORN ALUMINIUM " +
+  "EUR GBP JPY CHF AUD CAD DXY 10Y 2Y 30Y USBOND " +
+  "EWJ EWT EWY EWZ GDX IGV KORU MAGS SMH SOXL SOXX TLT URNM XBI XLE DRV SPY QQQ IWM ARKK").split(" "));
+// A stock market is tradable at Fidelity when its share is listed on a US exchange (NYSE, Nasdaq, NYSE American, NYSE Arca, Cboe, IEX).
+// Crypto and non-stock markets always pass. Every market here is also tradable on Hyperdash.
+export function fidelityOK(coin, inst) {
+  if (!coin.includes(":")) return true;
+  const sym = coin.split(":").slice(1).join(":");
+  if (NONSTOCK.has(sym)) return true;
+  if (!inst || !inst.m) return true;              // no listing data yet: do not hide
+  const I = inst.m[coin];
+  return !!(I && I.u);
+}
+
 // "xyz:AAOI" -> "XYZ:AAOI"; "BTC" -> "BTC"
 export const normCoin = c => c.includes(":") ? c.split(":")[0].toUpperCase() + ":" + c.split(":").slice(1).join(":") : c;
 export const splitCoin = c => { const i = c.indexOf(":"); return i < 0 ? { venue: "", sym: c } : { venue: c.slice(0, i), sym: c.slice(i + 1) }; };

@@ -4,7 +4,7 @@
 // Each headline is matched to Hyperliquid markets and marked "big" when it is likely to move price.
 // Exit code 0 = new items written. Exit code 3 = nothing new.
 // Usage: node scripts/news.mjs <outDir>
-import { http, makeIO, score, splitCoin } from "./lib.mjs";
+import { http, makeIO, score, splitCoin, fidelityOK } from "./lib.mjs";
 import { ALIAS, CRYPTO, GENERIC } from "./instruments.mjs";
 
 const OUT = process.argv[2] || "out";
@@ -149,7 +149,7 @@ async function main() {
     let sent = 0;
     for (const it of out.filter(i => i.b && now - i.t < 30 * 6e4).sort((a, b) => b.t - a.t)) {
       if (sent >= 4) break;
-      const hot = it.c.filter(c => sc[c] && sc[c].score >= minS);
+      const hot = it.c.filter(c => sc[c] && sc[c].score >= minS && fidelityOK(c, inst));
       let title = null;
       if (ALERT_TYPES.has("news") && hot.length && !hot.every(c => now - (N.alerted[c] || 0) < 30 * 6e4)) {
         const r = sc[hot[0]];
