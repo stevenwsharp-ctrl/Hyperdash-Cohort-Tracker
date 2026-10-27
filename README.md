@@ -23,6 +23,15 @@ Site: https://stevenwsharp-ctrl.github.io/Hyperdash-Cohort-Tracker/
 2. Settings → Pages → Deploy from a branch → `main`, `/ (root)`.
 3. Actions tab → enable workflows → "Update Hyperdash data" → Run workflow.
 
+## Trade tools
+
+- **Trade with**: the US stock, proxy ETFs and leveraged / inverse ETFs for each market, and which have listed options (Cboe list) and weekly options. Leveraged ETFs are found by name in the Nasdaq Trader list of all US listings, every 12 hours.
+- **Option stats** (Cboe, 15-min delay) for the top setups: ATM IV near 30 days, put/call ratios, expiries.
+- **Funding**: Hyperliquid funding per year, and if the smart side earns or pays it.
+- **Track record** tab: what the price did 4h and 24h after each signal.
+- **CSV** button: export the table.
+- **Alerts**: add repo secret `NTFY_TOPIC` (ntfy phone app) and/or `DISCORD_WEBHOOK_URL`. Optional repo variable `ALERT_MIN_SCORE` (default 65).
+
 ## Notes
 
 - The repo must be public (raw data links and free Pages need this).

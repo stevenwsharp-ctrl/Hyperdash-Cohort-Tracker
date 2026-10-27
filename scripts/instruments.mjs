@@ -129,6 +129,9 @@ export async function buildInstruments(coins) {
       let hits = byName(terms, etfs.filter(e => !/miner|mining|blockchain|equit|compan|treasur|income|covered|buffer|premium|yield|option/i.test(e.n)));
       if (sym === "BTC") hits = hits.filter(s => !/Bitcoin Cash/i.test(L[s].n));
       hits.forEach(s => (isLevName(L[s].n) ? lev : proxies).push(s));
+      // Many crypto funds are structured or income products. Keep the optionable ones (the big spot ETFs).
+      const optProx = proxies.filter(s => OPT.has(s));
+      proxies = (optProx.length ? optProx : proxies).filter(s => !/protect|structured|buffer|barrier|floor|hedg|ladder|income/i.test(L[s].n)).slice(0, 10);
     } else if (CURATED[sym]) {
       proxies = CURATED[sym][0].split(" ").filter(Boolean);
       lev = CURATED[sym][1].split(" ").filter(Boolean);
