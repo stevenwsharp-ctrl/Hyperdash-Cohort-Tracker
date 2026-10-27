@@ -45,7 +45,7 @@ jobs:
         run: |
           mkdir -p out
           if git fetch --depth=1 origin data 2>/dev/null; then
-            for f in latest.json history.json events.json news.json context.json specialists.json spcache.json levels.json instruments.json options.json alerts.json status.json; do
+            for f in latest.json history.json events.json news.json context.json specialists.json spcache.json tcache.json levels.json instruments.json options.json alerts.json status.json; do
               git show origin/data:$f > out/$f 2>/dev/null || rm -f out/$f
             done
           fi
