@@ -31,6 +31,10 @@ Site: https://stevenwsharp-ctrl.github.io/Hyperdash-Cohort-Tracker/
 - **Track record** tab: what the price did 4h and 24h after each signal.
 - **CSV** button: export the table.
 - **Alignment trend**: gap change over 1h / 4h / 24h / 7d, a chart per market, and the **Changes** tab (expert exits, flips, fades, adds, new setups).
+- **Trader count**: bias blends $ (60%) and trader count (40%), so a few whales cannot set the side alone; "Whale-driven" flag when they disagree.
+- **Rating** = disparity × context (liquidity, funding, trend/exits, momentum, earnings, macro regime from VIX/S&P/BTC, news sentiment).
+- **Listing filters**: S&P 500, NYSE, Nasdaq.
+- **News**: Hyperdash news stream (Bloomberg, WSJ, CNBC, squawks) + Yahoo Finance per ticker, matched to markets; popups on the page, desktop notifications, and `news` / `macro` alert types.
 - **Live prices**: the page reads Hyperliquid prices and funding directly every 20 seconds.
 - **Alerts**: add repo secret `NTFY_TOPIC` (ntfy phone app) and/or `DISCORD_WEBHOOK_URL`. Optional repo variables: `ALERT_MIN_SCORE` (default 65) and `ALERT_TYPES` (default `setup,exit,flip`; also `fade`, `add`, `new`). Test: Actions → Run workflow → tick "Send a test alert".
 

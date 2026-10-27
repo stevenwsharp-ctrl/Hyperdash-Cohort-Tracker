@@ -33,11 +33,14 @@ export async function http(url, { method = "GET", body, headers = {}, tries = 3,
   throw last;
 }
 
-export function agg(rows) {
-  let L = 0, S = 0, t = 0;
-  for (const r of rows) if (r) { L += r[2]; S += r[3]; t += r[0] + r[1]; }
-  const n = L + S;
-  return { L, S, n, b: n ? (L - S) / n : 0, traders: t };
+// Weight of $ bias vs trader-count bias (the page default is the same).
+export const W_DOLLAR = 0.6;
+export function agg(rows, w = W_DOLLAR) {
+  let L = 0, S = 0, lt = 0, st = 0;
+  for (const r of rows) if (r) { L += r[2]; S += r[3]; lt += r[0]; st += r[1]; }
+  const n = L + S, tc = lt + st;
+  const bd = n ? (L - S) / n : 0, bc = tc ? (lt - st) / tc : 0;
+  return { L, S, n, bd, bc, b: tc ? w * bd + (1 - w) * bc : bd, traders: tc };
 }
 
 // Same formula as the page with default settings.

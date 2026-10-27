@@ -15,13 +15,14 @@ import { http, makeIO, agg, score, normCoin, SMART, FOOLS } from "./lib.mjs";
 import { buildInstruments } from "./instruments.mjs";
 import { optionStats } from "./options.mjs";
 import { computeTrends, detectEvents } from "./trends.mjs";
+import { getVix, getEarnings } from "./context.mjs";
 
 const OUT = process.argv[2] || "out";
 const INPUT = process.argv[3];
 const io = makeIO(OUT);
 const status = { ok: true, startedAt: new Date().toISOString(), notes: [] };
 const note = (part, e) => { status.notes.push(`${part}: ${String(e && e.message || e).slice(0, 200)}`); console.error(part, String(e && e.message || e)); };
-const ALERT_TYPES = new Set((process.env.ALERT_TYPES || "setup,exit,flip").split(/[\s,]+/).filter(Boolean));
+const ALERT_TYPES = new Set((process.env.ALERT_TYPES || "setup,exit,flip,news").split(/[\s,]+/).filter(Boolean));
 
 const QUERY = `query{analytics{perpsMarketParticipation{timestamp
  pnlCohorts{cohortId cohortLabel cohortRange markets{coin longTraderCount shortTraderCount totalLongNotional totalShortNotional}}
@@ -195,6 +196,20 @@ async function main() {
     }
     for (const s in opts.m) if (Date.now() - Date.parse(opts.m[s].t) > 3 * 864e5) delete opts.m[s];
     io.write("options.json", { t: new Date().toISOString(), m: opts.m });
+  }
+
+  // Context: VIX every snapshot, earnings calendar every 12 hours
+  if (!INPUT) {
+    const cx = io.read("context.json", { earnings: {}, earningsT: null });
+    try { cx.vix = await getVix(); } catch (e) { note("vix", e); }
+    if (inst && (!cx.earningsT || Date.now() - Date.parse(cx.earningsT) > 12 * 36e5)) {
+      const syms = new Set();
+      for (const c in inst.m) { const I = inst.m[c]; if (I.u) syms.add(I.u.s); }
+      try { cx.earnings = await getEarnings([...syms]); cx.earningsT = new Date().toISOString(); }
+      catch (e) { note("earnings", e); cx.earningsT = new Date(Date.now() - 11 * 36e5).toISOString(); } // retry in about 1 hour
+    }
+    cx.t = new Date().toISOString();
+    io.write("context.json", cx);
   }
 
   try { await setupAlerts(latest, ctx); } catch (e) { note("alerts", e); }

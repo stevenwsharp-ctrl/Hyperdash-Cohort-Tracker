@@ -45,7 +45,7 @@ const CURATED = {
 };
 
 // Markets with no US ticker of the same name. Search ETF names with these words.
-const ALIAS = {
+export const ALIAS = {
   SKHY: ["SK Hynix", "SKHY", "SKHX"], SKHX: ["SK Hynix", "SKHY", "SKHX"],
   SMSN: ["Samsung"], HYUNDAI: ["Hyundai"], XIAOMI: ["Xiaomi"], KIOXIA: ["Kioxia"],
   CXMT: ["CXMT"], CAMBRICON: ["Cambricon"], SOFTBANK: ["SoftBank"], TCNT: ["Tencent"],
@@ -56,7 +56,7 @@ const ALIAS = {
 };
 const NO_TICKER_LOOKUP = new Set("SKHY SKHX SMSN HYUNDAI XIAOMI KIOXIA CXMT CAMBRICON SOFTBANK TCNT ZHIPU MINIMAX GIGADEV JIO SHEIN UNITREE ANTH ANT OAI PURRDAT BTCD TOTAL2 OTHERS BVIV".split(" "));
 
-const CRYPTO = {
+export const CRYPTO = {
   BTC: ["Bitcoin"], ETH: ["Ether", "Ethereum"], SOL: ["Solana"], XRP: ["XRP"], DOGE: ["Dogecoin", "DOGE"],
   LTC: ["Litecoin"], LINK: ["Chainlink"], AVAX: ["Avalanche", "AVAX"], ADA: ["Cardano"], SUI: ["SUI"],
   HBAR: ["Hedera", "HBAR"], DOT: ["Polkadot"], HYPE: ["Hyperliquid", "HYPE"], BNB: ["BNB"], TRX: ["Tron", "TRX"],
@@ -74,15 +74,16 @@ function levInfo(n) {
   const d = /\b(bear|short|inverse|ultrashort)\b|-\s?\d/i.test(n) ? -1 : 1;
   return { x, d };
 }
-const GENERIC = /^(applied|american|advanced|global|first|united|general|international|super|taiwan|china|bank|digital|strategy|micro|energy|national|power|data|cloud|core|target|select|dynamic|western|pacific|capital|financial|health|medical|royal|silver|gold|alpha|nuscale|new|the|smart|direct|rocket|sk|tempus)$/i;
+export const GENERIC = /^(applied|american|advanced|global|first|united|general|international|super|taiwan|china|bank|digital|strategy|micro|energy|national|power|data|cloud|core|target|select|dynamic|western|pacific|capital|financial|health|medical|royal|silver|gold|alpha|nuscale|new|the|smart|direct|rocket|sk|tempus)$/i;
 
+const EXCH = { N: "NYSE", A: "NYSE American", P: "NYSE Arca", Z: "Cboe BZX", V: "IEX" };
 function parseListings(txtA, txtB) {
   const map = {};
-  const add = (sym, name, etf, test) => { if (!sym || test === "Y" || /File Creation/.test(sym)) return; map[sym] = { s: sym, n: name, etf: etf === "Y" }; };
+  const add = (sym, name, etf, test, ex) => { if (!sym || test === "Y" || /File Creation/.test(sym)) return; map[sym] = { s: sym, n: name, etf: etf === "Y", ex }; };
   // otherlisted: ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol
-  txtA.split("\n").slice(1).forEach(l => { const c = l.trim().split("|"); if (c.length > 6) add(c[0], c[1], c[4], c[6]); });
+  txtA.split("\n").slice(1).forEach(l => { const c = l.trim().split("|"); if (c.length > 6) add(c[0], c[1], c[4], c[6], EXCH[c[2]] || c[2]); });
   // nasdaqlisted: Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares
-  txtB.split("\n").slice(1).forEach(l => { const c = l.trim().split("|"); if (c.length > 6) add(c[0], c[1], c[6], c[3]); });
+  txtB.split("\n").slice(1).forEach(l => { const c = l.trim().split("|"); if (c.length > 6) add(c[0], c[1], c[6], c[3], "Nasdaq"); });
   return map;
 }
 function parseCboe(csv) {
@@ -99,19 +100,25 @@ const wordRe = w => new RegExp(`(^|[^A-Za-z0-9])${w.replace(/[.*+?^${}()|[\]\\]/
 
 export async function buildInstruments(coins) {
   const base = "https://www.nasdaqtrader.com/dynamic/SymDir/";
-  const [a, b, cboeCsv, wkCsv] = await Promise.all([
+  const [a, b, cboeCsv, wkCsv, spCsv] = await Promise.all([
     http(base + "otherlisted.txt", { as: "text" }),
     http(base + "nasdaqlisted.txt", { as: "text" }),
     http("https://www.cboe.com/us/options/symboldir/equity_index_options/?download=csv", { as: "text" }),
-    http("https://www.cboe.com/available_weeklys/get_csv_download/", { as: "text" }).catch(() => "")
+    http("https://www.cboe.com/available_weeklys/get_csv_download/", { as: "text" }).catch(() => ""),
+    http("https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv", { as: "text" }).catch(() => "")
   ]);
   const L = parseListings(a, b), OPT = parseCboe(cboeCsv), WK = parseWeekly(wkCsv);
+  // S&P 500 members and sectors (Symbol,Security,GICS Sector,...)
+  const SP = {};
+  spCsv.split("\n").slice(1).forEach(l => { const cols = l.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(x => x.replace(/^"|"$/g, "")); if (cols[0]) SP[cols[0].replace(".", "-")] = cols[2] || ""; });
+  const inSP = s => SP[s] != null || SP[s.replace(".", "-")] != null;
   if (Object.keys(L).length < 5000 || OPT.size < 1000) throw new Error(`Listing data looks wrong: ${Object.keys(L).length} listings, ${OPT.size} optionable`);
   const etfs = Object.values(L).filter(x => x.etf);
   const levEtfs = etfs.filter(x => isLevName(x.n));
   const item = (s, kind) => {
     const e = L[s]; if (!e) return null;
-    const o = { s, n: e.n.replace(/\s+-\s+.*$/, "").slice(0, 80), opt: OPT.has(s), wk: WK.has(s) };
+    const o = { s, n: e.n.replace(/\s+-\s+.*$/, "").slice(0, 80), opt: OPT.has(s), wk: WK.has(s), ex: e.ex };
+    if (inSP(s)) { o.sp = 1; o.sec = SP[s] || SP[s.replace(".", "-")] || ""; }
     if (kind === "lev") Object.assign(o, levInfo(e.n));
     return o;
   };
@@ -150,5 +157,5 @@ export async function buildInstruments(coins) {
     const V = [...new Set(lev)].map(s => item(s, "lev")).filter(Boolean).sort((x, y) => y.d - x.d || y.x - x.x || x.s.localeCompare(y.s));
     if (u || P.length || V.length) out[coin] = { u, px: P, lev: V };
   }
-  return { t: new Date().toISOString(), counts: { listings: Object.keys(L).length, optionable: OPT.size, weekly: WK.size, levEtfs: levEtfs.length }, m: out };
+  return { t: new Date().toISOString(), counts: { sp500: Object.keys(SP).length, listings: Object.keys(L).length, optionable: OPT.size, weekly: WK.size, levEtfs: levEtfs.length }, m: out };
 }
