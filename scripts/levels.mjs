@@ -77,7 +77,8 @@ export function summarize(holders, L, px, dir) {
     if (!s.ids.has(ent)) {
       s.ids.add(ent); s.cnt++;
       if (l.lc != null || l.lq60 != null) s.histCnt++;
-      if (l.lc != null) { s.lc.push(l.lcC != null ? l.lcC : l.lc); if (l.wt != null) s.wt.push(l.wt); if (l.hold != null) s.hold.push(l.hold); }
+      const scalp = l.lc != null && l.lc < 0.5 && l.hold != null && l.hold < 120; // market makers / scalpers have no stop habit
+      if (l.lc != null && !scalp) { s.lc.push(l.lcC != null ? l.lcC : l.lc); if (l.wt != null) s.wt.push(l.wt); if (l.hold != null) s.hold.push(l.hold); }
       if (l.lq60) { s.liqCnt++; s.liqEv += l.lq60; }
     }
     s.n += n; s.lev += (l.lev || 0) * n; s.eff += (l.eff || 0) * n; s.ent += (l.ep || 0) * n;

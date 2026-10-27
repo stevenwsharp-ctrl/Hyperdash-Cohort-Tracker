@@ -888,7 +888,7 @@ function renderTraders(){
       const l = L[h.a];
       t.pos.push({ coin, sd: h.sd, n: h.n, q: h.q });
       if (l) { if (l.lev) t.lev.push([l.lev, h.n]); t.stN += h.n; if (l.st) t.st += h.n; if (l.lq && px) t.liqD.push(h.sd * (px - l.lq) / px * 100);
-        if (l.lc != null) { t.lc = l.lc; t.wt = l.wt; } if (l.lq60 != null) { t.lq60 = l.lq60; t.lqUsd = l.lqUsd; t.lqCoins = l.lqCoins; t.lqCap = l.lqCap; } }
+        if (l.lc != null) { t.lc = l.lc; t.wt = l.wt; t.hold = l.hold; t.scalp = l.lc < 0.5 && l.hold != null && l.hold < 120; } if (l.lq60 != null) { t.lq60 = l.lq60; t.lqUsd = l.lqUsd; t.lqCoins = l.lqCoins; t.lqCap = l.lqCap; } }
     }
   }
   const everyone = Object.values(T);
@@ -903,7 +903,7 @@ function renderTraders(){
       <td>${t.cw}W / ${t.cl}L <span style="color:var(--faint)">${n ? Math.round(t.cw / n * 100) + "%" : ""}</span></td><td class="${t.cp >= 0 ? "L" : "S"}">${usd(t.cp)}</td>
       <td style="text-align:left">${t.pos.sort((a, b) => b.n - a.n).slice(0, 4).map(p => `<a href="#" data-goto="${esc(p.coin)}" class="${p.sd > 0 ? "L" : "S"}">${esc(parse(p.coin).sym)} ${p.sd > 0 ? "L" : "S"} ${usd(p.n)}</a>`).join(" · ")}</td>
       <td>${lev}</td><td class="${t.stN && t.st / t.stN < 0.3 ? "S" : ""}">${stop}</td><td class="${t.liqD.length && Math.min(...t.liqD) < 10 ? "S" : ""}">${liq}</td>
-      <td>${t.lc != null ? "−" + t.lc + "%" : "–"}${t.wt != null ? ` <span style="color:var(--faint)">/ +${t.wt}%</span>` : ""}</td>
+      <td>${t.scalp ? `<span style="color:var(--faint)">scalper / MM</span>` : t.lc != null ? "−" + t.lc + "%" + (t.wt != null ? ` <span style="color:var(--faint)">/ +${t.wt}%</span>` : "") : "–"}</td>
       <td class="${t.lq60 >= 3 ? "S" : ""}" title="${t.lqCoins ? esc(t.lqCoins.join(", ")) : ""}">${t.lq60 != null ? t.lq60 + (t.lqCap ? "+" : "") + (t.lqUsd ? ` <span style="color:var(--faint)">${usd(t.lqUsd)}</span>` : "") : "–"}</td></tr>`;
   };
   const head = `<thead><tr><th>Trader</th><th style="text-align:left">Cohort</th><th>Overall win</th><th>Record on these coins</th><th>PnL on these coins</th><th style="text-align:left">Holds now</th><th>Avg leverage</th><th>Use a stop</th><th>Nearest liq</th><th title="Median move against them when closing a loser / median gain on a winner">Cuts losses / takes</th><th>Liquidated 60d</th></tr></thead>`;
@@ -916,13 +916,13 @@ function renderTraders(){
   const md = a => { const x = a.filter(v => v != null).sort((p, q) => p - q); return x.length ? x[Math.floor(x.length / 2)] : null; };
   const habit = g => { const L = everyone.filter(t => grp(t) === g); const lev = L.map(t => t.lev.length ? t.lev.reduce((a, x) => a + x[0] * x[1], 0) / t.lev.reduce((a, x) => a + x[1], 0) : null);
     const H = L.filter(t => t.lq60 != null);
-    return { n: L.length, lev: md(lev), lc: md(L.map(t => t.lc)), wt: md(L.map(t => t.wt)), stop: L.filter(t => t.stN).length ? Math.round(L.filter(t => t.stN && t.st > 0).length / L.filter(t => t.stN).length * 100) : null,
+    return { n: L.length, lev: md(lev), lc: md(L.filter(t => !t.scalp).map(t => t.lc)), wt: md(L.filter(t => !t.scalp).map(t => t.wt)), stop: L.filter(t => t.stN).length ? Math.round(L.filter(t => t.stN && t.st > 0).length / L.filter(t => t.stN).length * 100) : null,
       liqTr: H.length ? Math.round(H.filter(t => t.lq60 > 0).length / H.length * 100) : null, liqD: md(L.map(t => t.liqD.length ? Math.min(...t.liqD) : null)), hN: H.length }; };
   const G = habit("G"), B = habit("B"), f = (v, u = "") => v == null ? "–" : (typeof v === "number" ? (Math.round(v * 10) / 10) : v) + u;
   $("trHabits").innerHTML = `<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="tr" style="min-width:760px"><thead><tr><th>Group</th><th>Traders</th><th>Median leverage</th><th>Cut losses at (median)</th><th>Take profit at (median)</th><th>Use a stop order</th><th>Nearest liquidation (median)</th><th>Liquidated in 60 days</th></tr></thead><tbody>
     <tr><td style="text-align:left" class="L">Good traders</td><td>${G.n}</td><td>${f(G.lev, "x")}</td><td>${G.lc != null ? "−" + f(G.lc, "%") : "–"}</td><td>${G.wt != null ? "+" + f(G.wt, "%") : "–"}</td><td>${f(G.stop, "%")}</td><td>${f(G.liqD, "%")}</td><td>${f(G.liqTr, "%")} <span style="color:var(--faint)">of ${G.hN}</span></td></tr>
     <tr><td style="text-align:left" class="S">Bad traders</td><td>${B.n}</td><td>${f(B.lev, "x")}</td><td>${B.lc != null ? "−" + f(B.lc, "%") : "–"}</td><td>${B.wt != null ? "+" + f(B.wt, "%") : "–"}</td><td>${f(B.stop, "%")}</td><td>${f(B.liqD, "%")}</td><td>${f(B.liqTr, "%")} <span style="color:var(--faint)">of ${B.hN}</span></td></tr></tbody></table>
-    <div class="note" style="margin-top:6px;max-width:none">Good = Extremely/Very Profitable or a coin specialist. Bad = Unprofitable/Very Unprofitable/Rekt or loses on the coin. Loss cut and take profit come from each trader's last 100 closed trades. Histories load a few traders per minute.</div></div>`;
+    <div class="note" style="margin-top:6px;max-width:none">Good = Extremely/Very Profitable or a coin specialist. Bad = Unprofitable/Very Unprofitable/Rekt or loses on the coin. Loss cut and take profit come from each trader's last 100 closed trades; market makers and scalpers (tiny moves, short holds) are left out. Histories load a few traders per minute, so the counts grow over the next hours.</div></div>`;
 }
 
 // ---------- News tab ----------
