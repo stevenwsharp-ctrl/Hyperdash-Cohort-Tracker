@@ -769,7 +769,7 @@ function holdersTable(r){
   const tag = h => h.miss ? `<span style="color:var(--faint)">loading</span>` : h.q >= 0.25 ? `<span class="et add">Specialist</span>` : h.q <= -0.25 ? `<span class="et exit">Loses here</span>` : h.wrs == null ? `<span style="color:var(--faint)">no record</span>` : `<span style="color:var(--faint)">thin</span>`;
   const LV = LEVELS && LEVELS.m && LEVELS.m[r.coin] && LEVELS.m[r.coin].h || {};
   const pxNow = r.ctx && r.ctx.px;
-  const dist = (p, sd) => p && pxNow ? `${price(p)} <span style="color:var(--faint)">${(sd * (pxNow - p) / pxNow * 100).toFixed(0)}%</span>` : "–";
+  const dist = (p, sd) => { if (!p || !pxNow) return "–"; const d = sd * (pxNow - p) / pxNow * 100; return `${price(p)} <span style="color:var(--faint)">${d > 100 ? ">100" : d.toFixed(0)}%</span>`; };
   const rows = X.holders.map(h => { const l = LV[h.a] || {}; const sd = h.sd; return `<tr>
     <td style="text-align:left"><a href="https://hyperdash.com/address/${esc(h.a)}" target="_blank" rel="noopener">${esc(h.lb || h.a.slice(0, 6) + "…" + h.a.slice(-4))}</a>${h.k ? ` <span title="Same side and almost the same size as other wallets: most likely one trader" style="color:var(--warn)">◆${h.k}</span>` : ""}</td>
     <td class="${h.sd > 0 ? "L" : "S"}">${h.sd > 0 ? "long" : "short"}</td><td>${usd(h.n)}</td><td class="${h.u >= 0 ? "L" : "S"}">${usd(h.u)}</td>
@@ -788,13 +788,14 @@ function holdersTable(r){
   return `<div class="card">${sum}<div style="overflow-x:auto;margin-top:8px"><table class="tr" style="min-width:1240px"><thead><tr><th>Trader</th><th>Side</th><th>Size</th><th>Open PnL</th><th style="text-align:left">Cohort</th><th>Overall win</th><th>This coin</th><th>Coin win → adj.</th><th>vs overall</th><th>Coin PnL</th><th></th><th>Leverage</th><th>Entry · vs now</th><th>Liq · move to liq</th><th>Stop · move to stop</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="note" style="margin-top:6px;max-width:none">"Coin win → adj." = raw win rate on this coin → adjusted win rate (pulled toward the trader's overall rate when there are few coin trades). "vs overall" = adjusted coin win rate minus overall win rate. Specialist = wins clearly more (and/or makes money) on this coin; needs about 4 coin trades or $100K coin PnL for full trust. ◆ = wallets that look like one trader; they count once. Completed trades only; Hyperdash shows the top 30 holders without login.</div></div>`;
 }
+const pctCap = v => v == null ? "–" : v > 100 ? ">100%" : v + "%";
 const GROUPS = [["good_long","Good traders · long","L"],["good_short","Good traders · short","S"],["bad_long","Bad traders · long","L"],["bad_short","Bad traders · short","S"]];
 function behaviorCard(r){
   const V = r.lv;
   if (!V) return `<div class="card"><div class="note">${r.spx ? "Leverage and stop data is in the queue (one market every 45 seconds, top 30 setups)." : "Runs after the holder analysis for the top 30 setups."}</div></div>`;
   const cell = v => v == null ? "–" : v;
   const rows = GROUPS.map(([k, name, cls]) => { const g = V.groups[k]; if (!g) return `<tr><td style="text-align:left">${name}</td><td colspan="10" style="text-align:left;color:var(--faint)">no positions in the top holders</td></tr>`;
-    return `<tr><td style="text-align:left" class="${cls}">${name}</td><td>${g.cnt}</td><td>${usd(g.n)}</td><td>${cell(g.lev)}x</td><td>${cell(g.eff)}x</td><td>${price(g.ep)} <span style="color:var(--faint)">${((cls === "L" ? 1 : -1) * (V.px - g.ep) / g.ep * 100).toFixed(1)}%</span></td><td class="${g.under >= 50 ? "S" : ""}">${g.under}%</td><td class="${g.stopCov < 30 ? "S" : "L"}">${g.stopCov}%</td><td>${g.stopD == null ? "–" : g.stopD + "%"}</td><td class="${g.liqD != null && g.liqD < 10 ? "S" : ""}">${g.liqD == null ? "–" : g.liqD + "%"}</td><td>${g.tpD == null ? "–" : g.tpD + "%"}</td></tr>`; }).join("");
+    return `<tr><td style="text-align:left" class="${cls}">${name}</td><td>${g.cnt}</td><td>${usd(g.n)}</td><td>${cell(g.lev)}x</td><td>${cell(g.eff)}x</td><td>${price(g.ep)} <span style="color:var(--faint)">${((cls === "L" ? 1 : -1) * (V.px - g.ep) / g.ep * 100).toFixed(1)}%</span></td><td class="${g.under >= 50 ? "S" : ""}">${g.under}%</td><td class="${g.stopCov < 30 ? "S" : "L"}">${g.stopCov}%</td><td>${pctCap(g.stopD)}</td><td class="${g.liqD != null && g.liqD < 10 ? "S" : ""}">${pctCap(g.liqD)}</td><td>${pctCap(g.tpD)}</td></tr>`; }).join("");
   const dl = r.dir > 0;
   return `<div class="card">
     <div class="kv"><span>Liquidation fuel (losing-side positions liquidated or stopped within 10% the smart way)</span><b class="${V.fuelPct >= 10 ? "L" : ""}">${usd(V.fuelUsd)} · ${V.fuelPct}% of top holders</b></div>
@@ -871,7 +872,7 @@ function renderTraders(){
   const row = t => {
     const lev = t.lev.length ? (t.lev.reduce((a, x) => a + x[0] * x[1], 0) / t.lev.reduce((a, x) => a + x[1], 0)).toFixed(1) + "x" : "–";
     const stop = t.stN ? Math.round(t.st / t.stN * 100) + "%" : "–";
-    const liq = t.liqD.length ? Math.min(...t.liqD).toFixed(0) + "%" : "–";
+    const liq = t.liqD.length ? pctCap(Math.round(Math.min(...t.liqD))) : "–";
     const n = t.cw + t.cl;
     return `<tr><td style="text-align:left"><a href="https://hyperdash.com/address/${esc(t.a)}" target="_blank" rel="noopener">${esc(t.lb || t.a.slice(0, 6) + "…" + t.a.slice(-4))}</a></td>
       <td style="text-align:left">${COH[t.coh] || "–"}</td><td>${t.wr != null ? t.wr.toFixed(0) + "%" : "–"} <span style="color:var(--faint)">${t.tt}</span></td>

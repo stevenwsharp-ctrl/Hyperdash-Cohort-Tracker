@@ -110,6 +110,7 @@ async function main() {
           if (!closing) l.add.push(pxo);
           else if (/stop/i.test(o.orderType || "")) l.st.push(pxo);
           else if (/take profit/i.test(o.orderType || "")) l.tp.push(pxo);
+          else if (Math.abs(pxo - px) / px < 0.005) continue;       // quotes at the price (market making), not a target or stop
           else if (side > 0 ? pxo > px : pxo < px) l.tp.push(pxo);  // closing limit in profit = target
           else l.st.push(pxo);                                       // closing limit in loss = stop-like
         }
