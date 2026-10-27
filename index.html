@@ -1136,7 +1136,7 @@ function renderHeat(){
       ${list.map(([c, h]) => { const s = h[k], col = s >= 75 ? (up ? "#ff8a1f" : "#ff3355") : s >= 55 ? (up ? "#ffb35c" : "#ff6677") : "#7a8584";
         return `<tr><td style="text-align:left"><a href="#" data-goto="${esc(c)}">${esc(parse(c).sym)}</a> <span class="tag">${esc(parse(c).cls)}</span></td>
           <td style="text-align:left"><span class="hbar" style="width:${Math.max(4, s * 0.6)}px;background:${col}"></span><b>${s}</b> <span style="color:var(--faint)">${heatLvl(s, k)}</span></td>
-          <td>${pctc(h.r24)} · ${pctc(h.r4)} · ${pctc(h.r1)}</td><td>${h.z24 != null ? Math.abs(h.z24).toFixed(1) + "×" : "–"}</td>
+          <td style="white-space:nowrap">${pctc(h.r24)} · ${pctc(h.r4)} · ${pctc(h.r1)}</td><td>${h.z24 != null ? Math.abs(h.z24).toFixed(1) + "×" : "–"}</td>
           <td class="${up ? (h.f >= 40 ? "S" : "") : (h.f <= -20 ? "S" : "")}">${h.f != null ? (h.f > 0 ? "+" : "") + Math.round(h.f) + "%" : "–"}</td>
           <td>${h.oi4 != null ? (h.oi4 > 0 ? "+" : "") + Math.round(h.oi4) + "%" : "–"} · ${h.oi24 != null ? (h.oi24 > 0 ? "+" : "") + Math.round(h.oi24) + "%" : "–"}</td>
           <td>${usd(up ? h.lqS4 : h.lqL4)} · ${usd(up ? h.lqS24 : h.lqL24)}</td><td class="${up ? (h.rsi >= 70 ? "S" : "") : (h.rsi <= 30 ? "S" : "")}">${h.rsi != null ? Math.round(h.rsi) : "–"}</td>
