@@ -192,6 +192,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
         <button class="chip" id="needLev">Has leveraged ETF</button>
         <button class="chip" id="needPaid">Smart side earns funding</button>
         <button class="chip" id="onlyExit">Experts exiting (6h)</button>
+        <button class="chip" id="needSpec">Specialists agree</button>
       </div>
       <input type="search" id="q" placeholder="Search ticker">
       <button class="ghost" id="setBtn">Settings</button>
@@ -291,6 +292,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
       <li><b>IV</b> = at-the-money implied volatility near 30 days. <b>P/C</b> = put/call ratio of open interest. Option data is from Cboe with a 15-minute delay, for the top setups only.</li>
       <li><b>Trader count</b>: bias blends dollars and accounts. Default 60% $ and 40% trader count, so a few large accounts cannot set the side alone. A tile shows "$ −74 · count 0 ⚠" when the two disagree, and the row shows <b>Whale-driven</b> when the smart side's $ bias is not backed by its trader count. Change the weight in Settings.</li>
       <li><b>Rating</b> = disparity × context. Context factors: liquidity (Hyperliquid 24h volume), funding (smart side earns or pays), alignment trend and expert exits, price momentum, earnings within 7 days (event risk), the macro regime (VIX, S&P 500, BTC: risk-on helps smart longs on risk assets, risk-off helps smart shorts), recent big news sentiment, and whale-driven bias. Click a row to see each factor in "Why this rating". Turn context off in Settings to rank by disparity only.</li>
+      <li><b>Coin specialists</b>: for the top 30 setups, the page checks the 30 largest holders of each coin. For each holder it compares the win rate on this coin with the holder's overall win rate, and adds the PnL made on this coin. Few coin trades are pulled toward the overall rate, so one lucky trade does not count much. "Specialists agree" = the traders who are dialed in on this coin hold the smart side (and the ones who lose on it hold the other side). This adds up to +15% to the rating; disagreement takes off up to 25%. Wallets with the same side and almost the same size count as one trader.</li>
       <li><b>Listing filters</b>: S&P 500 members (and sector), NYSE (NYSE, NYSE American, NYSE Arca) and Nasdaq. They use the US stock, or the first proxy ETF for index and commodity markets.</li>
       <li><b>News</b>: headlines are matched to markets every minute. Big stories on markets rated 30+ and big macro stories pop up at the bottom right. Turn on desktop notifications in Settings to get them while the tab is in the background.</li>
       <li><b>Alignment trend</b>: the change of the gap over 1h, 4h, 24h and 7d. ▲ green = the two groups moved further apart on the setup side (stronger). ▼ red = they moved closer (weaker). Hover a box to see the smart bias, fools bias and smart $ change.</li>
@@ -315,14 +317,14 @@ const CLASS = {
 const CLASS_SET = {}; for (const k in CLASS) CLASS[k].split(" ").forEach(s => CLASS_SET[s] = k);
 const CLASSES = ["All", "Crypto", "Stock", "Index", "ETF", "Commodity", "FX / Rates"];
 const DEFAULTS = {
-  cls: "All", dir: "both", hideRed: false, hideThin: false, needOpt: false, needLev: false, needPaid: false, onlyExit: false, q: "",
+  cls: "All", dir: "both", hideRed: false, hideThin: false, needOpt: false, needLev: false, needPaid: false, onlyExit: false, needSpec: false, q: "",
   smart: ["extremely_profitable", "very_profitable"],
   fools: ["unprofitable", "very_unprofitable", "rekt"],
   minN: 50000, minScore: 0, maxRows: 60, sort: "rating", desc: true, wD: 0.6, useCtx: true, listing: "any", toasts: true
 };
 let S = load();
 let DATA = null, HIST = null, STATUS = null, INST = null, OPTS = null, EVENTS = null, ROWS = [], OPEN = null, VIEW = "setups";
-let LIVE = {}, LIVE_T = 0, CONTEXT = null, NEWS = null, NEWS_BY = {}, SEEN_NEWS = null, SEEN_EV = null, SHA = null, LOADED = {}, CHART_W = "24h", EV_TYPE = "all";
+let LIVE = {}, LIVE_T = 0, SPEC = null, CONTEXT = null, NEWS = null, NEWS_BY = {}, SEEN_NEWS = null, SEEN_EV = null, SHA = null, LOADED = {}, CHART_W = "24h", EV_TYPE = "all";
 const EV_RECENT_H = 6;
 
 function load(){ try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem("cohortSniper") || "{}")); } catch { return Object.assign({}, DEFAULTS); } }
@@ -425,11 +427,27 @@ function contextFactors(r, MAC){
     const against = (MAC.regime === "Risk-off" && r.dir > 0) || (MAC.regime === "Risk-on" && r.dir < 0);
     add("Macro", against ? 0.92 : 1.04, `${MAC.regime}${MAC.vix != null ? ` (VIX ${MAC.vix.toFixed(1)})` : ""}: ${against ? "headwind" : "tailwind"} for a smart ${r.dir > 0 ? "long" : "short"}.`);
   }
+  if (r.spx) {
+    const A = r.spx.agg;
+    if (A.conf >= 0.5 && Math.abs(A.sig) >= 0.3) {
+      const agree = Math.sign(A.sig) === r.dir, k = Math.abs(A.sig) * A.conf;
+      add("Coin specialists", agree ? 1 + 0.15 * k : 1 - 0.25 * k, `${A.nS} trader(s) who win more on this coin than overall hold ${specSide(A.sb)}; ${A.nL} who lose on it hold ${specSide(A.lb)}. ${agree ? "This backs" : "This is against"} the smart ${r.dir > 0 ? "long" : "short"}.`);
+    }
+    if (A.smartDwr != null && A.smartDwr <= -8) add("Smart holders on this coin", 0.93, `Smart-cohort holders win ${Math.abs(A.smartDwr)} points less on this coin than overall.`);
+    else if (A.smartDwr != null && A.smartDwr >= 8) add("Smart holders on this coin", 1.05, `Smart-cohort holders win ${A.smartDwr} points more on this coin than overall.`);
+  }
   const ns = r.news.filter(n => n.b && n.s && Date.now() - n.t < 24 * 36e5);
   const net = ns.reduce((a, n) => a + (n.s === "bull" ? 1 : n.s === "bear" ? -1 : 0), 0) * r.dir;
   if (net <= -2) add("News", 0.9, `Recent big news leans against the smart side.`);
   else if (net >= 2) add("News", 1.04, `Recent big news leans with the smart side.`);
   return f;
+}
+
+const specSide = b => b == null ? "nothing" : b > 0.2 ? "long" : b < -0.2 ? "short" : "both sides";
+function specState(r){
+  if (!r.spx) return 0;
+  const A = r.spx.agg; if (A.conf < 0.5 || Math.abs(A.sig) < 0.3) return 0;
+  return Math.sign(A.sig) === r.dir ? 1 : -1;
 }
 
 // ---------- Scoring ----------
@@ -472,7 +490,8 @@ function compute(){
     const lst = inst && inst.u ? inst.u : inst && inst.px && inst.px[0] ? inst.px[0] : null;
     const er = inst && inst.u && CONTEXT && CONTEXT.earnings ? CONTEXT.earnings[inst.u.s] || null : null;
     const news = NEWS_BY[coin] || [];
-    const r = { coin, ...p, m, sm, fo, gap, dir, agree, red, score, minN: minSide, big, thin, ctx, earn, hist: h, held: h.heldH, since, inst, tools, ntools: tools.n, tr, d4, evs, whale, lst, er, news };
+    const spx = SPEC && SPEC.m && SPEC.m[coin] && SPEC.m[coin].agg ? SPEC.m[coin] : null;
+    const r = { coin, ...p, m, sm, fo, gap, dir, agree, red, score, minN: minSide, big, thin, ctx, earn, hist: h, held: h.heldH, since, inst, tools, ntools: tools.n, tr, d4, evs, whale, lst, er, news, spx };
     r.factors = S.useCtx ? contextFactors(r, MAC) : [];
     r.rating = Math.min(100, Math.round(score * r.factors.reduce((a, f) => a * f.mult, 1)));
     out.push(r);
@@ -595,7 +614,7 @@ function filtered(){
     r.minN >= S.minN && r.rating >= S.minScore &&
     (S.listing === "any" || (S.listing === "sp500" ? r.lst && r.lst.sp : S.listing === "nyse" ? r.lst && /^NYSE/.test(r.lst.ex || "") : r.lst && r.lst.ex === "Nasdaq")) &&
     (!S.hideRed || !r.red.length) && (!S.hideThin || !r.thin) &&
-    (!S.needOpt || r.tools.opt) && (!S.needLev || r.tools.same.length) && (!S.needPaid || (r.earn != null && r.earn > 0)) && (!S.onlyExit || r.evs.length) &&
+    (!S.needOpt || r.tools.opt) && (!S.needLev || r.tools.same.length) && (!S.needPaid || (r.earn != null && r.earn > 0)) && (!S.onlyExit || r.evs.length) && (!S.needSpec || specState(r) > 0) &&
     (!q || r.coin.toUpperCase().includes(q)));
   const key = S.sort, sgn = S.desc ? -1 : 1;
   const val = (r) => key === "coin" ? r.sym : key === "sb" ? r.sm.b : key === "fb" ? r.fo.b : r[key];
@@ -632,6 +651,8 @@ function render(){
     }
     if (r.hist.isNew && r.score >= 25) flags.push(`<span class="flag f-new">New</span>`);
     if (r.thin) flags.push(`<span class="flag f-thin">Thin</span>`);
+    { const ss = specState(r), A = r.spx && r.spx.agg;
+      if (ss) flags.push(`<span class="flag ${ss > 0 ? "f-good" : "f-bad"}" title="Coin specialists (win more on this coin than overall): ${A.nS}, ${specSide(A.sb)}. Coin losers: ${A.nL}, ${specSide(A.lb)}.">Specialists ${ss > 0 ? "agree" : "disagree"} · ${A.nS}/${A.nL}</span>`); }
     if (r.whale) flags.push(`<span class="flag f-red" title="$ bias ${pct(r.sm.bd)}, trader-count bias ${pct(r.sm.bc)}. A few big accounts set the $ side.">Whale-driven</span>`);
     if (r.er) { const dd = Math.round((Date.parse(r.er.d + "T12:00:00Z") - Date.now()) / 864e5); flags.push(`<span class="flag ${dd <= 3 ? "f-red" : "f-thin"}" title="${esc(r.er.tm || "")} ${esc(r.er.est ? "EPS est " + r.er.est : "")}">Earnings ${new Date(r.er.d + "T12:00:00Z").toLocaleDateString([], {month:"short", day:"numeric"})}</span>`); }
     const n24 = r.news.filter(n => Date.now() - n.t < 24 * 36e5), nb = n24.filter(n => n.b);
@@ -715,6 +736,7 @@ function detail(r){
     <h3>Alignment over time</h3>${alignChart(r)}<div style="margin-top:8px">${windowTable(r)}</div>
     ${coinEvs.length ? `<h3>Recent changes</h3><div class="card" style="padding:0">${coinEvs.map(evRow).join("")}</div>` : ""}
     <h3>Why this rating</h3><div class="cards">${ratingCard(r)}${newsCard(r)}</div>
+    <h3>Top holders on this coin · overall record vs this coin</h3>${holdersTable(r)}
     <h3>How to trade it</h3><div class="cards">${perp}${us}${lev}${none}</div>
     <h3>PnL cohorts — white border = in your Smart or Fools group</h3>
     <div class="tiles">${DATA.pnl.map((c, i) => tile(c, r.m.p[i], S.smart.includes(c.id) || S.fools.includes(c.id))).join("")}</div>
@@ -724,6 +746,26 @@ function detail(r){
   </div>`;
 }
 
+function holdersTable(r){
+  const X = SPEC && SPEC.m && SPEC.m[r.coin];
+  if (!X || !X.holders) return `<div class="card"><div class="note">${r.score >= 30 ? "Holder analysis is in the queue. It refreshes the top 30 setups about every 15 minutes." : "Holder analysis runs for the top 30 setups (score 30+)."}</div></div>`;
+  const A = X.agg, coh = { EP: "Ext profitable", VP: "Very profitable", P: "Profitable", U: "Unprofitable", VU: "Very unprofitable", R: "Rekt" };
+  const tag = h => h.q >= 0.25 ? `<span class="et add">Specialist</span>` : h.q <= -0.25 ? `<span class="et exit">Loses here</span>` : h.wrs == null ? `<span style="color:var(--faint)">no record</span>` : `<span style="color:var(--faint)">thin</span>`;
+  const rows = X.holders.map(h => `<tr>
+    <td style="text-align:left"><a href="https://hyperdash.com/address/${esc(h.a)}" target="_blank" rel="noopener">${esc(h.lb || h.a.slice(0, 6) + "…" + h.a.slice(-4))}</a>${h.k ? ` <span title="Same side and almost the same size as other wallets: most likely one trader" style="color:var(--warn)">◆${h.k}</span>` : ""}</td>
+    <td class="${h.sd > 0 ? "L" : "S"}">${h.sd > 0 ? "long" : "short"}</td><td>${usd(h.n)}</td><td class="${h.u >= 0 ? "L" : "S"}">${usd(h.u)}</td>
+    <td style="text-align:left">${coh[h.coh] || "–"}</td><td>${h.wr != null ? h.wr.toFixed(0) + "%" : "–"} <span style="color:var(--faint)">${h.tt}</span></td>
+    <td>${h.cw}W / ${h.cl}L</td><td>${h.raw != null ? h.raw.toFixed(0) + "%" : "–"} <span style="color:var(--faint)">${h.wrs != null ? "→ " + h.wrs.toFixed(0) + "%" : ""}</span></td>
+    <td class="${h.dwr > 0 ? "L" : h.dwr < 0 ? "S" : ""}">${h.dwr != null ? (h.dwr > 0 ? "+" : "") + h.dwr.toFixed(0) : "–"}</td>
+    <td class="${h.cp >= 0 ? "L" : "S"}">${usd(h.cp)}</td><td>${tag(h)}</td></tr>`).join("");
+  const sum = `<div class="kv"><span>Coin specialists (entities)</span><b>${A.nS} · ${usd(A.sL)} long / ${usd(A.sS)} short</b></div>
+    <div class="kv"><span>Coin losers (entities)</span><b>${A.nL} · ${usd(A.lL)} long / ${usd(A.lS)} short</b></div>
+    <div class="kv"><span>Specialist signal</span><b class="${A.sig > 0 ? "L" : A.sig < 0 ? "S" : ""}">${pct(A.sig)} (${A.sig > 0.2 ? "long" : A.sig < -0.2 ? "short" : "no clear side"}) · trust ${Math.round(A.conf * 100)}%</b></div>
+    <div class="kv"><span>Smart holders: coin vs overall win rate</span><b>${A.smartDwr == null ? "–" : (A.smartDwr > 0 ? "+" : "") + A.smartDwr + " pts"}</b></div>
+    <div class="kv"><span>Top ${A.nHold} holders = ${A.ent} traders${A.cov != null ? ` · ${A.cov}% of open interest` : ""}</span><b>updated ${ago(Date.parse(X.t))} ago</b></div>`;
+  return `<div class="card">${sum}<div style="overflow-x:auto;margin-top:8px"><table class="tr" style="min-width:880px"><thead><tr><th>Trader</th><th>Side</th><th>Size</th><th>Open PnL</th><th style="text-align:left">Cohort</th><th>Overall win</th><th>This coin</th><th>Coin win → adj.</th><th>vs overall</th><th>Coin PnL</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="note" style="margin-top:6px;max-width:none">"Coin win → adj." = raw win rate on this coin → adjusted win rate (pulled toward the trader's overall rate when there are few coin trades). "vs overall" = adjusted coin win rate minus overall win rate. Specialist = wins clearly more (and/or makes money) on this coin; needs about 4 coin trades or $100K coin PnL for full trust. ◆ = wallets that look like one trader; they count once. Completed trades only; Hyperdash shows the top 30 holders without login.</div></div>`;
+}
 function ratingCard(r){
   const rows = r.factors.map(f => `<div class="inst"><div><b class="${f.mult >= 1 ? "L" : "S"}">${f.mult >= 1 ? "+" : "−"}${Math.abs(Math.round((f.mult - 1) * 100))}%</b> ${esc(f.name)}<div class="nm" style="white-space:normal;max-width:none">${esc(f.why)}</div></div></div>`).join("");
   return `<div class="card"><h4>Rating ${r.rating} = disparity ${r.score}${r.factors.length ? " × context" : ""}</h4>
@@ -922,12 +964,12 @@ async function refresh(force){
     const sha = await newestSha();
     if (sha && sha === SHA && !force) return;
     const now = Date.now(), need = (k, mins) => force || !LOADED[k] || now - LOADED[k] > mins * 6e4;
-    const jobs = { d: getJson("latest.json", sha), s: getJson("status.json", sha).catch(() => null), e: getJson("events.json", sha).catch(() => null), o: getJson("options.json", sha).catch(() => null), n: getJson("news.json", sha).catch(() => null), c: getJson("context.json", sha).catch(() => null) };
+    const jobs = { d: getJson("latest.json", sha), s: getJson("status.json", sha).catch(() => null), e: getJson("events.json", sha).catch(() => null), o: getJson("options.json", sha).catch(() => null), n: getJson("news.json", sha).catch(() => null), c: getJson("context.json", sha).catch(() => null), sp: getJson("specialists.json", sha).catch(() => null) };
     if (need("h", 15)) jobs.h = getJson("history.json", sha).catch(() => null);
     if (need("i", 60)) jobs.i = getJson("instruments.json", sha).catch(() => null);
     const keys = Object.keys(jobs), vals = await Promise.all(Object.values(jobs)), R = {};
     keys.forEach((k, i) => R[k] = vals[i]);
-    DATA = R.d; STATUS = R.s; EVENTS = R.e; OPTS = R.o; if (R.n) NEWS = R.n; if (R.c) CONTEXT = R.c; indexNews();
+    DATA = R.d; STATUS = R.s; EVENTS = R.e; OPTS = R.o; if (R.n) NEWS = R.n; if (R.c) CONTEXT = R.c; if (R.sp) SPEC = R.sp; indexNews();
     if ("h" in R) { if (R.h) HIST = R.h; LOADED.h = now; }
     if ("i" in R) { if (R.i) INST = R.i; LOADED.i = now; }
     if (sha) SHA = sha;
@@ -964,7 +1006,7 @@ function chips(el, items, cur, cb, cls){
   el.innerHTML = items.map(([v, t]) => `<button class="chip ${cls ? cls(v) : ""} ${v === cur ? "on" : ""}" data-v="${esc(v)}">${esc(t)}</button>`).join("");
   el.onclick = e => { const b = e.target.closest("button"); if (b) cb(b.dataset.v); };
 }
-const TOGGLES = ["hideRed", "hideThin", "needOpt", "needLev", "needPaid", "onlyExit"];
+const TOGGLES = ["hideRed", "hideThin", "needOpt", "needLev", "needPaid", "onlyExit", "needSpec"];
 function drawChips(){
   chips($("classChips"), CLASSES.map(c => [c, c]), S.cls, v => { S.cls = v; save(); drawChips(); render(); });
   chips($("listChips"), [["any","Any listing"],["sp500","S&P 500"],["nyse","NYSE"],["nasdaq","Nasdaq"]], S.listing, v => { S.listing = v; save(); drawChips(); render(); });

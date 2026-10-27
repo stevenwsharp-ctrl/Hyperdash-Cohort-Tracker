@@ -45,7 +45,7 @@ jobs:
         run: |
           mkdir -p out
           if git fetch --depth=1 origin data 2>/dev/null; then
-            for f in latest.json history.json events.json news.json context.json instruments.json options.json alerts.json status.json; do
+            for f in latest.json history.json events.json news.json context.json specialists.json spcache.json instruments.json options.json alerts.json status.json; do
               git show origin/data:$f > out/$f 2>/dev/null || rm -f out/$f
             done
           fi
@@ -81,8 +81,8 @@ jobs:
           FIRST=1
           while :; do
             if [ -n "$FORCE_INSTRUMENTS_IN" ] && [ $FIRST = 1 ]; then export FORCE_INSTRUMENTS=1 FORCE_RUN=1; else unset FORCE_INSTRUMENTS FORCE_RUN; fi
-            set +e; node scripts/fetch.mjs out; rc=$?; node scripts/news.mjs out; rn=$?; set -e
-            if [ $rc -eq 0 ] || [ $rn -eq 0 ]; then
+            set +e; node scripts/fetch.mjs out; rc=$?; node scripts/news.mjs out; rn=$?; node scripts/specialists.mjs out; rs=$?; set -e
+            if [ $rc -eq 0 ] || [ $rn -eq 0 ] || [ $rs -eq 0 ]; then
               (cd out && git add -A && { git commit -q --amend -m "data $(date -u +%FT%TZ)" 2>/dev/null || git commit -q -m "data $(date -u +%FT%TZ)"; } && git push -f -q "$REMOTE" data) || echo "push failed"
             fi
             FIRST=0

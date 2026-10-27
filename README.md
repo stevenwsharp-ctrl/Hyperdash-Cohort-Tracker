@@ -35,6 +35,7 @@ Site: https://stevenwsharp-ctrl.github.io/Hyperdash-Cohort-Tracker/
 - **Rating** = disparity × context (liquidity, funding, trend/exits, momentum, earnings, macro regime from VIX/S&P/BTC, news sentiment).
 - **Listing filters**: S&P 500, NYSE, Nasdaq.
 - **News**: Hyperdash news stream (Bloomberg, WSJ, CNBC, squawks) + Yahoo Finance per ticker, matched to markets; popups on the page, desktop notifications, and `news` / `macro` alert types.
+- **Coin specialists**: for the top 30 setups, the 30 largest holders of each coin are checked: win rate on this coin vs overall (adjusted for few trades), coin PnL, and wallets that look like one trader. "Specialists agree / disagree" adjusts the rating.
 - **Live prices**: the page reads Hyperliquid prices and funding directly every 20 seconds.
 - **Alerts**: add repo secret `NTFY_TOPIC` (ntfy phone app) and/or `DISCORD_WEBHOOK_URL`. Optional repo variables: `ALERT_MIN_SCORE` (default 65) and `ALERT_TYPES` (default `setup,exit,flip`; also `fade`, `add`, `new`). Test: Actions → Run workflow → tick "Send a test alert".
 
