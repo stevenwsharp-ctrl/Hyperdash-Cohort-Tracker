@@ -31,10 +31,15 @@ async function pace(weight) {
   if (el >= 1) { wStart = Date.now(); wUsed = weight; return; }
   if (wUsed > 950) { await sleep((1 - el) * 6e4 + 500); wStart = Date.now(); wUsed = weight; }
 }
-async function hl(body, weight = 20) {
-  await pace(weight);
+// per = items per extra weight unit (Hyperliquid: fills/funding 20, candles 60); the real cost is charged after the reply
+async function hl(body, per = 0, base = 20) {
+  await pace(base);
   for (let i = 0; i < 4; i++) {
-    try { return await http("https://api.hyperliquid.xyz/info", { method: "POST", tries: 1, timeoutMs: 30000, headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); }
+    try {
+      const r = await http("https://api.hyperliquid.xyz/info", { method: "POST", tries: 1, timeoutMs: 30000, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      if (per && Array.isArray(r)) wUsed += Math.ceil(r.length / per);
+      return r;
+    }
     catch (e) { if (/429/.test(e.message)) { log("429, waiting"); await sleep(30000); wStart = Date.now(); wUsed = 0; } else if (i === 3) throw e; else await sleep(2000); }
   }
 }
@@ -68,7 +73,7 @@ async function traderHistory(t) {
   const all = [];
   let start = T0, truncated = false;
   for (let page = 0; page < 5; page++) {
-    const f = await hl({ type: "userFillsByTime", user: t.a, startTime: start, aggregateByTime: true }, 20 + 100);
+    const f = await hl({ type: "userFillsByTime", user: t.a, startTime: start, aggregateByTime: true }, 20);
     if (!Array.isArray(f) || !f.length) break;
     if (page === 0 && f.length >= 2000 && f[0].time > T0 + 2 * 24 * H) { truncated = true; break; }  // only recent fills exist: HFT / market maker
     for (const x of f) {
@@ -84,7 +89,7 @@ async function traderHistory(t) {
   const cur = {};
   for (const dex of ["", "xyz"]) {
     try {
-      const cs = await hl({ type: "clearinghouseState", user: t.a, ...(dex ? { dex } : {}) }, 2);
+      const cs = await hl({ type: "clearinghouseState", user: t.a, ...(dex ? { dex } : {}) }, 0, 2);
       for (const p of (cs.assetPositions || []).map(x => x.position)) cur[p.coin] = +p.szi;
     } catch { }
   }
@@ -94,7 +99,7 @@ async function traderHistory(t) {
 
 // ---------- 3. Market data ----------
 async function hourly(name) {
-  const c = await hl({ type: "candleSnapshot", req: { coin: name, interval: "1h", startTime: T0 - 8 * 24 * H, endTime: NOW + H } }, 20 + 60);
+  const c = await hl({ type: "candleSnapshot", req: { coin: name, interval: "1h", startTime: T0 - 8 * 24 * H, endTime: NOW + H } }, 60);
   const px = new Float64Array(NH + 73).fill(NaN);   // px[i] = close at time T0 + i*H (i may go to NH+72 for forward returns; future stays NaN)
   const pre = [];                                    // closes before T0 (for momentum at the start)
   for (const k of Array.isArray(c) ? c : []) {
@@ -105,14 +110,14 @@ async function hourly(name) {
   return { px, pre: new Map(pre) };
 }
 async function daily(name) {
-  const c = await hl({ type: "candleSnapshot", req: { coin: name, interval: "1d", startTime: T0 - 400 * 24 * H, endTime: NOW + H } }, 20 + 7);
+  const c = await hl({ type: "candleSnapshot", req: { coin: name, interval: "1d", startTime: T0 - 400 * 24 * H, endTime: NOW + H } }, 60);
   return (Array.isArray(c) ? c : []).map(k => [k.t, +k.c]);
 }
 async function funding(name) {
   const out = [];
   let start = T0 - 24 * H;
   for (let i = 0; i < 4; i++) {
-    const f = await hl({ type: "fundingHistory", coin: name, startTime: start }, 20 + 25);
+    const f = await hl({ type: "fundingHistory", coin: name, startTime: start }, 20);
     if (!Array.isArray(f) || !f.length) break;
     for (const x of f) out.push([x.time, +x.fundingRate]);
     if (f.length < 500) break;
@@ -157,7 +162,7 @@ async function main() {
       if (!h.fills.length && !Object.values(h.cur).some(x => x)) { inactive++; continue; }
       T.push({ ...t, ...h });
     } catch (e) { fail++; }
-    if ((T.length + trunc + inactive) % 100 === 0) log(`traders: ${T.length} active, ${trunc} HFT skipped, ${inactive} inactive, ${fail} failed`);
+    if ((T.length + trunc + inactive) % 200 === 0) log(`traders: ${T.length} active, ${trunc} HFT skipped, ${inactive} inactive, ${fail} failed`);
   }
   log(`Fills done: ${T.length} active traders`);
 
