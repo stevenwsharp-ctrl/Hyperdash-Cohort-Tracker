@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cohort Sniper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0d0e; --panel:#121516; --panel2:#171b1c; --line:#232a2b; --text:#e6ebea; --dim:#8a9694; --faint:#5b6664;
+  --bull:#1fb58a; --bull-bg:#123f33; --bear:#e04a5a; --bear-bg:#4a1820; --neutral-bg:#24292a;
+  --warn:#f0b43c; --accent:#7cc4ff;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace; --sans:"IBM Plex Sans",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{max-width:1320px;margin:0 auto;padding:16px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;padding:6px 0 14px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:22px;letter-spacing:.02em;font-weight:700}
+h1 span{color:var(--bear)} h1 em{font-style:normal;color:var(--bull)}
+.sub{color:var(--dim);font-size:13px;margin-top:4px}
+.stat{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:right;line-height:1.6}
+.stat b{color:var(--text);font-weight:500}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bull);margin-right:6px;vertical-align:1px}
+.dot.old{background:var(--warn)} .dot.bad{background:var(--bear)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 12px var(--sans);background:var(--panel);border:1px solid var(--line);color:var(--dim);padding:6px 10px;border-radius:999px;cursor:pointer}
+.chip.on{color:var(--text);border-color:#3c4748;background:var(--panel2)}
+.chip.long.on{border-color:var(--bull);color:var(--bull)} .chip.short.on{border-color:var(--bear);color:var(--bear)}
+.sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+input[type=search]{background:var(--panel);border:1px solid var(--line);color:var(--text);padding:7px 10px;border-radius:8px;font:13px var(--sans);width:150px}
+button.ghost{background:none;border:1px solid var(--line);color:var(--dim);padding:6px 10px;border-radius:8px;cursor:pointer;font:12px var(--sans)}
+button.ghost:hover{color:var(--text)}
+.settings{display:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;gap:18px;flex-wrap:wrap}
+.settings.open{display:flex}
+.settings fieldset{border:none;margin:0;padding:0;min-width:200px}
+.settings legend{font-weight:600;font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.settings label{display:block;font-size:13px;margin:4px 0;color:var(--text)}
+.settings input[type=number]{width:110px;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:5px 7px;border-radius:6px;font:13px var(--mono)}
+.note{color:var(--faint);font-size:12px;max-width:340px;line-height:1.5}
+.err{background:var(--bear-bg);border:1px solid var(--bear);padding:10px 12px;border-radius:8px;margin:10px 0;font-size:13px}
+.hdr,.row{display:grid;grid-template-columns:34px minmax(120px,1.2fr) 150px 120px minmax(150px,1fr) minmax(150px,1fr) 70px minmax(150px,1fr) 96px;gap:10px;align-items:center;padding:9px 10px}
+.hdr{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2}
+.hdr div[data-sort]{cursor:pointer} .hdr div[data-sort]:hover{color:var(--text)} .hdr .act{color:var(--accent)}
+.row{border-bottom:1px solid var(--line);cursor:pointer}
+.row:hover{background:var(--panel)}
+.row.open{background:var(--panel2)}
+.rank{font-family:var(--mono);color:var(--faint);font-size:12px}
+.mkt b{font-size:15px;font-weight:600;display:block}
+.tag{display:inline-block;font:500 10px var(--mono);color:var(--dim);border:1px solid var(--line);border-radius:4px;padding:1px 5px;margin:3px 4px 0 0;text-transform:uppercase}
+.setup{font:600 12px var(--mono);line-height:1.5}
+.setup .s{display:block}
+.L{color:var(--bull)} .S{color:var(--bear)} .N{color:var(--dim)}
+.score{font:600 18px var(--mono)}
+.meter{height:5px;background:var(--line);border-radius:3px;margin-top:5px;overflow:hidden}
+.meter i{display:block;height:100%;border-radius:3px}
+.side .big{font:600 14px var(--mono)}
+.side .lbl{font-size:11px;color:var(--dim);margin-left:4px}
+.minis{display:flex;gap:3px;margin-top:5px}
+.mini{flex:1;height:16px;border-radius:3px;font:500 9px var(--mono);display:flex;align-items:center;justify-content:center;color:#fff;opacity:.95;min-width:22px}
+.gap{font:600 14px var(--mono)}
+.flags{display:flex;flex-wrap:wrap;gap:4px}
+.flag{font:500 10.5px var(--sans);padding:2px 6px;border-radius:4px;white-space:nowrap}
+.f-red{background:#3d2a10;color:var(--warn);border:1px solid #6b4c17}
+.f-thin{background:var(--neutral-bg);color:var(--dim)}
+.f-good{background:var(--bull-bg);color:#7fe0c0}
+.f-bad{background:var(--bear-bg);color:#f2a0aa}
+.f-new{background:#1d3550;color:var(--accent)}
+.money{font:12px var(--mono);color:var(--dim);line-height:1.5}
+.money b{color:var(--text);font-weight:500}
+svg.spark{display:block}
+.trend small{display:block;font:10.5px var(--mono);color:var(--faint);margin-top:2px}
+.detail{background:var(--panel2);border-bottom:1px solid var(--line);padding:4px 14px 16px}
+.detail h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:14px 0 8px;font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}
+.tile{border-radius:6px;padding:10px;text-align:center;min-height:92px;display:flex;flex-direction:column;justify-content:center;gap:2px;border:1px solid transparent}
+.tile.grp{border-color:rgba(255,255,255,.35)}
+.tile b{font-size:13px} .tile .r{font-size:10.5px;opacity:.75}
+.tile .n{font:12px var(--mono)} .tile .v{font-size:12.5px;font-weight:600}
+.tile .tc{font:10.5px var(--mono);opacity:.8}
+.why{font-size:13px;color:var(--dim);line-height:1.6;margin-top:12px}
+.why b{color:var(--text)}
+.empty{padding:40px;text-align:center;color:var(--dim)}
+details.help{margin:22px 0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+details.help summary{cursor:pointer;font-weight:600}
+details.help p,details.help li{color:var(--dim);line-height:1.65;font-size:13px}
+footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
+@media (max-width:1000px){
+  .hdr{display:none}
+  .row{grid-template-columns:28px 1fr auto;grid-template-areas:"rank mkt score" "setup setup setup" "smart smart fools" "gap money money" "flags flags trend";row-gap:8px}
+  .row>.rank{grid-area:rank}.row>.mkt{grid-area:mkt}.row>.sc{grid-area:score;text-align:right}
+  .row>.setup{grid-area:setup}.row>.sm{grid-area:smart}.row>.fo{grid-area:fools}
+  .row>.gp{grid-area:gap}.row>.money{grid-area:money;text-align:right}.row>.flags{grid-area:flags}.row>.trend{grid-area:trend}
+  .row>.sm,.row>.fo{min-width:0}
+  .setup .s{display:inline;margin-right:10px}
+  .gap::before{content:"Gap ";font-size:11px;color:var(--faint)}
+  .sm::before{content:"SMART";font-size:10px;color:var(--faint);display:block;letter-spacing:.06em}
+  .fo::before{content:"FOOLS";font-size:10px;color:var(--faint);display:block;letter-spacing:.06em}
+  .row{grid-template-columns:28px 1fr 1fr}
+}
+@media (max-width:520px){ .sep{display:none} .wrap{padding:12px} input[type=search]{width:100%} .stat{text-align:left} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>COHORT <span>SNIPER</span> <em>·</em> Smart vs Fools</h1>
+      <div class="sub">Hyperliquid markets where the profitable traders and the losing traders hold opposite sides. Data from Hyperdash cohorts.</div>
+    </div>
+    <div class="stat" id="stat">Loading…</div>
+  </header>
+
+  <div class="bar">
+    <div class="chips" id="classChips"></div>
+    <div class="sep"></div>
+    <div class="chips" id="dirChips"></div>
+    <div class="sep"></div>
+    <div class="chips">
+      <button class="chip" id="hideRed">Hide red flags</button>
+      <button class="chip" id="hideThin">Hide thin</button>
+    </div>
+    <input type="search" id="q" placeholder="Search ticker">
+    <button class="ghost" id="setBtn">Settings</button>
+    <button class="ghost" id="refBtn">Refresh</button>
+  </div>
+
+  <div class="settings" id="settings">
+    <fieldset><legend>Smart cohorts</legend><div id="smartBoxes"></div></fieldset>
+    <fieldset><legend>Fool cohorts</legend><div id="foolBoxes"></div></fieldset>
+    <fieldset><legend>Filters</legend>
+      <label>Min notional each side ($) <input type="number" id="minN" step="10000" min="0"></label>
+      <label>Min score <input type="number" id="minScore" step="5" min="0" max="100"></label>
+      <label>Rows to show <input type="number" id="maxRows" step="10" min="10"></label>
+    </fieldset>
+    <fieldset><legend>Note</legend>
+      <div class="note">The 24h trend line and "held for" time use the default groups (Extremely + Very Profitable vs Unprofitable + Very Unprofitable + Rekt). Other choices change the score and the table, not the stored history.</div>
+      <button class="ghost" id="resetBtn" style="margin-top:10px">Reset settings</button>
+    </fieldset>
+  </div>
+
+  <div id="msg"></div>
+  <div class="hdr" id="hdr">
+    <div>#</div><div data-sort="coin">Market</div><div>Setup</div><div data-sort="score">Score</div>
+    <div data-sort="sb">Smart bias</div><div data-sort="fb">Fools bias</div><div data-sort="gap">Gap</div>
+    <div data-sort="minN">Money in play</div><div data-sort="held">24h gap</div>
+  </div>
+  <div id="list"></div>
+
+  <details class="help">
+    <summary>How the score works</summary>
+    <p><b>Bias</b> for a group = (long $ − short $) ÷ (long $ + short $). +100 means all long. −100 means all short.</p>
+    <ul>
+      <li><b>Smart</b> = the sum of the smart cohorts (default: Extremely Profitable and Very Profitable, all-time PnL).</li>
+      <li><b>Fools</b> = the sum of the fool cohorts (default: Unprofitable, Very Unprofitable and Rekt).</li>
+      <li><b>Gap</b> = (Smart bias − Fools bias) ÷ 2. It goes from −100 to +100. A large gap means the two groups hold opposite sides.</li>
+      <li><b>Setup</b>: if Smart is more long than Fools, the setup is SMART LONG. If Smart is more short, the setup is SMART SHORT.</li>
+      <li><b>Agreement</b>: each smart cohort with enough money must point the same way. If one smart cohort points the other way, the score goes down by up to 50%. This shows as a <span class="flag f-red">red flag</span>.</li>
+      <li><b>Depth</b>: small money gives less trust. The score goes down when the smaller side is near the minimum notional, or when few smart traders hold the market.</li>
+      <li><b>Score</b> = |Gap| × Agreement × Depth, from 0 to 100.</li>
+      <li><b>Big money</b> badge: the Apex and Whale size cohorts (account size, not skill). It does not change the score.</li>
+      <li><b>Held</b>: how long the gap has stayed on the same side and above 15, from the stored history.</li>
+    </ul>
+    <p>Cohorts come from all-time PnL. A trader that was good last year can be wrong now. Use this as a filter to find setups, not as a signal to trade. This is not financial advice.</p>
+  </details>
+  <footer>Data: Hyperdash public API (cohort positioning of Hyperliquid perps), pulled every 15 minutes by a GitHub Action. Spot markets are not in this data.</footer>
+</div>
+
+<script>
+// ---------- Config ----------
+const CONFIG = { dataBase: "" }; // Set a URL here to force a data location. Leave empty for auto.
+
+const CLASS = {
+  Index: "SP500 XYZ100 JP225 KR200 US500 USTECH SMALL2000 BTCD TOTAL2 OTHERS BVIV",
+  Commodity: "BRENTOIL CL COPPER GOLD SILVER HO NATGAS PALLADIUM PLATINUM URANIUM WHEAT CORN",
+  "FX / Rates": "EUR GBP JPY CHF AUD CAD DXY 10Y 2Y 30Y USBOND",
+  ETF: "EWJ EWT EWY EWZ GDX IGV KORU MAGS SMH SOXL SOXX TLT URNM XBI XLE DRV SPY QQQ IWM ARKK"
+};
+const CLASS_SET = {}; for (const k in CLASS) CLASS[k].split(" ").forEach(s => CLASS_SET[s] = k);
+const CLASSES = ["All", "Crypto", "Stock", "Index", "ETF", "Commodity", "FX / Rates"];
+const DEFAULTS = {
+  cls: "All", dir: "both", hideRed: false, hideThin: false, q: "",
+  smart: ["extremely_profitable", "very_profitable"],
+  fools: ["unprofitable", "very_unprofitable", "rekt"],
+  minN: 50000, minScore: 0, maxRows: 60, sort: "score", desc: true
+};
+let S = load();
+let DATA = null, HIST = null, STATUS = null, ROWS = [], OPEN = null;
+
+function load(){ try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem("cohortSniper") || "{}")); } catch { return Object.assign({}, DEFAULTS); } }
+function save(){ try { localStorage.setItem("cohortSniper", JSON.stringify(S)); } catch {} }
+
+function dataBase(){
+  const q = new URLSearchParams(location.search).get("data");
+  if (q) return q.replace(/\/?$/, "/");
+  if (CONFIG.dataBase) return CONFIG.dataBase.replace(/\/?$/, "/");
+  const h = location.hostname;
+  if (h.endsWith(".github.io")) {
+    const owner = h.split(".")[0];
+    let repo = location.pathname.split("/").filter(Boolean)[0];
+    if (!repo || /\.html?$/.test(repo)) repo = h;
+    return `https://raw.githubusercontent.com/${owner}/${repo}/data/`;
+  }
+  return "./data/";
+}
+
+// ---------- Helpers ----------
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+function usd(n){ const a = Math.abs(n); return "$" + (a >= 1e9 ? (n/1e9).toFixed(2)+"B" : a >= 1e6 ? (n/1e6).toFixed(2)+"M" : a >= 1e3 ? (n/1e3).toFixed(1)+"K" : Math.round(n)); }
+function pct(b){ const v = Math.round(b*100); return (v > 0 ? "+" : "") + v; }
+function label(b, n){
+  if (!n) return "No positions";
+  const a = Math.abs(b), side = b > 0 ? "Bullish" : "Bearish";
+  if (a < 0.1) return "Neutral"; if (a < 0.3) return side; if (a < 0.75) return "Very " + side.toLowerCase(); return "Ext " + side.toLowerCase();
+}
+function color(b, n){
+  if (!n || Math.abs(b) < 0.1) return "var(--neutral-bg)";
+  const a = clamp((Math.abs(b) - 0.1) / 0.9, 0, 1);
+  const base = b > 0 ? [18,63,51] : [74,24,32], top = b > 0 ? [24,150,112] : [190,52,70];
+  const c = base.map((v,i) => Math.round(v + (top[i]-v) * a));
+  return `rgb(${c.join(",")})`;
+}
+function parse(coin){
+  const i = coin.indexOf(":");
+  const venue = i < 0 ? "" : coin.slice(0, i), sym = i < 0 ? coin : coin.slice(i+1);
+  const cls = !venue ? "Crypto" : (CLASS_SET[sym] || "Stock");
+  return { venue, sym, cls };
+}
+function hdLink(coin){
+  const { venue, sym } = parse(coin);
+  return "https://hyperdash.com/?chart1=" + encodeURIComponent(venue ? venue.toLowerCase() + ":" + sym : sym);
+}
+function agg(rows){ let L=0,Sh=0,lt=0,st=0; rows.forEach(r=>{ L+=r[2]; Sh+=r[3]; lt+=r[0]; st+=r[1]; }); const n=L+Sh; return { L, S:Sh, n, b: n ? (L-Sh)/n : 0, traders: lt+st }; }
+
+// ---------- Scoring ----------
+function compute(){
+  if (!DATA) return [];
+  const P = DATA.pnl, Z = DATA.size;
+  const idx = ids => ids.map(id => P.findIndex(c => c.id === id)).filter(i => i >= 0);
+  const sI = idx(S.smart), fI = idx(S.fools);
+  const apexI = Z.findIndex(c => c.id === "apex"), whaleI = Z.findIndex(c => c.id === "whale");
+  const out = [];
+  for (const coin in DATA.m) {
+    const m = DATA.m[coin];
+    const sm = agg(sI.map(i => m.p[i])), fo = agg(fI.map(i => m.p[i]));
+    if (!sI.length || !fI.length) continue;
+    const gap = (sm.b - fo.b) / 2, dir = gap >= 0 ? 1 : -1;
+    // Agreement inside the smart group
+    let agree = 1; const red = [];
+    sI.forEach(i => {
+      const c = agg([m.p[i]]);
+      if (c.n < S.minN / 2) return;
+      if (Math.sign(c.b) === -dir && Math.abs(c.b) >= 0.1) { agree *= 1 - 0.5 * Math.min(1, Math.abs(c.b)); red.push({ name: P[i].label, b: c.b }); }
+    });
+    const minSide = Math.min(sm.n, fo.n);
+    const depth = minSide <= 0 ? 0 : clamp(0.4 + 0.3 * Math.log10(minSide / Math.max(1, S.minN)), 0.4, 1);
+    const tdepth = clamp(Math.sqrt(sm.traders / 10), 0.5, 1);
+    const score = Math.round(100 * Math.abs(gap) * agree * depth * tdepth);
+    const big = apexI >= 0 && whaleI >= 0 ? agg([m.s[apexI], m.s[whaleI]]) : null;
+    const thin = minSide < S.minN * 3 || sm.traders < 5;
+    const h = histFor(coin, dir);
+    const p = parse(coin);
+    out.push({ coin, ...p, m, sm, fo, gap, dir, agree, red, score, minN: minSide, big, thin, hist: h, held: h.heldH });
+  }
+  return out;
+}
+
+function histFor(coin, dir){
+  const res = { pts: [], heldH: 0, isNew: false };
+  if (!HIST || !HIST.snapshots || !HIST.snapshots.length) return res;
+  const snaps = HIST.snapshots, tEnd = Date.parse(snaps[snaps.length-1].t);
+  for (const s of snaps) {
+    const t = Date.parse(s.t); if (tEnd - t > 24*36e5) continue;
+    const v = s.d[coin]; res.pts.push([t, v ? (v[0] - v[1]) / 200 : null]);
+  }
+  let held = 0, tStart = null;
+  for (let i = snaps.length - 1; i >= 0; i--) {
+    const v = snaps[i].d[coin]; if (!v) break;
+    const g = (v[0] - v[1]) / 200; if (Math.sign(g) !== dir || Math.abs(g) < 0.15) break;
+    tStart = Date.parse(snaps[i].t);
+  }
+  if (tStart != null) held = (tEnd - tStart) / 36e5;
+  res.heldH = held;
+  const span = (tEnd - Date.parse(snaps[0].t)) / 36e5;
+  res.isNew = span >= 3 && held < 1;
+  return res;
+}
+
+// ---------- Render ----------
+function spark(pts){
+  const w = 90, h = 26, vals = pts.filter(p => p[1] != null);
+  if (vals.length < 2) return `<svg class="spark" width="${w}" height="${h}"><line x1="0" x2="${w}" y1="${h/2}" y2="${h/2}" stroke="var(--line)"/></svg>`;
+  const t0 = pts[0][0], t1 = pts[pts.length-1][0] || t0 + 1;
+  const x = t => (t - t0) / Math.max(1, t1 - t0) * (w - 2) + 1, y = v => h/2 - v * (h/2 - 2);
+  let d = "", pen = false;
+  pts.forEach(p => { if (p[1] == null) { pen = false; return; } d += (pen ? "L" : "M") + x(p[0]).toFixed(1) + " " + y(p[1]).toFixed(1); pen = true; });
+  const last = vals[vals.length-1][1];
+  return `<svg class="spark" width="${w}" height="${h}"><line x1="0" x2="${w}" y1="${h/2}" y2="${h/2}" stroke="var(--line)"/><path d="${d}" fill="none" stroke="${last >= 0 ? "var(--bull)" : "var(--bear)"}" stroke-width="1.6"/></svg>`;
+}
+function minis(m, ids){
+  return ids.map(id => {
+    const i = DATA.pnl.findIndex(c => c.id === id); if (i < 0) return "";
+    const a = agg([m.p[i]]); const short = DATA.pnl[i].label.split(" ").map(w => w[0]).join("");
+    return `<span class="mini" style="background:${color(a.b, a.n)}" title="${esc(DATA.pnl[i].label)}: ${pct(a.b)} (${usd(a.n)})">${short}</span>`;
+  }).join("");
+}
+function sideTxt(b){ return b > 0.1 ? "L" : b < -0.1 ? "S" : "N"; }
+
+function render(){
+  const list = $("list");
+  if (!DATA) return;
+  ROWS = compute();
+  const q = S.q.trim().toUpperCase();
+  let rows = ROWS.filter(r =>
+    (S.cls === "All" || r.cls === S.cls) &&
+    (S.dir === "both" || (S.dir === "long" ? r.dir > 0 : r.dir < 0)) &&
+    r.minN >= S.minN && r.score >= S.minScore &&
+    (!S.hideRed || !r.red.length) && (!S.hideThin || !r.thin) &&
+    (!q || r.coin.toUpperCase().includes(q)));
+  const key = S.sort, sgn = S.desc ? -1 : 1;
+  rows.sort((a, b) => {
+    const va = key === "coin" ? a.sym : key === "gap" ? Math.abs(a.gap) : key === "sb" ? a.sm.b : key === "fb" ? a.fo.b : a[key];
+    const vb = key === "coin" ? b.sym : key === "gap" ? Math.abs(b.gap) : key === "sb" ? b.sm.b : key === "fb" ? b.fo.b : b[key];
+    return (va > vb ? 1 : va < vb ? -1 : 0) * sgn || b.score - a.score;
+  });
+  const total = rows.length; rows = rows.slice(0, S.maxRows);
+  document.querySelectorAll("#hdr [data-sort]").forEach(el => { el.classList.toggle("act", el.dataset.sort === S.sort); });
+  if (!rows.length) { list.innerHTML = `<div class="empty">No markets match these filters. Lower the min notional or min score in Settings.</div>`; return; }
+  list.innerHTML = rows.map((r, i) => {
+    const dl = r.dir > 0;
+    const flags = [];
+    r.red.forEach(x => flags.push(`<span class="flag f-red" title="This smart cohort holds the other side">⚠ ${esc(x.name)} ${pct(x.b)}</span>`));
+    if (r.big && r.big.n >= S.minN) {
+      if (Math.sign(r.big.b) === r.dir && Math.abs(r.big.b) >= 0.2) flags.push(`<span class="flag f-good" title="Apex + Whale size cohorts">Big money agrees</span>`);
+      else if (Math.sign(r.big.b) === -r.dir && Math.abs(r.big.b) >= 0.2) flags.push(`<span class="flag f-bad" title="Apex + Whale size cohorts">Big money disagrees</span>`);
+    }
+    if (r.hist.isNew && r.score >= 25) flags.push(`<span class="flag f-new">New</span>`);
+    if (r.thin) flags.push(`<span class="flag f-thin">Thin</span>`);
+    const sc = r.score, mc = sc >= 50 ? "var(--accent)" : sc >= 30 ? "#5aa0d0" : "#3b5a70";
+    const heldTxt = r.held >= 1 ? `held ${r.held >= 48 ? Math.round(r.held/24)+"d" : Math.round(r.held)+"h"}` : r.hist.pts.length > 1 ? "held <1h" : "no history yet";
+    const row = `<div class="row${OPEN === r.coin ? " open" : ""}" data-coin="${esc(r.coin)}">
+      <div class="rank">${i+1}</div>
+      <div class="mkt"><b>${esc(r.sym)}</b><span class="tag">${esc(r.cls)}</span>${r.venue ? `<span class="tag">${esc(r.venue)}</span>` : ""}</div>
+      <div class="setup"><span class="s ${dl ? "L" : "S"}">SMART ${dl ? "LONG" : "SHORT"}</span><span class="s ${r.fo.b > 0.1 ? "L" : r.fo.b < -0.1 ? "S" : "N"}">fools ${r.fo.b > 0.1 ? "long" : r.fo.b < -0.1 ? "short" : "flat"}</span></div>
+      <div class="sc"><div class="score">${sc}</div><div class="meter"><i style="width:${sc}%;background:${mc}"></i></div></div>
+      <div class="side sm"><span class="big ${sideTxt(r.sm.b)}">${pct(r.sm.b)}</span><span class="lbl">${label(r.sm.b, r.sm.n)}</span><div class="minis">${minis(r.m, S.smart)}</div></div>
+      <div class="side fo"><span class="big ${sideTxt(r.fo.b)}">${pct(r.fo.b)}</span><span class="lbl">${label(r.fo.b, r.fo.n)}</span><div class="minis">${minis(r.m, S.fools)}</div></div>
+      <div class="gp"><span class="gap ${dl ? "L" : "S"}">${pct(r.gap)}</span></div>
+      <div class="money">smart <b>${usd(r.sm.n)}</b> · ${r.sm.traders} tr<br>fools <b>${usd(r.fo.n)}</b> · ${r.fo.traders} tr<div class="flags" style="margin-top:4px">${flags.join("")}</div></div>
+      <div class="trend">${spark(r.hist.pts)}<small>${heldTxt}</small></div>
+    </div>`;
+    return row + (OPEN === r.coin ? detail(r) : "");
+  }).join("") + (total > rows.length ? `<div class="empty">${total - rows.length} more markets. Raise "Rows to show" in Settings.</div>` : "");
+}
+
+function tile(c, row, inGroup){
+  const a = agg([row]);
+  return `<div class="tile${inGroup ? " grp" : ""}" style="background:${color(a.b, a.n)}">
+    <b>${esc(c.label)}</b><span class="r">${esc(c.range)}</span>
+    <span class="n">${usd(a.n)} notional</span><span class="v">${label(a.b, a.n)} ${a.n ? "(" + pct(a.b) + ")" : ""}</span>
+    <span class="tc">${row[0]} long · ${row[1]} short</span></div>`;
+}
+function detail(r){
+  const dl = r.dir > 0;
+  const lines = [];
+  lines.push(`<b>Smart</b> is ${pct(r.sm.b)} (${label(r.sm.b, r.sm.n).toLowerCase()}) with ${usd(r.sm.n)}. <b>Fools</b> are ${pct(r.fo.b)} (${label(r.fo.b, r.fo.n).toLowerCase()}) with ${usd(r.fo.n)}.`);
+  lines.push(`The setup is <b class="${dl ? "L" : "S"}">smart ${dl ? "long" : "short"}</b>. Gap ${pct(r.gap)}. Score ${r.score}.`);
+  if (r.red.length) lines.push(`<span style="color:var(--warn)">Red flag:</span> ${r.red.map(x => `${esc(x.name)} is ${label(x.b, 1).toLowerCase()} (${pct(x.b)})`).join(", ")}. This cohort holds the other side, so the score is lower.`);
+  if (r.big && r.big.n) lines.push(`Big money (Apex + Whale) is ${pct(r.big.b)} with ${usd(r.big.n)}.`);
+  return `<div class="detail">
+    <h3>PnL cohorts — white border = in your Smart or Fools group</h3>
+    <div class="tiles">${DATA.pnl.map((c, i) => tile(c, r.m.p[i], S.smart.includes(c.id) || S.fools.includes(c.id))).join("")}</div>
+    <h3>Size cohorts (account size)</h3>
+    <div class="tiles">${DATA.size.map((c, i) => tile(c, r.m.s[i], false)).join("")}</div>
+    <div class="why">${lines.join("<br>")}<br><a href="${hdLink(r.coin)}" target="_blank" rel="noopener">Open ${esc(r.coin)} on Hyperdash ↗</a></div>
+  </div>`;
+}
+
+function renderStat(){
+  if (!DATA) return;
+  const t = Date.parse(DATA.t), age = (Date.now() - t) / 6e4;
+  const cls = age > 60 ? "bad" : age > 30 ? "old" : "";
+  const ageTxt = age < 1 ? "just now" : age < 90 ? Math.round(age) + " min ago" : (age/60).toFixed(1) + " h ago";
+  let s = `<span class="dot ${cls}"></span>Data <b>${ageTxt}</b> · ${new Date(t).toLocaleString()}<br>${Object.keys(DATA.m).length} markets · ${HIST && HIST.snapshots ? HIST.snapshots.length : 0} history snapshots`;
+  $("stat").innerHTML = s;
+  if (STATUS && STATUS.ok === false) $("msg").innerHTML = `<div class="err">The last update run failed: ${esc(STATUS.error || "unknown error")}. The table shows the last good data.</div>`;
+  else if (age > 60) $("msg").innerHTML = `<div class="err">The data is more than 1 hour old. Check the Actions tab in the GitHub repo.</div>`;
+  else $("msg").innerHTML = "";
+}
+
+// ---------- Data ----------
+async function getJson(name){
+  const r = await fetch(dataBase() + name + "?t=" + Math.floor(Date.now() / 60000), { cache: "no-store" });
+  if (!r.ok) throw new Error(name + ": HTTP " + r.status);
+  return r.json();
+}
+async function refresh(){
+  try {
+    const [d, h, s] = await Promise.all([getJson("latest.json"), getJson("history.json").catch(() => null), getJson("status.json").catch(() => null)]);
+    DATA = d; HIST = h; STATUS = s;
+    buildBoxes(); renderStat(); render();
+  } catch (e) {
+    $("stat").innerHTML = `<span class="dot bad"></span>No data`;
+    $("msg").innerHTML = `<div class="err">Cannot load data from <code>${esc(dataBase())}</code>. ${esc(e.message)}.<br>Run the "Update Hyperdash data" workflow one time in the Actions tab. It makes the <b>data</b> branch.</div>`;
+  }
+}
+
+// ---------- Controls ----------
+function chips(el, items, cur, cb, cls){
+  el.innerHTML = items.map(([v, t]) => `<button class="chip ${cls ? cls(v) : ""} ${v === cur ? "on" : ""}" data-v="${esc(v)}">${esc(t)}</button>`).join("");
+  el.onclick = e => { const b = e.target.closest("button"); if (b) cb(b.dataset.v); };
+}
+function drawChips(){
+  chips($("classChips"), CLASSES.map(c => [c, c]), S.cls, v => { S.cls = v; save(); drawChips(); render(); });
+  chips($("dirChips"), [["both","Both"],["long","Smart long"],["short","Smart short"]], S.dir, v => { S.dir = v; save(); drawChips(); render(); }, v => v);
+  $("hideRed").classList.toggle("on", S.hideRed); $("hideThin").classList.toggle("on", S.hideThin);
+}
+function buildBoxes(){
+  if (!DATA) return;
+  const mk = (key, el) => {
+    el.innerHTML = DATA.pnl.map(c => `<label><input type="checkbox" data-k="${key}" value="${esc(c.id)}" ${S[key].includes(c.id) ? "checked" : ""}> ${esc(c.label)} <span style="color:var(--faint)">${esc(c.range)}</span></label>`).join("");
+  };
+  mk("smart", $("smartBoxes")); mk("fools", $("foolBoxes"));
+}
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.k) {
+    const k = t.dataset.k, other = k === "smart" ? "fools" : "smart";
+    S[k] = [...document.querySelectorAll(`input[data-k=${k}]:checked`)].map(x => x.value);
+    if (t.checked) S[other] = S[other].filter(x => x !== t.value);
+    save(); buildBoxes(); render();
+  }
+});
+["minN","minScore","maxRows"].forEach(id => { const el = $(id); el.value = S[id]; el.oninput = () => { S[id] = Math.max(0, +el.value || 0); save(); render(); }; });
+$("q").value = S.q; $("q").oninput = e => { S.q = e.target.value; save(); render(); };
+$("hideRed").onclick = () => { S.hideRed = !S.hideRed; save(); drawChips(); render(); };
+$("hideThin").onclick = () => { S.hideThin = !S.hideThin; save(); drawChips(); render(); };
+$("setBtn").onclick = () => $("settings").classList.toggle("open");
+$("refBtn").onclick = refresh;
+$("resetBtn").onclick = () => { S = Object.assign({}, DEFAULTS); save(); drawChips(); buildBoxes(); ["minN","minScore","maxRows"].forEach(id => $(id).value = S[id]); $("q").value = ""; render(); };
+$("hdr").onclick = e => { const k = e.target.dataset.sort; if (!k) return; if (S.sort === k) S.desc = !S.desc; else { S.sort = k; S.desc = k !== "coin"; } save(); render(); };
+$("list").onclick = e => {
+  if (e.target.closest("a") || e.target.closest(".detail")) return;
+  const r = e.target.closest(".row"); if (!r) return;
+  OPEN = OPEN === r.dataset.coin ? null : r.dataset.coin; render();
+};
+
+drawChips();
+refresh();
+setInterval(refresh, 5 * 60 * 1000);
+setInterval(renderStat, 60 * 1000);
+</script>
+</body>
+</html>

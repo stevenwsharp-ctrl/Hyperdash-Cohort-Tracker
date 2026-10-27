@@ -1,0 +1,48 @@
+name: Update Hyperdash data
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # every 15 minutes (GitHub can run it some minutes late)
+  workflow_dispatch:          # lets you run it by hand from the Actions tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hyperdash-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Get the old data from the data branch
+        run: |
+          mkdir -p out
+          if git fetch --depth=1 origin data 2>/dev/null; then
+            for f in latest.json history.json; do
+              git show origin/data:$f > out/$f 2>/dev/null || rm -f out/$f
+            done
+          fi
+
+      - name: Fetch new data from Hyperdash
+        run: node scripts/fetch.mjs out
+
+      - name: Push to the data branch (one commit only, so the repo stays small)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd out
+          git init -q -b data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
