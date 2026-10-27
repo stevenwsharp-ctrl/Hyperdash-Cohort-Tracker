@@ -10,7 +10,7 @@ import { http, makeIO, score } from "./lib.mjs";
 const OUT = process.argv[2] || "out";
 const io = makeIO(OUT);
 const K = 4;                 // shrinkage: a coin record counts like K extra trades at the trader's overall win rate
-const REFRESH_MIN = 15, PER_RUN = 2, MAX_STAT_CALLS = 70, CACHE_H = 3;
+const REFRESH_MIN = 15, PER_RUN = 2, MAX_STAT_CALLS = 14, CACHE_H = 6; // Hyperdash limits the per-coin stats calls per IP
 const COH = { "Extremely Profitable": "EP", "Very Profitable": "VP", "Profitable": "P", "Unprofitable": "U", "Very Unprofitable": "VU", "Rekt": "R" };
 
 const gql = (query, variables) => http("https://api.hyperdash.com/graphql", {
@@ -67,6 +67,7 @@ export function aggregate(holders, oi) {
   const sb = sL + sS ? (sL - sS) / (sL + sS) : null, lb = lL + lS ? (lL - lS) / (lL + lS) : null;
   const sig = sb != null && lb != null ? (sb - lb) / 2 : sb != null ? sb * 0.7 : lb != null ? -lb * 0.7 : 0;
   const tot = holders.reduce((a, h) => a + h.n, 0);
+  const statsCov = tot ? holders.filter(h => !h.miss).reduce((a, h) => a + h.n, 0) / tot : 0;
   // Smart-cohort holders: how much better (or worse) they do on this coin than overall
   const smart = holders.filter(h => (h.coh === "EP" || h.coh === "VP") && h.dwr != null);
   const sw = smart.reduce((a, h) => a + h.n, 0);
@@ -75,7 +76,8 @@ export function aggregate(holders, oi) {
     sig: Math.round(sig * 100) / 100, sb: sb == null ? null : Math.round(sb * 100) / 100, lb: lb == null ? null : Math.round(lb * 100) / 100,
     nS, nL, sUsd: Math.round(sL + sS), lUsd: Math.round(lL + lS), sL: Math.round(sL), sS: Math.round(sS), lL: Math.round(lL), lS: Math.round(lS),
     ent: ent.size, nHold: holders.length, cov: oi ? Math.round(Math.min(1, tot / oi) * 100) : null,
-    smartDwr: smartDwr == null ? null : Math.round(smartDwr * 10) / 10, conf: Math.round(Math.min(1, (nS + nL) / 4) * 100) / 100
+    smartDwr: smartDwr == null ? null : Math.round(smartDwr * 10) / 10, statsCov: Math.round(statsCov * 100),
+    conf: Math.round(Math.min(1, (nS + nL) / 4) * statsCov * 100) / 100
   };
 }
 
@@ -87,7 +89,9 @@ async function main() {
   const now = Date.now();
 
   const ranked = Object.keys(latest.m).map(c => score(latest, c)).filter(r => r.score >= 30).sort((a, b) => b.score - a.score).slice(0, 30);
-  const due = ranked.filter(r => !SP.m[r.coin] || now - Date.parse(SP.m[r.coin].t) > REFRESH_MIN * 6e4)
+  const age = c => SP.m[c] ? now - Date.parse(SP.m[c].t) : Infinity;
+  const incomplete = c => SP.m[c] && SP.m[c].agg && SP.m[c].agg.statsCov < 95;
+  const due = ranked.filter(r => age(r.coin) > (incomplete(r.coin) ? 3 : REFRESH_MIN) * 6e4)
     .sort((a, b) => (SP.m[a.coin] ? Date.parse(SP.m[a.coin].t) : 0) - (SP.m[b.coin] ? Date.parse(SP.m[b.coin].t) : 0)).slice(0, PER_RUN);
   if (!due.length) { console.log("Specialists: nothing due"); process.exit(3); }
 
@@ -101,10 +105,10 @@ async function main() {
       const addrs = pos.map(p => p.address);
       const tr = (await gql(`query($a:[String!]!){getTraders(addresses:$a){address pnl pnlCohort winrate totalTrades}}`, { a: addrs })).getTraders || [];
       const T = Object.fromEntries(tr.map(t => [t.address, t]));
-      for (const a of addrs) {
+      for (const a of addrs) { // biggest holders first
         const c = C[a];
         if (c && now - c.t < CACHE_H * 36e5 && c.s[hc] !== undefined) continue;
-        if (statCalls >= MAX_STAT_CALLS) break;
+        if (statCalls >= MAX_STAT_CALLS || (C.__bo && now < C.__bo)) break;
         statCalls++;
         try {
           const st = (await gql(`query($a:String!){getTraderStatsPerAsset(address:$a){coin netPnl numberOfTrades winningTrades losingTrades volume}}`, { a })).getTraderStatsPerAsset || [];
@@ -112,8 +116,11 @@ async function main() {
           for (const x of st) s[x.coin] = [x.winningTrades || 0, x.losingTrades || 0, Math.round(+x.netPnl || 0), Math.round(+x.volume || 0)];
           if (!s[hc]) s[hc] = [0, 0, 0, 0];
           C[a] = { t: now, s };
-        } catch (e) { console.error("stats", a.slice(0, 8), e.message); }
-        await sleep(60);
+        } catch (e) {
+          console.error("stats", a.slice(0, 8), e.message);
+          if (/too many/i.test(e.message)) { C.__bo = Date.now() + 4 * 6e4; break; } // back off for 4 minutes
+        }
+        await sleep(400);
       }
       const holders = pos.map(p => {
         const t = T[p.address] || {}, s = (C[p.address] && C[p.address].s[hc]) || null;
@@ -132,7 +139,7 @@ async function main() {
   }
   // Drop old entries and old cache
   for (const c in SP.m) if (now - Date.parse(SP.m[c].t) > 6 * 36e5) delete SP.m[c];
-  for (const a in C) if (now - C[a].t > 12 * 36e5) delete C[a];
+  for (const a in C) if (a !== "__bo" && now - C[a].t > 24 * 36e5) delete C[a];
   SP.t = new Date().toISOString();
   io.write("specialists.json", SP);
   io.write("spcache.json", C);

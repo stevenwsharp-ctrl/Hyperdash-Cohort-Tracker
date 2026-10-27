@@ -750,7 +750,7 @@ function holdersTable(r){
   const X = SPEC && SPEC.m && SPEC.m[r.coin];
   if (!X || !X.holders) return `<div class="card"><div class="note">${r.score >= 30 ? "Holder analysis is in the queue. It refreshes the top 30 setups about every 15 minutes." : "Holder analysis runs for the top 30 setups (score 30+)."}</div></div>`;
   const A = X.agg, coh = { EP: "Ext profitable", VP: "Very profitable", P: "Profitable", U: "Unprofitable", VU: "Very unprofitable", R: "Rekt" };
-  const tag = h => h.q >= 0.25 ? `<span class="et add">Specialist</span>` : h.q <= -0.25 ? `<span class="et exit">Loses here</span>` : h.wrs == null ? `<span style="color:var(--faint)">no record</span>` : `<span style="color:var(--faint)">thin</span>`;
+  const tag = h => h.miss ? `<span style="color:var(--faint)">loading</span>` : h.q >= 0.25 ? `<span class="et add">Specialist</span>` : h.q <= -0.25 ? `<span class="et exit">Loses here</span>` : h.wrs == null ? `<span style="color:var(--faint)">no record</span>` : `<span style="color:var(--faint)">thin</span>`;
   const rows = X.holders.map(h => `<tr>
     <td style="text-align:left"><a href="https://hyperdash.com/address/${esc(h.a)}" target="_blank" rel="noopener">${esc(h.lb || h.a.slice(0, 6) + "…" + h.a.slice(-4))}</a>${h.k ? ` <span title="Same side and almost the same size as other wallets: most likely one trader" style="color:var(--warn)">◆${h.k}</span>` : ""}</td>
     <td class="${h.sd > 0 ? "L" : "S"}">${h.sd > 0 ? "long" : "short"}</td><td>${usd(h.n)}</td><td class="${h.u >= 0 ? "L" : "S"}">${usd(h.u)}</td>
@@ -762,7 +762,8 @@ function holdersTable(r){
     <div class="kv"><span>Coin losers (entities)</span><b>${A.nL} · ${usd(A.lL)} long / ${usd(A.lS)} short</b></div>
     <div class="kv"><span>Specialist signal</span><b class="${A.sig > 0 ? "L" : A.sig < 0 ? "S" : ""}">${pct(A.sig)} (${A.sig > 0.2 ? "long" : A.sig < -0.2 ? "short" : "no clear side"}) · trust ${Math.round(A.conf * 100)}%</b></div>
     <div class="kv"><span>Smart holders: coin vs overall win rate</span><b>${A.smartDwr == null ? "–" : (A.smartDwr > 0 ? "+" : "") + A.smartDwr + " pts"}</b></div>
-    <div class="kv"><span>Top ${A.nHold} holders = ${A.ent} traders${A.cov != null ? ` · ${A.cov}% of open interest` : ""}</span><b>updated ${ago(Date.parse(X.t))} ago</b></div>`;
+    <div class="kv"><span>Top ${A.nHold} holders = ${A.ent} traders${A.cov != null ? ` · ${A.cov}% of open interest` : ""}</span><b>updated ${ago(Date.parse(X.t))} ago</b></div>
+    ${A.statsCov != null && A.statsCov < 95 ? `<div class="note" style="max-width:none">Coin records loaded for ${A.statsCov}% of holder money. Hyperdash limits these lookups, so the rest fills in over the next minutes. Trust is lowered until then.</div>` : ""}`;
   return `<div class="card">${sum}<div style="overflow-x:auto;margin-top:8px"><table class="tr" style="min-width:880px"><thead><tr><th>Trader</th><th>Side</th><th>Size</th><th>Open PnL</th><th style="text-align:left">Cohort</th><th>Overall win</th><th>This coin</th><th>Coin win → adj.</th><th>vs overall</th><th>Coin PnL</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="note" style="margin-top:6px;max-width:none">"Coin win → adj." = raw win rate on this coin → adjusted win rate (pulled toward the trader's overall rate when there are few coin trades). "vs overall" = adjusted coin win rate minus overall win rate. Specialist = wins clearly more (and/or makes money) on this coin; needs about 4 coin trades or $100K coin PnL for full trust. ◆ = wallets that look like one trader; they count once. Completed trades only; Hyperdash shows the top 30 holders without login.</div></div>`;
 }
