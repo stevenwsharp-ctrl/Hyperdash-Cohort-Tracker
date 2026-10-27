@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "*/15 * * * *"   # every 15 minutes (GitHub can run it some minutes late)
   workflow_dispatch:          # lets you run it by hand from the Actions tab
+    inputs:
+      force_instruments:
+        description: "Rebuild the leveraged ETF / options list now"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -15,7 +20,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -27,13 +32,21 @@ jobs:
         run: |
           mkdir -p out
           if git fetch --depth=1 origin data 2>/dev/null; then
-            for f in latest.json history.json; do
+            for f in latest.json history.json instruments.json options.json alerts.json status.json; do
               git show origin/data:$f > out/$f 2>/dev/null || rm -f out/$f
             done
           fi
 
-      - name: Fetch new data from Hyperdash
-        run: node scripts/fetch.mjs out
+      - name: Fetch new data
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ALERT_MIN_SCORE: ${{ vars.ALERT_MIN_SCORE }}
+          FORCE_INSTRUMENTS: ${{ inputs.force_instruments && '1' || '' }}
+        run: |
+          OWNER="${GITHUB_REPOSITORY%%/*}"; REPO="${GITHUB_REPOSITORY#*/}"
+          export SITE_URL="https://${OWNER,,}.github.io/${REPO}/"
+          node scripts/fetch.mjs out
 
       - name: Push to the data branch (one commit only, so the repo stays small)
         env:
