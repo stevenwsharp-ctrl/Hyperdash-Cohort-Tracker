@@ -308,14 +308,29 @@ async function main() {
     ["cycle_with", "Cycle agrees (price on the smart side of its 50-day average)", r => r.cyc != null && r.cyc > 0.02, r => r.cyc != null && r.cyc < -0.02],
     ["range_extreme", "Price at a 90-day range extreme in the smart direction's favour (smart long near lows / smart short near highs)", r => r.pos90 != null && (r.dir > 0 ? r.pos90 <= 0.25 : r.pos90 >= 0.75), r => r.pos90 != null && (r.dir > 0 ? r.pos90 >= 0.75 : r.pos90 <= 0.25)],
     ["whale", "Whale-driven ($ and trader count disagree)", r => r.whale, r => !r.whale],
+    // combinations (compared with all other setups)
+    ["adding_earns", "Smart adding AND smart side earns funding", r => r.sflow != null && r.sflow >= 0.05 && r.earn != null && r.earn >= 0.05, null],
+    ["adding_counter", "Smart adding AGAINST the 50-day trend", r => r.sflow != null && r.sflow >= 0.05 && r.cyc != null && r.cyc < -0.02, null],
+    ["earns_counter", "Smart side earns funding AND is against the 50-day trend", r => r.earn != null && r.earn >= 0.05 && r.cyc != null && r.cyc < -0.02, null],
   ];
   const conditions = COND.map(([id, label, yes, no]) => {
-    const o = { id, label };
-    for (const p of ["train", "test"]) { const rs = base.filter(r => part(r) === p); o[p] = { yes: evStats(rs.filter(yes).map(r => adj(r, "r24"))), no: evStats(rs.filter(no).map(r => adj(r, "r24"))), all: evStats(rs.map(r => adj(r, "r24"))) }; }
+    const o = { id, label, combo: !no || undefined };
+    const notYes = no || (r => !yes(r));
+    for (const p of ["train", "test"]) { const rs = base.filter(r => part(r) === p);
+      o[p] = { yes: evStats(rs.filter(yes).map(r => adj(r, "r24"))), no: evStats(rs.filter(notYes).map(r => adj(r, "r24"))), all: evStats(rs.map(r => adj(r, "r24"))),
+        yes72: evStats(rs.filter(yes).map(r => adj(r, "r72"))), no72: evStats(rs.filter(notYes).map(r => adj(r, "r72"))) }; }
     return o;
   });
 
-  // 7. Tuned factor sizes: only when train and test agree in sign and each side has 25+ samples.
+  // 6d. Out-of-sample test of a tuned score: factor sizes fitted on the FIT period only, judged on the CHECK period
+  const condFn = Object.fromEntries(COND.filter(c => c[3]).map(([id, , yes, no]) => [id, [yes, no]]));
+  const fitMult = {};
+  for (const c of conditions) { if (c.combo) continue; const d = c.train.yes.n >= 25 && c.train.no.n >= 25 ? c.train.yes.hit - c.train.no.hit : null; if (d != null && Math.abs(d) >= 3) fitMult[c.id] = Math.max(-0.15, Math.min(0.15, d / 200)); }
+  const tuned = r => { let m = 1; for (const [id, k] of Object.entries(fitMult)) { const [yes, no] = condFn[id]; if (yes(r)) m *= 1 + k; else if (no(r)) m *= 1 - k; } return m; };
+  ICS.push(ic(r => r.g * r.score / Math.max(1e-9, Math.abs(r.g) * 100) * tuned(r), "Tuned score (factors fitted on the fit period)", `Live score × condition factors sized on the fit period only: ${Object.entries(fitMult).map(([k, v]) => k + " " + (v > 0 ? "+" : "") + Math.round(v * 100) + "%").join(", ") || "none"}.`));
+  const tunedTh = TH.map(th => ({ th, test: ev(daily24.filter(r => part(r) === "test" && r.score * tuned(r) >= th)) }));
+
+  // 7. Tuned factor sizes for the live site: only when train and test agree in sign and each side has 25+ samples.
   const factors = {};
   for (const c of conditions) {
     const d = p => c[p].yes.n >= 25 && c[p].no.n >= 25 ? (c[p].yes.hit - c[p].no.hit) : null;
@@ -334,7 +349,7 @@ async function main() {
     universe: { sampled: U.length, active: T.length, hftSkipped: trunc, inactive, failed: fail, cohortAtStart: cohStart, cohortNow: T.reduce((o, t) => (o[t.coh] = (o[t.coh] || 0) + 1, o), {}) },
     coins: coins.length, coinHours: ROWS.length, samples24: daily24.length, minSide: MIN_SIDE,
     ic: ICS, bestWeight: best ? { w: best.w, trainIC: best.tr, testIC: best.te } : null,
-    thresholds, calib, conditions, factors,
+    thresholds, tunedThresholds: tunedTh, fitMult, calib, conditions, factors,
     runMinutes: Math.round((Date.now() - t0) / 6e4)
   };
   fs.writeFileSync(path.join(OUT, "backtest.json"), JSON.stringify(out));

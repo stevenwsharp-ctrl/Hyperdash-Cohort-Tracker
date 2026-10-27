@@ -41,6 +41,14 @@ Site: https://stevenwsharp-ctrl.github.io/Hyperdash-Cohort-Tracker/
 - **Live prices**: the page reads Hyperliquid prices and funding directly every 20 seconds.
 - **Alerts**: add repo secret `NTFY_TOPIC` (ntfy phone app) and/or `DISCORD_WEBHOOK_URL`. Optional repo variables: `ALERT_MIN_SCORE` (default 65) and `ALERT_TYPES` (default `setup,exit,flip`; also `fade`, `add`, `new`). Test: Actions → Run workflow → tick "Send a test alert".
 
+## Backtest
+
+`.github/workflows/backtest.yml` (every Sunday, or Actions → Backtest → Run workflow, 2–3 hours) rebuilds the hourly positions of ~2,400 sampled traders (best and worst by all-time PnL) from their Hyperliquid fills, puts each one in the cohort they were in at that hour, recomputes the smart-vs-fools gap per market, and tests it against the next 4h / 24h / 72h move. Fit = first 60% of the window, check = last 40%. Results go to the `backtest` branch and the **Backtest** tab. Conditions that move the hit rate the same way in both periods set the size of the matching rating factor; the rest are removed.
+
+## Cycle, Key points, Things to look for
+
+`scripts/cycle.mjs` labels each market's cycle phase from daily candles (moving averages, 90-day range position, RSI, volatility). Each row shows **Key points** (state) and **Things to look for** (levels and events that would confirm or break the setup).
+
 ## Notes
 
 - The repo must be public (raw data links and free Pages need this).
