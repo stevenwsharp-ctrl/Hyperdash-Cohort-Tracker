@@ -1,0 +1,42 @@
+name: Trader study
+
+# One-off study of who trades one market and how. Writes study-<coin>.json to the "study" branch.
+on:
+  workflow_dispatch:
+    inputs:
+      coin:
+        description: "Hyperliquid market, e.g. xyz:SOXL"
+        default: "xyz:SOXL"
+      min_units:
+        description: "Skip wallets whose 7-day change and position are both smaller than this (units)"
+        default: "40"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: study
+  cancel-in-progress: false
+
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run the study
+        env:
+          STUDY_MIN_UNITS: ${{ inputs.min_units }}
+        run: node scripts/study.mjs st "${{ inputs.coin }}"
+      - name: Push to the study branch (keeps earlier studies)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          mkdir -p old && cd old && git init -q -b study && (git pull -q --depth=1 "$REMOTE" study 2>/dev/null || true)
+          cp ../st/*.json . && git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898299+github-actions[bot]@users.noreply.github.com" commit -qm "study ${{ inputs.coin }} $(date -u +%FT%TZ)"
+          git push -f -q "$REMOTE" study
