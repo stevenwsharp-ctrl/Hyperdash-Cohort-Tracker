@@ -147,7 +147,8 @@ const out = {
   price: { last: h1.length ? h1[h1.length - 1][4] : null, d1: d1.slice(-120).map(k => [k[0], k[4]]) },
   groups: { best: grp(best.slice(0, 10)), worst: grp(worst.slice(0, 10)), all: grp(eligible) },
   best: best.map(t => ({ ...t, tripsList: t.tripsList.slice(-60) })), worst: worst.map(t => ({ ...t, tripsList: t.tripsList.slice(-20) })),
-  timeline: tl, totals: { realized: traders.reduce((a, t) => a + t.realized, 0), unreal: traders.reduce((a, t) => a + t.unreal, 0) }
+  timeline: tl, totals: { realized: traders.reduce((a, t) => a + t.realized, 0), unreal: traders.reduce((a, t) => a + t.unreal, 0) },
+  ...(process.env.ALL ? { all: traders.map(t => ({ ...t, partialStart: !!(t.tripsList[0] && t.tripsList[0].partial), tripsList: t.tripsList.slice(-300) })) } : {})
 };
 fs.writeFileSync(OUTF, JSON.stringify(out));
 console.log(`analysed ${traders.length} wallets, eligible ${eligible.length}, MM ${out.mm}`);
