@@ -124,7 +124,9 @@ body{padding-bottom:34px}
   const tb = document.createElement("button"); tb.className = "tab"; tb.dataset.tab = "starred";
   tabs.insertBefore(tb, tabs.children[1] || null);
   const sec = document.createElement("section"); sec.id = "v-starred"; sec.hidden = true;
-  sec.innerHTML = `<div id="stMk"></div><div id="stSheet"></div><h3 style="margin:16px 0 0">Big trades on your starred markets · best vs worst traders</h3><div class="note" id="stBtNote" style="max-width:none"></div><div class="bt-grid" id="stBt"></div><h3 style="margin:18px 0 0">Spot · what the best and worst traders buy, sell and hold</h3><div class="note" id="spNote" style="max-width:none"></div><div id="spBody"></div>`;
+  sec.innerHTML = `<div id="stMk"></div><div id="stSheet"></div><h3 style="margin:16px 0 0">Big trades on your starred markets · best vs worst traders</h3><div class="note" id="stBtNote" style="max-width:none"></div><div class="bt-grid" id="stBt"></div><h3 style="margin:18px 0 0">ETF lens · SOXX / SOXL / SOXS semis basket, smart vs fools on the holdings</h3><div id="stBk" class="card" style="padding:10px 12px;margin-top:8px"></div>
+  <h3 style="margin:18px 0 0">Nightly rebalance · market makers · after-hours</h3><div id="stRb" class="card" style="padding:10px 12px;margin-top:8px"></div>
+  <h3 style="margin:18px 0 0">Spot · what the best and worst traders buy, sell and hold</h3><div class="note" id="spNote" style="max-width:none"></div><div id="spBody"></div>`;
   document.getElementById("v-setups").after(sec);
   const sheet = document.createElement("div"); sheet.className = "sheetbar";
   sheet.innerHTML = `<span class="nav">◀ ▶</span><button data-sheet="setups">Setups</button><button data-sheet="starred"></button><button data-sheet="traders">Traders</button><button data-sheet="heat">Heat</button><button class="thx" id="sbTheme" title="Light / dark mode"></button>`;
@@ -197,7 +199,7 @@ body{padding-bottom:34px}
     const body = STARS.map((c, i) => `<tr data-go="${esc(c)}"><td class="rn">${i + 2}</td>${cells(c).map((v, j) => `<td class="${j <= 1 || j >= 15 ? "tl" : ""}" data-c="${L(j + 1)}${i + 2}">${v}</td>`).join("")}</tr>`).join("");
     el.innerHTML = `<div class="xlbar"><i>fx</i><span id="xlSel">${SEL ? esc(SEL) : "Click a cell · double-click a row to open the market"}</span></div><div class="xlwrap"><table class="xl"><thead><tr class="let"><th class="rn"></th>${COLS.map((_, j) => `<th>${L(j + 1)}</th>`).join("")}</tr><tr class="nm"><th class="rn">1</th>${COLS.map(c => `<th>${c}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
     tagTips(el);
-    renderTrades();
+    renderTrades(); renderLens();
   }
   document.addEventListener("click", e => {
     const td = e.target.closest(".xl tbody td"); if (!td || e.target.closest("[data-star]")) return;
@@ -205,6 +207,16 @@ body{padding-bottom:34px}
     SEL = `${td.dataset.c || ""}  ${td.textContent.trim()}`; const s = document.getElementById("xlSel"); if (s) s.textContent = SEL;
   });
   document.addEventListener("dblclick", e => { const tr = e.target.closest(".xl tbody tr[data-go]"); if (tr) gotoCoin(tr.dataset.go); });
+
+  /* ---------- ETF lens (basket.js, shared with SOXX Sniper) ---------- */
+  function renderLens() {
+    if (!window.Basket) return;
+    const bk = document.getElementById("stBk"), rb = document.getElementById("stRb"); if (!bk || !rb) return;
+    bk.innerHTML = Basket.html(DATA ? Basket.compute(DATA, { wD: S.wD, px: () => null }) : null);
+    // rebalance estimate from the SOXL perp's 24h move (the funds use the move from the prior close; SOXX Sniper has the exact number)
+    const x = ctxOf("XYZ:SOXL"); const r = x && x.ch != null ? Basket.rebalance(x.ch / 100 / 3) : null;
+    rb.innerHTML = Basket.knowledge(r, Basket.lab()) + `<div class="note" style="max-width:none;margin-top:6px">${r ? "Estimate uses the SOXL perp's 24h change; SOXX Sniper uses the move from the prior close. " : ""}<a href="../SOXX-Sniper/">Open SOXX Sniper</a> for the full session study and live flow.</div>`;
+  }
 
   /* ---------- big trades of the best and worst traders ---------- */
   const COHN = { EP: "Ext profitable", VP: "Very profitable", P: "Profitable", U: "Unprofitable", VU: "Very unprofitable", R: "Rekt" };
