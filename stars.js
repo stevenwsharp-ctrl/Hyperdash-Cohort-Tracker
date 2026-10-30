@@ -370,6 +370,32 @@ body{padding-bottom:34px}
   }
   mmRecord(); setInterval(mmRecord, 60000);
 
+  /* Why: the belief behind each big trade of the best / worst holders on a starred market, and whether it worked
+     (why.js, shared with SOXX Sniper). Prices: the market's own Hyperliquid candles, 15 minutes, 20 days. */
+  const WCC = {}, WHYOPEN = new Set(lsG("cs_whyopen", [])); let wccBusy = false;
+  document.addEventListener("toggle", e => { const d = e.target; if (!d.dataset || !d.dataset.why) return; d.open ? WHYOPEN.add(d.dataset.why) : WHYOPEN.delete(d.dataset.why); lsS("cs_whyopen", [...WHYOPEN]); }, true);
+  async function loadWhyCandles() {
+    if (wccBusy || !STARS.length || Date.now() < HOLD) return; wccBusy = true;
+    for (const c of STARS) { const o = WCC[c]; if (o && Date.now() - o.t < 10 * 6e4) continue;
+      try { const r = await post({ type: "candleSnapshot", req: { coin: hlName(c), interval: "15m", startTime: Date.now() - 20 * 864e5, endTime: Date.now() } });
+        if (Array.isArray(r)) WCC[c] = { t: Date.now(), C: r.map(x => ({ t: x.t, o: +x.o, h: +x.h, l: +x.l, c: +x.c })) }; } catch (e) { if (/429/.test(e.message)) { HOLD = Date.now() + 60000; break; } }
+      await new Promise(r => setTimeout(r, 800)); }
+    wccBusy = false;
+  }
+  setTimeout(loadWhyCandles, 6000); setInterval(loadWhyCandles, 5 * 6e4);
+  function whyHtml(c, W) {
+    if (!window.Why || !WCC[c] || !W) return "";
+    const want = hlName(c).toLowerCase(), M = [], grpOf = a => W.good.some(h => h.a === a) ? "best" : W.bad.some(h => h.a === a) ? "worst" : null, nm = h => h.lb || h.a.slice(0, 6) + "…";
+    [...W.good, ...W.bad].forEach(h => { const F = FILLS[h.a]; if (!F) return; const by = {};
+      F.f.filter(x => String(x.coin).toLowerCase() === want).forEach(x => { const d = x.dir || "", k = x.oid + "|" + d, g = by[k] = by[k] || { t: x.time, a: h.a, g: grpOf(h.a), who: nm(h) + (isMM(h) ? " (MM)" : ""), entry: /Open|>/.test(d), dir: /> Long|Open Long|Close Short/.test(d) ? (/Open|>/.test(d) ? 1 : -1) : (/Open|>/.test(d) ? -1 : 1), sz: 0, usd: 0 };
+        g.sz += +x.sz; g.usd += +x.sz * +x.px; g.t = Math.min(g.t, x.time); });
+      Object.values(by).forEach(g => { g.px = g.usd / g.sz; M.push(g); }); });
+    PEV.filter(e => e.c === c).forEach(e => { const h = [...W.good, ...W.bad].find(x => x.a === e.a); if (!h) return; const d = e.dir;
+      M.push({ t: e.t, a: e.a, g: e.g, who: nm(h) + (isMM(h) ? " (MM)" : ""), entry: /^Open|^Add|>/.test(d), dir: /Long$/.test(d) && !/^Close|^Cut/.test(d) ? 1 : /Short$/.test(d) && !/^Close|^Cut/.test(d) ? -1 : /Long$/.test(d) ? 1 : -1, px: e.px, usd: e.ntl }); });
+    const rows = Why.analyze(M.filter(m => m.usd >= MAJOR && m.px > 0), WCC[c].C, {});
+    return `<details data-why="${esc(c)}" ${WHYOPEN.has(c) ? "open" : ""} style="margin-top:6px"><summary style="cursor:pointer;font:600 11px var(--mono);color:var(--dim);text-transform:uppercase">Why they trade ${esc(parse(c).sym)} · beliefs that win and lose (${rows.length} trades)</summary>${Why.html(rows, WCC[c].C, { sym: parse(c).sym, recent: 6 })}</details>`;
+  }
+
   // Market-maker inventory: shown apart, with what it means
   function mmLine(c, mm) {
     if (!mm || !mm.length) return "";
@@ -408,7 +434,7 @@ body{padding-bottom:34px}
           <td class="r ${g.pnl >= 0 ? "L" : "S"}">${g.src === "pos" ? `<span style="color:var(--faint)" title="From a change of the position between two reads (${new Date(g.t0).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} – ${new Date(g.t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}); price = market price at the read">position Δ · now ${usd(g.now)}</span>` : open || !g.pnl ? "" : "PnL " + usd(g.pnl)}</td></tr>`; }).join("")}</table>${cvTxt && T.length < 5 ? `<div class="note" style="margin-top:2px">${cvTxt.trim()}</div>` : ""}`; };
       const r = (ROWS || []).find(x => x.coin === c);
       return `<div class="bt"><h4><button class="cstar on" data-star="${esc(c)}">★</button><a href="#" data-goto="${esc(c)}">${esc(sym)}</a>${r ? `<span class="${r.dir > 0 ? "L" : "S"}" style="font:600 11px var(--mono)">SMART ${r.dir > 0 ? "LONG" : "SHORT"} · rating ${r.rating}</span>` : ""}</h4>${window.Web ? `<div style="margin:-2px 0 4px">${Web.forecastHtml(sym) || ""}</div>` : ""}
-        <h5 class="L">Best traders · last 5 major trades</h5>${tbl(W.good, "best")}<h5 class="S">Worst traders · last 5 major trades</h5>${tbl(W.bad, "worst")}${mmLine(c, W.mm)}${ordHtml(c)}</div>`;
+        <h5 class="L">Best traders · last 5 major trades</h5>${tbl(W.good, "best")}<h5 class="S">Worst traders · last 5 major trades</h5>${tbl(W.bad, "worst")}${mmLine(c, W.mm)}${ordHtml(c)}${whyHtml(c, W)}</div>`;
     }).join("");
     if (fresh && newOnes.length) {
       const first = SEEN.size === 0;
