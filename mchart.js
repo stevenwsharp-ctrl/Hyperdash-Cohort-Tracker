@@ -180,7 +180,21 @@
   const ONE = { hline: 1, alert: 1 };
   function ptFrom(param) { if (!param.point) return null; const l = chart.timeScale().coordinateToLogical(param.point.x), p = S.c.coordinateToPrice(param.point.y); if (l == null || p == null) return null; return { t: lToT(Math.round(l)), p }; }
   let lastMeasure = null;
-  chart.subscribeClick(param => {
+
+  // Clicks: our own pointer handler (Lightweight Charts can drop a click that follows a mouse move), so every click on the plot counts.
+  function onPlotClick(el, ch, cb) {
+    let down = null;
+    el.addEventListener("pointerdown", e => { if (e.button === 0) down = { x: e.clientX, y: e.clientY, t: Date.now() }; }, true);
+    el.addEventListener("pointerup", e => {
+      if (!down || e.button !== 0) return; const d = down; down = null;
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 5 || Date.now() - d.t > 800) return;   // a drag (pan) is not a click
+      const r = el.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      if (x > ch.timeScale().width() || y > r.height - ch.timeScale().height()) return;            // price axis or time axis
+      const lg = ch.timeScale().coordinateToLogical(x);
+      cb({ point: { x, y }, logical: lg == null ? null : lg });
+    }, true);
+  }
+  onPlotClick($m("mcMain"), chart, param => {
     const pt = ptFrom(param); if (!pt) return;
     if (tool) {
       if (ONE[tool]) { drawings().push({ type: tool, p1: pt, p2: pt }); finish(); return; }
