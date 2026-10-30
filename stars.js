@@ -269,7 +269,7 @@ body{padding-bottom:34px}
       if (F && Date.now() - F.t < (starWallets.has(a) ? 110000 : 600000)) continue;
       if (Date.now() < HOLD) break;
       try {
-        if (!F) { const f = await post({ type: "userFills", user: a, aggregateByTime: true }); FILLS[a] = { t: Date.now(), f: Array.isArray(f) ? f.filter(x => x.time >= start) : [] }; pause = 12000; }   // a full read costs ~120 weight: at most ~5 per minute
+        if (!F) { const f = await post({ type: "userFills", user: a, aggregateByTime: true }); FILLS[a] = { t: Date.now(), n: Array.isArray(f) ? f.length : 0, oldest: Array.isArray(f) && f.length ? Math.min(...f.map(x => x.time)) : null, f: Array.isArray(f) ? f.filter(x => x.time >= start) : [] }; pause = 12000; }   // a full read costs ~120 weight: at most ~5 per minute
         else { const last = F.f.reduce((m, x) => Math.max(m, x.time), start); const f = await post({ type: "userFillsByTime", user: a, startTime: last + 1, aggregateByTime: true });
           const nf = Array.isArray(f) ? f : []; F.f = F.f.concat(nf).filter(x => x.time >= start); F.t = Date.now(); pause = 1500; }
       } catch (e) { if (/429/.test(e.message)) { HOLD = Date.now() + 60000; break; } }
@@ -290,22 +290,69 @@ body{padding-bottom:34px}
     // "major" = $5K or more and among the 20 largest orders in 14 days; show the 5 newest of them
     return out.filter(g => g.ntl >= MAJOR).sort((a, b) => b.ntl - a.ntl).slice(0, 20).sort((a, b) => b.t - a.t).slice(0, 5);
   }
+  /* Position watch: many top holders are high-frequency traders. Hyperliquid serves only their newest fills
+     (2,000 per read, at most 10,000), which can cover only the last hour. So we also read each holder's position
+     on the market (clearinghouseState, cheap) about every minute and log every change of $5K or more as a trade.
+     The last positions are kept in this browser, so changes made while the page was closed show on the next visit. */
+  const POS = lsG("cs_pos", {});          // "wallet|dex" -> { t, m: { coin: [szi, entry, uPnL] } }
+  let PEV = lsG("cs_pos_ev", []), posBusy = false;
+  async function pollPositions() {
+    if (posBusy || !STARS.length || Date.now() < HOLD || document.hidden) return; posBusy = true;
+    const jobs = new Map();
+    STARS.forEach(c => { const W = walletsFor(c); if (W) [...W.good, ...W.bad].forEach(h => jobs.set(h.a + "|" + dexOf(c), { a: h.a, dex: dexOf(c) })); });
+    const list = [...jobs.entries()].sort((x, y) => ((POS[x[0]] || {}).t || 0) - ((POS[y[0]] || {}).t || 0)).slice(0, 10);
+    for (const [k, j] of list) {
+      if (Date.now() < HOLD) break;
+      try {
+        const st = await post({ type: "clearinghouseState", user: j.a, dex: j.dex }), m = {};
+        (st && st.assetPositions || []).forEach(x => { const p = x.position || {}; m[String(p.coin).toLowerCase()] = [+p.szi || 0, +p.entryPx || 0, +p.unrealizedPnl || 0]; });
+        const prev = POS[k]; POS[k] = { t: Date.now(), m };
+        if (prev) posDiff(j, prev, POS[k]);
+      } catch (e) { if (/429/.test(e.message)) { HOLD = Date.now() + 60000; break; } }
+      await new Promise(r => setTimeout(r, 300));
+    }
+    lsS("cs_pos", POS); posBusy = false; if (VIEW === "starred") renderTrades(true);
+  }
+  function posDiff(j, A, B) {
+    STARS.forEach(c => { if (dexOf(c) !== j.dex) return; const W = walletsFor(c); if (!W) return;
+      const h = W.good.find(x => x.a === j.a) || W.bad.find(x => x.a === j.a); if (!h) return; const g = W.good.includes(h) ? "best" : "worst";
+      const key = hlName(c).toLowerCase(), s0 = (A.m[key] || [0])[0], s1 = (B.m[key] || [0])[0]; if (s0 === s1) return;
+      const cx = ctxOf(c), px = cx && cx.px || (B.m[key] || A.m[key] || [0, 0])[1], d = Math.abs(s1 - s0) * px; if (!(d >= MAJOR)) return;
+      const side = x => x > 0 ? "Long" : "Short";
+      const dir = s0 === 0 ? "Open " + side(s1) : s1 === 0 ? "Close " + side(s0) : Math.sign(s0) !== Math.sign(s1) ? side(s0) + " > " + side(s1) : Math.abs(s1) > Math.abs(s0) ? "Add " + side(s1) : "Cut " + side(s1);
+      PEV.unshift({ t: B.t, t0: A.t, c, a: j.a, g, dir, ntl: d, px, now: Math.abs(s1) * px, src: "pos" }); });
+    PEV = PEV.slice(0, 300); lsS("cs_pos_ev", PEV);
+  }
+  // fill coverage: when a wallet's read hit the 2,000-fill cap, the fills reach back only to the oldest one
+  const coverage = hs => { const v = hs.map(h => FILLS[h.a]).filter(Boolean); if (!v.length) return null; const capped = v.filter(F => F.n >= 2000);
+    return { n: v.length, capped: capped.length, from: capped.length ? Math.max(...capped.map(F => F.oldest || 0)) : null }; };
+  const holdLine = (c, hs) => { const key = hlName(c).toLowerCase(), rows = hs.map(h => { const P = POS[h.a + "|" + dexOf(c)], x = P && P.m[key]; return { h, x }; })
+      .filter(o => o.x ? o.x[0] : o.h.n).sort((p, q) => (q.x ? Math.abs(q.x[0] * q.x[1]) : q.h.n) - (p.x ? Math.abs(p.x[0] * p.x[1]) : p.h.n)).slice(0, 3);
+    return rows.length ? `<div style="font:11px var(--mono);color:var(--dim);margin:2px 0 4px">Holds now: ${rows.map(({ h, x }) => { const sz = x ? x[0] : h.sd * h.n, v = x ? Math.abs(x[0]) * (ctxOf(c) || {}).px || Math.abs(x[0] * x[1]) : h.n;
+      return `<span class="${sz > 0 ? "L" : "S"}">${esc(h.lb || h.a.slice(0, 6) + "…")} ${usd(v)} ${sz > 0 ? "long" : "short"}${x && x[1] ? " @ " + price(x[1]) : ""}</span>${x && x[2] ? ` <span class="${x[2] >= 0 ? "L" : "S"}">(${x[2] >= 0 ? "+" : ""}${usd(x[2])})</span>` : ""}`; }).join(" · ")}</div>` : ""; };
+
   function renderTrades(fresh) {
     const box = document.getElementById("stBt"); if (!box) return;
     const note = document.getElementById("stBtNote");
-    note.innerHTML = `Best = Extremely/Very profitable cohort, or a proven winner on this coin who is not in a losing cohort. Worst = Unprofitable/Very unprofitable/Rekt cohort, or a proven loser on this coin who is not in a winning cohort. From the top 30 holders of each market (top 30 setups only), largest 8 per group. "Major" = an order of $5K or more, among the 20 largest in 14 days; the table shows the 5 newest. Updates every 2 minutes on this sheet${tradesT ? ` · last ${ago(tradesT)} ago` : ""}${tradesBusy ? " · loading…" : ""}. Yellow = new since you last looked.`;
+    note.innerHTML = `Best = Extremely/Very profitable cohort, or a proven winner on this coin who is not in a losing cohort. Worst = Unprofitable/Very unprofitable/Rekt cohort, or a proven loser on this coin who is not in a winning cohort. From the top 30 holders of each market (top 30 setups only), largest 8 per group. "Major" = $5K or more. Trades come from two sources: their fills (exact price) and their position, read about every minute (a change of $5K+ between two reads counts as a trade; "position Δ"). Updates every 2 minutes on this sheet${tradesT ? ` · last ${ago(tradesT)} ago` : ""}${tradesBusy ? " · loading…" : ""}. Yellow = new since you last looked.`;
     const newOnes = [];
     box.innerHTML = STARS.map(c => {
       const W = walletsFor(c), sym = parse(c).sym;
       if (!W) return `<div class="bt"><h4>${esc(sym)}</h4><div class="note">No holder data for this market. Holder analysis runs for the top 30 setups.</div></div>`;
-      const tbl = (hs, cls) => { const T = tradesOf(c, hs); if (!hs.length) return `<div class="note">No ${cls} traders among the top holders.</div>`;
-        if (!T.length) return `<div class="note">${hs.some(h => FILLS[h.a]) ? "No major trades ($5K+) on this coin in 14 days." : "Loading…"}</div>`;
-        return `<table>${T.map(g => { const id = g.a + g.t + g.dir; const nw = !SEEN.has(id); if (nw) newOnes.push({ c, g, cls });
-          const open = /Open/.test(g.dir), lng = /Long/.test(g.dir) || (g.dir === "Buy");
+      const tbl = (hs, cls) => { if (!hs.length) return `<div class="note">No ${cls} traders among the top holders.</div>`;
+        const set = new Set(hs.map(h => h.a)), hb = Object.fromEntries(hs.map(h => [h.a, h]));
+        const F = tradesOf(c, hs).map(g => ({ ...g, src: "fill" }));
+        const Pv = PEV.filter(e => e.c === c && set.has(e.a) && !F.some(f => f.a === e.a && Math.abs(f.t - e.t) < Math.max(5 * 6e4, e.t - e.t0))).map(e => ({ ...e, h: hb[e.a], pnl: 0 }));
+        const T = F.concat(Pv).sort((x, y) => y.t - x.t).slice(0, 5);
+        const cv = coverage(hs), watched = hs.filter(h => POS[h.a + "|" + dexOf(c)]).length;
+        const cvTxt = cv && cv.capped ? ` ${cv.capped} of ${cv.n} are high-frequency traders: Hyperliquid serves only their newest fills, which reach back to ${new Date(cv.from).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.` : "";
+        if (!T.length) return holdLine(c, hs) + `<div class="note">${watched || hs.some(h => FILLS[h.a]) ? `No major trade ($5K+) seen yet.${cvTxt} Positions of all ${hs.length} are watched about every minute (${watched} read so far); every change of $5K+ shows here.` : "Loading…"}</div>`;
+        return holdLine(c, hs) + `<table>${T.map(g => { const id = g.a + g.t + g.dir; const nw = !SEEN.has(id); if (nw) newOnes.push({ c, g, cls });
+          const open = /Open|Add/.test(g.dir), lng = /(Open|Add|Close|Cut) Long|> Long/.test(g.dir) ? !/Close|Cut/.test(g.dir) : /Short/.test(g.dir) ? /Close|Cut/.test(g.dir) : g.dir === "Buy";
           return `<tr class="${nw ? "new" : ""}"><td>${new Date(g.t).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</td>
           <td><a href="https://hyperdash.com/address/${esc(g.a)}" target="_blank" rel="noopener">${esc(g.h.lb || g.a.slice(0, 6) + "…" + g.a.slice(-4))}</a> <span style="color:var(--faint)">${COHN[g.h.coh] || ""}</span></td>
           <td class="${lng ? "L" : "S"}">${esc(g.dir)}</td><td class="r">${usd(g.ntl)}</td><td class="r">@ ${price(g.px)}</td>
-          <td class="r ${g.pnl >= 0 ? "L" : "S"}">${open || !g.pnl ? "" : "PnL " + usd(g.pnl)}</td></tr>`; }).join("")}</table>`; };
+          <td class="r ${g.pnl >= 0 ? "L" : "S"}">${g.src === "pos" ? `<span style="color:var(--faint)" title="From a change of the position between two reads (${new Date(g.t0).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} – ${new Date(g.t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}); price = market price at the read">position Δ · now ${usd(g.now)}</span>` : open || !g.pnl ? "" : "PnL " + usd(g.pnl)}</td></tr>`; }).join("")}</table>${cvTxt && T.length < 5 ? `<div class="note" style="margin-top:2px">${cvTxt.trim()}</div>` : ""}`; };
       const r = (ROWS || []).find(x => x.coin === c);
       return `<div class="bt"><h4><button class="cstar on" data-star="${esc(c)}">★</button><a href="#" data-goto="${esc(c)}">${esc(sym)}</a>${r ? `<span class="${r.dir > 0 ? "L" : "S"}" style="font:600 11px var(--mono)">SMART ${r.dir > 0 ? "LONG" : "SHORT"} · rating ${r.rating}</span>` : ""}</h4>
         <h5 class="L">Best traders · last 5 major trades</h5>${tbl(W.good, "best")}<h5 class="S">Worst traders · last 5 major trades</h5>${tbl(W.bad, "worst")}${ordHtml(c)}</div>`;
@@ -460,6 +507,7 @@ body{padding-bottom:34px}
   const r0 = render;
   window.render = render = function () { const x = r0.apply(this, arguments); try { decorate(); if (VIEW === "starred") renderStarred(); tabLabels(); } catch (e) { console.warn(e); } return x; };
   setInterval(pollOrders, 60000); setTimeout(pollOrders, 15000);
+  setInterval(pollPositions, 30000); setTimeout(pollPositions, 3000);
   setInterval(() => { if (STARS.length || VIEW === "starred") loadTrades(false); if (VIEW === "starred") loadMkts(); }, 30000);
   setInterval(() => { if (VIEW === "starred" && !document.hidden) { renderStarred(); const s = document.getElementById("xlSel"); if (s && SEL) s.textContent = SEL; } }, 10000);   // live prices on the sheet   // trades refresh every 2 min (in loadTrades), markets every minute
   tabLabels(); decorate();
