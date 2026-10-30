@@ -563,6 +563,7 @@ body{padding-bottom:34px}
     ROWS.slice().sort((a, b) => b.rating - a.rating).slice(0, 80).forEach(r => {
       const a = r.sym || parse(r.coin).sym;
       Web.emit("cohort.gap", a, clip(r.dir * r.rating / 100), "Cohort · smart side × rating");
+      Web.emit("cohort.gapraw", a, clip(r.sm.b - r.fo.b), "Cohort · gap (smart − fools bias)");
       Web.emit("cohort.smart", a, clip(r.sm.b), "Cohort · smart bias");
       Web.emit("cohort.fools", a, clip(r.fo.b), "Cohort · fools bias");
       const t4 = r.tr && r.tr["4h"]; if (t4) Web.emit("cohort.trend4h", a, clip(t4[0] / 20), "Cohort · gap change 4h");
@@ -576,6 +577,30 @@ body{padding-bottom:34px}
     });
     try { const B = window.Basket && DATA ? Basket.compute(DATA, { wD: S.wD }) : null; if (B && B.basket.gap != null) { Web.emit("basket.gap", "SEMIS", clip(B.basket.gap * 2), "Semis basket: smart vs fools gap"); if (B.basket.d4h != null) Web.emit("basket.trend4h", "SEMIS", clip(B.basket.d4h / 20), "Semis basket: gap change 4h"); } } catch (e) { }
   }
+  /* Past data into the web: the 7 days of 5-minute cohort snapshots (history.json). For every market and every 30 minutes,
+     rebuild the signals the live page sends (gap, smart bias, fools bias, gap change 1h / 4h, 24h momentum) and score
+     them with the price 4 hours later. Web.ingest skips what it already learned, so this only adds new history. */
+  let histFedT = 0;
+  function feedHistory() {
+    if (!window.Web || !HIST || !HIST.snapshots || HIST.snapshots.length < 60 || Date.now() - histFedT < 25 * 6e4) return; histFedT = Date.now();
+    const S0 = HIST.snapshots, T = S0.map(s => Date.parse(s.t)), at = (t, tol) => { let lo = 0, hi = T.length - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (T[m] < t) lo = m + 1; else hi = m; }
+      let b = lo; if (lo > 0 && Math.abs(T[lo - 1] - t) < Math.abs(T[lo] - t)) b = lo - 1; return Math.abs(T[b] - t) <= tol ? b : -1; };
+    const items = [], g = v => (v[0] - v[1]) / 200, B = 30 * 6e4, H4 = 4 * 36e5;
+    for (let t = Math.ceil(T[0] / B) * B; t <= T[T.length - 1] - H4; t += B) {
+      const i = at(t, 6e5), j = at(t + H4, 9e5), i1 = at(t - 36e5, 9e5), i4 = at(t - H4, 9e5), i24 = at(t - 24 * 36e5, 18e5); if (i < 0 || j < 0) continue;
+      for (const [coin, v] of Object.entries(S0[i].d || {})) {
+        const w = S0[j].d && S0[j].d[coin]; if (!v || !w || !(v[2] > 0) || !(w[2] > 0)) continue;
+        const x = { "cohort.gapraw": (v[0] - v[1]) / 100, "cohort.smart": v[0] / 100, "cohort.fools": v[1] / 100 };
+        const v1 = i1 >= 0 && S0[i1].d && S0[i1].d[coin], v4 = i4 >= 0 && S0[i4].d && S0[i4].d[coin], v24 = i24 >= 0 && S0[i24].d && S0[i24].d[coin];
+        if (v1) x["cohort.trend1h"] = (g(v) - g(v1)) * 100 / 10; if (v4) x["cohort.trend4h"] = (g(v) - g(v4)) * 100 / 20; if (v24 && v24[2] > 0) x["cohort.mom24"] = (v[2] / v24[2] - 1) * 100 / 8;
+        Object.keys(x).forEach(k => { if (!isFinite(x[k]) || !x[k]) delete x[k]; });
+        items.push({ t, a: parse(coin).sym, x, r: w[2] / v[2] - 1 });
+      }
+    }
+    const n = Web.ingest("cohort-history", items, "cohort 7-day history");
+    if (n && VIEW === "web") renderWeb();
+  }
+  setTimeout(feedHistory, 20000); setInterval(feedHistory, 30 * 6e4);
   // the Web tab
   const wtb = document.createElement("button"); wtb.className = "tab"; wtb.dataset.tab = "web"; wtb.textContent = "🕸 Web";
   tb.after(wtb);

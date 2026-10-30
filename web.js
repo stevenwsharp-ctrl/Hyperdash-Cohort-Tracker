@@ -14,6 +14,9 @@
   const lsG = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
   const lsS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } };
   let D = lsG(KEY, null); if (!D || D.v !== 1) D = { v: 1, w: {}, b: 0, n: 0, S: [], at: Date.now() };   // w: weights, S: snapshots
+  // A = what has been learned, kept compact so years of history fit: per node and per pair of nodes.
+  // hist = how far each past-data source has been read (so nothing is learned twice).
+  if (!D.A) D.A = { N: {}, P: {} }; if (!D.hist) D.hist = {};
   const LIVE = {};                // asset -> { sig -> { v, t, label } }
   const PRICE = [];               // price functions registered by the sites
   const LABEL = lsG("web_labels", {});
@@ -53,27 +56,43 @@
       if (now - s.t > H + 3 * 36e5) { s.r = NaN; continue; }   // nobody had a price at the 4h mark
       const px = price(s.a); if (!px) continue;
       s.r = px / s.px - 1; if (Math.abs(s.r) < 0.001) continue;  // flat: no lesson
-      const y = s.r > 0 ? 1 : 0, p = predict(s.x), g = y - p;
-      D.b += LR * g; for (const k in s.x) D.w[k] = (D.w[k] || 0) * (1 - L2) + LR * g * s.x[k];
-      D.n++; trained++;
+      learn(s.x, s.r, s.p); trained++;
     }
     if (trained || D.S.length) save();
+  }
+  // one lesson: train the weights, add to the node and pair records
+  function learn(x, r, p0, lr) {
+    const y = r > 0 ? 1 : 0, p = predict(x), g = y - p, k = Object.keys(x).filter(q => x[q]);
+    D.b += (lr || LR) * g; for (const q of k) D.w[q] = (D.w[q] || 0) * (1 - L2) + (lr || LR) * g * x[q];
+    D.n++;
+    const A = D.A; A.calls = (A.calls || 0) + 1; if ((p0 != null ? p0 : p) > 0.5 === r > 0) A.right = (A.right || 0) + 1;
+    for (const q of k) { const o = A.N[q] = A.N[q] || [0, 0, 0]; o[0]++; if (Math.sign(x[q]) === Math.sign(r)) o[1]++; o[2] += Math.sign(x[q]) * Math.max(-0.2, Math.min(0.2, r)); }
+    for (let i = 0; i < k.length; i++) for (let j = i + 1; j < k.length; j++) { const a = k[i] < k[j] ? k[i] : k[j], b = k[i] < k[j] ? k[j] : k[i], e = A.P[a + "|" + b] = A.P[a + "|" + b] || [0, 0, 0];
+      e[0]++; if (Math.sign(x[a]) === Math.sign(x[b])) { e[1]++; if (Math.sign(x[a]) === Math.sign(r)) e[2]++; } }
+  }
+  /* Past data: a site hands over old snapshots it can rebuild from its own stored history (Cohort Sniper: 7 days of
+     5-minute cohort snapshots; SOXX Sniper: 2 years of SOXL sessions). Each item: { t, a, x, r } with r = the move
+     over about 4 hours after t. Items older than what this source already gave are skipped. Several passes, oldest first. */
+  function ingest(src, items, label) {
+    const last = D.hist[src] ? D.hist[src].t : 0, L = items.filter(it => it.t > last && isFinite(it.r) && Math.abs(it.r) >= 0.001 && Object.keys(it.x).length).sort((a, b) => a.t - b.t);
+    if (!L.length) return 0;
+    const fresh = lsG(KEY, null); if (fresh && fresh.v === 1 && fresh.at >= D.at) { D = fresh; if (!D.A) D.A = { N: {}, P: {} }; if (!D.hist) D.hist = {}; }
+    L.forEach(it => { for (const k in it.x) it.x[k] = Math.round(Math.max(-1, Math.min(1, it.x[k])) * 100) / 100; learn(it.x, it.r, null, LR * 0.5); });
+    D.hist[src] = { t: L[L.length - 1].t, n: (D.hist[src] ? D.hist[src].n : 0) + L.length, label: label || src, at: Date.now() };
+    save(); return L.length;
   }
 
   // ---------- what the web knows ----------
   function nodes() {
-    const done = D.S.filter(s => isFinite(s.r) && Math.abs(s.r) >= 0.001), N = {};
-    done.forEach(s => { for (const [k, v] of Object.entries(s.x)) { if (!v) continue; const o = N[k] = N[k] || { id: k, n: 0, hit: 0, edge: 0 };
-      o.n++; if (Math.sign(v) === Math.sign(s.r)) o.hit++; o.edge += Math.sign(v) * s.r; } });
+    const N = {};
+    for (const [k, o] of Object.entries(D.A.N)) N[k] = { id: k, n: o[0], hit: o[1], edge: o[2] };
     Object.values(N).forEach(o => { o.hitR = o.n ? o.hit / o.n : 0; o.edgeM = o.n ? o.edge / o.n : 0; o.w = D.w[o.id] || 0; o.label = LABEL[o.id] || o.id; });
     for (const id of new Set([].concat(...Object.values(LIVE).map(L => Object.keys(L))))) if (!N[id]) N[id] = { id, n: 0, hitR: 0, edgeM: 0, w: D.w[id] || 0, label: LABEL[id] || id };
     return N;
   }
   function edges() {
-    const done = D.S.filter(s => isFinite(s.r) && Math.abs(s.r) >= 0.001), E = {};
-    done.forEach(s => { const ks = Object.keys(s.x).filter(k => s.x[k]); for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) {
-      const a = ks[i] < ks[j] ? ks[i] : ks[j], b = ks[i] < ks[j] ? ks[j] : ks[i], k = a + "|" + b, e = E[k] = E[k] || { a, b, n: 0, agree: 0, both: 0, bothHit: 0 };
-      e.n++; const ag = Math.sign(s.x[a]) === Math.sign(s.x[b]); if (ag) { e.agree++; e.both++; if (Math.sign(s.x[a]) === Math.sign(s.r)) e.bothHit++; } } });
+    const E = {};
+    for (const [k, e] of Object.entries(D.A.P)) { const [a, b] = k.split("|"); E[k] = { a, b, n: e[0], agree: e[1], both: e[1], bothHit: e[2] }; }
     // live links too: signals that are on at the same time on the same assets (before any result exists)
     const now = Date.now();
     for (const L of Object.values(LIVE)) { const ks = Object.keys(L).filter(k => now - L[k].t < 2 * BUCKET); for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) {
@@ -86,8 +105,8 @@
     const p = predict(x), contrib = Object.entries(x).map(([k, v]) => ({ id: k, label: LABEL[k] || k, v, c: (D.w[k] || 0) * v })).sort((m, n) => Math.abs(n.c) - Math.abs(m.c));
     return { p, n: D.n, ready: D.n >= 100, contrib };
   }
-  const stats = () => { const done = D.S.filter(s => isFinite(s.r) && Math.abs(s.r) >= 0.001), sc = done.filter(s => s.p != null);
-    const hit = sc.filter(s => (s.p > 0.5) === (s.r > 0)).length; return { snaps: D.S.length, scored: done.length, trained: D.n, hit: sc.length ? hit / sc.length : null, open: D.S.filter(s => s.r == null).length, assets: Object.keys(LIVE).length }; };
+  const stats = () => { const done = D.S.filter(s => isFinite(s.r) && Math.abs(s.r) >= 0.001);
+    return { snaps: D.S.length, scored: done.length, trained: D.n, hit: D.A.calls ? (D.A.right || 0) / D.A.calls : null, open: D.S.filter(s => s.r == null).length, assets: Object.keys(LIVE).length, hist: D.hist }; };
 
   // ---------- picture: a force-laid web of nodes and links ----------
   function render(el, opts) {
@@ -110,7 +129,7 @@
       return `<g><circle cx="${P[i].x.toFixed(1)}" cy="${P[i].y.toFixed(1)}" r="${r.toFixed(1)}" fill="${c}" fill-opacity="${n.n < 10 ? 0.35 : (0.35 + Math.min(0.6, Math.abs(n.hitR - 0.5) * 4)).toFixed(2)}" stroke="${c}"><title>${n.label}\nchecks ${n.n} · right ${Math.round(n.hitR * 100)}% · avg edge ${(n.edgeM * 100).toFixed(2)}% · learned weight ${n.w.toFixed(2)}</title></circle>
         <text x="${P[i].x.toFixed(1)}" y="${(P[i].y + r + 10).toFixed(1)}" fill="${ink}" font-size="10" text-anchor="middle" font-family="var(--mono)">${String(n.label).slice(0, 22)}</text></g>`; }).join("");
     const top = Object.values(N).filter(n => n.n >= 10).sort((a, b) => Math.abs(b.hitR - 0.5) * Math.sqrt(b.n) - Math.abs(a.hitR - 0.5) * Math.sqrt(a.n)).slice(0, 8);
-    el.innerHTML = `<div style="font:12px var(--mono);color:${dim};margin-bottom:6px">${st.snaps} snapshots · ${st.scored} scored · ${st.open} waiting for their 4h result · ${Object.keys(N).length} signals · ${st.assets} assets live${st.hit != null ? ` · web's own calls right ${Math.round(st.hit * 100)}%` : ""}${D.n < 100 ? ` · learning: ${D.n}/100 scored before the forecast counts` : ""}</div>
+    el.innerHTML = `<div style="font:12px var(--mono);color:${dim};margin-bottom:6px">${D.n.toLocaleString()} lessons learned${Object.values(st.hist).length ? ` (past data: ${Object.values(st.hist).map(h => `${h.label} ${h.n.toLocaleString()}`).join(", ")})` : ""} · ${st.snaps} live snapshots · ${st.scored} scored · ${st.open} waiting for their 4h result · ${Object.keys(N).length} signals · ${st.assets} assets live${st.hit != null ? ` · web's own calls right ${Math.round(st.hit * 100)}%` : ""}${D.n < 100 ? ` · learning: ${D.n}/100 scored before the forecast counts` : ""}</div>
       <svg viewBox="0 0 ${W} ${Ht}" width="100%" height="${Ht}" style="display:block;border:1px solid ${line};border-radius:12px">${svgL}${svgN}</svg>
       <div style="font:11.5px var(--mono);color:${dim};margin-top:6px">Node = a signal (size = how often it was scored; green = right more than half the time, red = wrong more often, grey = under 10 checks). Link = two signals live on the same asset at the same time (thicker = they agree more; green = right when they agree). Hover for numbers.</div>
       ${top.length ? `<div style="font:12px var(--mono);margin-top:6px">${top.map(n => `<div><b style="color:${n.hitR >= 0.5 ? up : dn}">${Math.round(n.hitR * 100)}%</b> of ${n.n} · ${n.label} · weight ${n.w.toFixed(2)}</div>`).join("")}</div>` : ""}`;
@@ -120,6 +139,6 @@
     const cv = getComputedStyle(document.documentElement), up = cv.getPropertyValue("--bull").trim() || cv.getPropertyValue("--up").trim(), dn = cv.getPropertyValue("--bear").trim() || cv.getPropertyValue("--down").trim();
     return `<span style="font:12px var(--mono)">Signal web: <b style="color:${F.p >= 0.5 ? up : dn}">P(up 4h) ${Math.round(F.p * 100)}%</b>${F.ready ? "" : ` <span style="opacity:.6">(learning, ${F.n}/100)</span>`} · drivers: ${F.contrib.slice(0, 3).map(c => `${c.label} ${c.c >= 0 ? "+" : ""}${c.c.toFixed(2)}`).join(", ")}</span>`;
   }
-  window.Web = { emit, tick, forecast, forecastHtml, render, nodes, edges, stats, addPrice: f => PRICE.push(f), data: () => D };
+  window.Web = { emit, tick, ingest, forecast, forecastHtml, render, nodes, edges, stats, addPrice: f => PRICE.push(f), data: () => D };
   setInterval(tick, 60000); setTimeout(tick, 15000);
 })();
