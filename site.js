@@ -29,7 +29,7 @@
     bar.innerHTML = `<span class="hbx" id="hbx" title="Heartbeat: live prices from Hyperliquid"><i></i><span id="hbxT">--</span></span>
       <select id="cwSel" title="Page width"><option value="fit">Width: fit screen</option><option value="2560">Width: 2560</option><option value="1920">Width: 1920</option><option value="1600">Width: 1600</option><option value="classic">Width: classic</option></select>
       <button id="thBtn"></button>`;
-    const stat = document.getElementById("stat"); (stat && stat.parentNode === hdr ? stat : hdr.lastElementChild).appendChild(bar);
+    bar.style.flexBasis = "100%"; hdr.appendChild(bar);   // own row: the #stat box is rebuilt every 30 s, so the bar must not live inside it
     document.getElementById("cwSel").value = lsG("site_width") || "fit";
     document.getElementById("cwSel").onchange = e => setW(e.target.value);
     document.getElementById("thBtn").onclick = () => setTheme(root.dataset.theme === "light" ? "dark" : "light"); setTheme(root.dataset.theme);

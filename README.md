@@ -73,3 +73,12 @@ Light and dark mode, page width (fit screen by default), a heartbeat for the liv
 - GitHub stops scheduled workflows after 60 days with no repo activity. Push any commit to start it again.
 - If the Hyperdash API blocks GitHub servers, the page shows the error from `status.json`. Then run `node scripts/fetch.mjs data` on your own computer and serve the folder.
 - The Hyperdash API has no public docs. If they change it, the fetch can stop. The page shows the data age.
+
+## Starred sheet, market overview and help
+
+- Click ☆ next to a market to star it. The **★ Starred** tab (also in the Excel-style sheet tabs at the bottom of the page) shows your starred markets as a worksheet: price, 24h, setup, rating, gap, smart and fools bias, gap change 1h/4h/24h, rank in your filter, funding, smart $, flags, ways to trade, earnings and news. Double-click a row to open the market.
+- The top of the sheet shows the market: Dow, S&P 500, Nasdaq, Russell 2000, VIX, 10Y yield, oil, dollar index (through the Worker), and live 24/7 Hyperliquid perps (Nasdaq-100, S&P 500, WTI and Brent oil, gold, silver, BTC, ETH, SOL).
+- For each starred market: the last 5 major trades of the best and of the worst traders among its top holders (fills from Hyperliquid, 14 days, refresh every 2 minutes). New trades show in yellow and as a toast.
+- Hover any column heading for a floating explanation.
+- Light / dark mode: button in the header and in the bottom sheet bar.
+- Alignment trend: the top row is the gap change in points (not the rating); the bottom row is the rank by gap size among the markets that pass your filters, and its move in each window.

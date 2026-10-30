@@ -1705,7 +1705,7 @@ $("setBtn").onclick = () => $("settings").classList.toggle("open");
 $("refBtn").onclick = () => { refresh(true); livePrices(); };
 $("csvBtn").onclick = csv;
 $("resetBtn").onclick = () => { S = Object.assign({}, DEFAULTS); save(); drawChips(); buildBoxes(); ["minN","minScore","maxRows"].forEach(id => $(id).value = S[id]); $("q").value = ""; render(); };
-$("hdr").onclick = e => { const k = e.target.dataset.sort; if (!k) return; if (S.sort === k) S.desc = !S.desc; else { S.sort = k; S.desc = k !== "coin"; } save(); render(); };
+$("hdr").onclick = e => { const k = (e.target.closest("[data-sort]") || {}).dataset?.sort; if (!k) return; if (S.sort === k) S.desc = !S.desc; else { S.sort = k; S.desc = k !== "coin"; } save(); render(); };
 function gotoCoin(coin){
   OPEN = coin; S.q = ""; $("q").value = "";
   document.querySelector('.tab[data-tab="setups"]').click();
@@ -1743,7 +1743,8 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) { re
 </script>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <script src="mchart.js?v=4"></script>
+<script src="stars.js?v=1"></script>
 <script>(function(){const r0=render;render=function(){const x=r0.apply(this,arguments);try{window.mcAttach&&mcAttach()}catch(e){}return x};try{window.mcAttach&&mcAttach()}catch(e){}})();</script>
-<script src="site.js?v=3"></script>
+<script src="site.js?v=4"></script>
 </body>
 </html>
