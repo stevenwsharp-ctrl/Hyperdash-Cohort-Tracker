@@ -52,16 +52,17 @@ function clusters(holders) {
   return id;
 }
 
-// Known market-making firms (Hyperdash labels): their positions are inventory and hedges, not bets, so they do not count
-// as coin specialists or coin losers. (The page also flags wallets that trade like a market maker.)
+// Known market-making firms (Hyperdash labels): their positions are mostly inventory from customer flow, so their $
+// counts at 25% (MM_W) in the specialist / loser sums. (The page also flags wallets that trade like a market maker.)
+export const MM_W = 0.25;
 export const MM_RE = /wintermute|cumberland|\bjump\b|\bgsr\b|flow ?traders|amber|b2c2|\bdwf\b|keyrock|galaxy|auros|selini|\bhlp\b|hyperliquidity|jane ?street|citadel|virtu|optiver|\bimc\b|\bdrw\b|susquehanna|\bsig\b|\bxtx\b|tower research|\bqcp\b|presto|kronos|market ?mak|\bmm\b/i;
 export function aggregate(holders, oi) {
   const ent = new Map(); // one entry per trader (cluster = one trader)
   for (const h of holders) {
-    if (h.lb && MM_RE.test(h.lb)) continue;
+    const w = h.lb && MM_RE.test(h.lb) ? MM_W : 1;
     const key = h.k ? "k" + h.k : h.a;
     const e = ent.get(key) || { sd: h.sd, n: 0, q: h.q, members: 0 };
-    e.n += h.n; e.members++; ent.set(key, e);
+    e.n += h.n * w; e.members++; ent.set(key, e);
   }
   let sL = 0, sS = 0, lL = 0, lS = 0, nS = 0, nL = 0;
   for (const e of ent.values()) {

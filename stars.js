@@ -241,12 +241,16 @@ body{padding-bottom:34px}
   /* ---------- big trades of the best and worst traders ---------- */
   const COHN = { EP: "Ext profitable", VP: "Very profitable", P: "Profitable", U: "Unprofitable", VU: "Very unprofitable", R: "Rekt" };
   const MAJOR = 5000;
-  /* Market makers: their positions are mostly inventory and hedges, not bets on direction, so they are left out of
-     the best / worst groups. Two tests: a known market-making firm in the Hyperdash label, or the behavior of one
+  /* Market makers: their positions are mostly inventory and hedges. A market maker is short after customers bought
+     from it, so its position shows the customers' flow more than its own view. They stay in the data (they are a big
+     part of the market), but they count at MM_W (25%) in every weighted total and ranking, are tagged "MM", and their
+     net inventory is shown on its own line with what it means. Two tests: a known market-making firm in the Hyperdash label, or the behavior of one
      (newest 2,000 fills inside 6 hours and 85%+ of the volume as maker orders). */
   const MM_RE = /wintermute|cumberland|\bjump\b|\bgsr\b|flow ?traders|amber|b2c2|\bdwf\b|keyrock|galaxy|auros|selini|\bhlp\b|hyperliquidity|jane ?street|citadel|virtu|optiver|\bimc\b|\bdrw\b|susquehanna|\bsig\b|\bxtx\b|tower research|\bqcp\b|presto|kronos|market ?mak|\bmm\b/i;
   const MMB = lsG("cs_mm", {});
   const isMM = h => !!h && (MM_RE.test(h.lb || "") || !!MMB[h.a]);
+  const MM_W = 0.25, wOf = h => isMM(h) ? MM_W : 1;
+  window.MM_W = MM_W;
   window.isMM = isMM;
   function mmCheck(a, f) { if (!Array.isArray(f) || f.length < 2000) return;
     const t0 = Math.min(...f.map(x => x.time)), t1 = Math.max(...f.map(x => x.time)); let mk = 0, all = 0;
@@ -258,12 +262,13 @@ body{padding-bottom:34px}
   let tradesBusy = false, tradesT = 0, HOLD = 0;   // HOLD = wait time after a Hyperliquid 429
   function walletsFor(coin) {
     const X = SPEC && SPEC.m && SPEC.m[coin]; if (!X || !X.holders) return null;
-    const hs = X.holders.filter(h => !h.miss && !isMM(h));
+    const hs = X.holders.filter(h => !h.miss);
     const GOODC = ["EP", "VP"], BADC = ["U", "VU", "R"];
     // cohort decides first; the coin record only adds traders whose cohort does not say the opposite
-    const good = hs.filter(h => GOODC.includes(h.coh) || (h.q >= 0.25 && !BADC.includes(h.coh))).sort((a, b) => b.n - a.n).slice(0, 8);
-    const bad = hs.filter(h => BADC.includes(h.coh) || (h.q <= -0.25 && !GOODC.includes(h.coh))).sort((a, b) => b.n - a.n).slice(0, 8);
-    return { good, bad };
+    // ranked by weighted size: a market maker's $ counts at 25%
+    const good = hs.filter(h => GOODC.includes(h.coh) || (h.q >= 0.25 && !BADC.includes(h.coh))).sort((a, b) => b.n * wOf(b) - a.n * wOf(a)).slice(0, 8);
+    const bad = hs.filter(h => BADC.includes(h.coh) || (h.q <= -0.25 && !GOODC.includes(h.coh))).sort((a, b) => b.n * wOf(b) - a.n * wOf(a)).slice(0, 8);
+    return { good, bad, mm: hs.filter(isMM).sort((a, b) => b.n - a.n) };
   }
   async function loadTrades(force) {
     if (tradesBusy) return;
@@ -339,14 +344,29 @@ body{padding-bottom:34px}
   const coverage = hs => { const v = hs.map(h => FILLS[h.a]).filter(Boolean); if (!v.length) return null; const capped = v.filter(F => F.n >= 2000);
     return { n: v.length, capped: capped.length, from: capped.length ? Math.max(...capped.map(F => F.oldest || 0)) : null }; };
   const holdLine = (c, hs) => { const key = hlName(c).toLowerCase(), rows = hs.map(h => { const P = POS[h.a + "|" + dexOf(c)], x = P && P.m[key]; return { h, x }; })
-      .filter(o => o.x ? o.x[0] : o.h.n).sort((p, q) => (q.x ? Math.abs(q.x[0] * q.x[1]) : q.h.n) - (p.x ? Math.abs(p.x[0] * p.x[1]) : p.h.n)).slice(0, 3);
-    return rows.length ? `<div style="font:11px var(--mono);color:var(--dim);margin:2px 0 4px">Holds now: ${rows.map(({ h, x }) => { const sz = x ? x[0] : h.sd * h.n, v = x ? Math.abs(x[0]) * (ctxOf(c) || {}).px || Math.abs(x[0] * x[1]) : h.n;
-      return `<span class="${sz > 0 ? "L" : "S"}">${esc(h.lb || h.a.slice(0, 6) + "…")} ${usd(v)} ${sz > 0 ? "long" : "short"}${x && x[1] ? " @ " + price(x[1]) : ""}</span>${x && x[2] ? ` <span class="${x[2] >= 0 ? "L" : "S"}">(${x[2] >= 0 ? "+" : ""}${usd(x[2])})</span>` : ""}`; }).join(" · ")}</div>` : ""; };
+      .filter(o => o.x ? o.x[0] : o.h.n).sort((p, q) => (q.x ? Math.abs(q.x[0] * q.x[1]) : q.h.n) * wOf(q.h) - (p.x ? Math.abs(p.x[0] * p.x[1]) : p.h.n) * wOf(p.h)).slice(0, 3);
+    // group net on this market, with market makers at 25%
+    let net = 0, netMM = 0; hs.forEach(h => { const P = POS[h.a + "|" + dexOf(c)], x = P && P.m[key], px = (ctxOf(c) || {}).px || (x && x[1]) || 0, v = x ? x[0] * px : h.sd * h.n; net += v * wOf(h); if (isMM(h)) netMM += v; });
+    const netTxt = `<b class="${net >= 0 ? "L" : "S"}">group net ${net >= 0 ? "long" : "short"} ${usd(Math.abs(net))}</b>${netMM ? ` <span style="color:var(--faint)">(MMs at 25%)</span>` : ""} · `;
+    return rows.length ? `<div style="font:11px var(--mono);color:var(--dim);margin:2px 0 4px">${netTxt}Holds now: ${rows.map(({ h, x }) => { const sz = x ? x[0] : h.sd * h.n, v = x ? Math.abs(x[0]) * (ctxOf(c) || {}).px || Math.abs(x[0] * x[1]) : h.n;
+      return `<span class="${sz > 0 ? "L" : "S"}">${esc(h.lb || h.a.slice(0, 6) + "…")}${isMM(h) ? ` <span class="flag f-thin" title="Market maker: counts at 25%">MM</span>` : ""} ${usd(v)} ${sz > 0 ? "long" : "short"}${x && x[1] ? " @ " + price(x[1]) : ""}</span>${x && x[2] ? ` <span class="${x[2] >= 0 ? "L" : "S"}">(${x[2] >= 0 ? "+" : ""}${usd(x[2])})</span>` : ""}`; }).join(" · ")}</div>` : ""; };
 
+  // Market-maker inventory: shown apart, with what it means
+  function mmLine(c, mm) {
+    if (!mm || !mm.length) return "";
+    const key = hlName(c).toLowerCase(), px = (ctxOf(c) || {}).px || 0;
+    const L = mm.map(h => { const P = POS[h.a + "|" + dexOf(c)], x = P && P.m[key]; return { h, v: x ? x[0] * (px || x[1]) : h.sd * h.n }; }).filter(o => o.v);
+    if (!L.length) return "";
+    const net = L.reduce((a, o) => a + o.v, 0), r = (ROWS || []).find(x => x.coin === c);
+    const read = net < 0 ? "Market makers are net SHORT: customers have been net buyers and the market makers sold to them. That is buying flow, not a bearish bet. If they cover (buy back) fast, that adds to upward pressure."
+      : "Market makers are net LONG: customers have been net sellers and the market makers bought from them. That is selling flow, not a bullish bet. If they unload, that adds to downward pressure.";
+    const vs = r ? ` The smart cohorts are ${r.dir > 0 ? "long" : "short"}: ${(net < 0) === (r.dir > 0) ? "customer flow goes with the smart side." : "customer flow goes against the smart side, so the smart side is fading the crowd."}` : "";
+    return `<h5>Market makers · inventory (counted at 25%)</h5><div style="font:11px var(--mono);margin:2px 0">${L.map(o => `<span class="${o.v > 0 ? "L" : "S"}">${esc(o.h.lb || o.h.a.slice(0, 6) + "…")} ${usd(Math.abs(o.v))} ${o.v > 0 ? "long" : "short"}</span>`).join(" · ")} → <b class="${net >= 0 ? "L" : "S"}">net ${net >= 0 ? "long" : "short"} ${usd(Math.abs(net))}</b></div><div class="note" style="max-width:none">${read}${vs}</div>`;
+  }
   function renderTrades(fresh) {
     const box = document.getElementById("stBt"); if (!box) return;
     const note = document.getElementById("stBtNote");
-    note.innerHTML = `Market makers are left out (known firms such as Wintermute and Cumberland, and wallets that trade like one: 85%+ maker volume, thousands of fills a day). Best = Extremely/Very profitable cohort, or a proven winner on this coin who is not in a losing cohort. Worst = Unprofitable/Very unprofitable/Rekt cohort, or a proven loser on this coin who is not in a winning cohort. From the top 30 holders of each market (top 30 setups only), largest 8 per group. "Major" = $5K or more. Trades come from two sources: their fills (exact price) and their position, read about every minute (a change of $5K+ between two reads counts as a trade; "position Δ"). Updates every 2 minutes on this sheet${tradesT ? ` · last ${ago(tradesT)} ago` : ""}${tradesBusy ? " · loading…" : ""}. Yellow = new since you last looked.`;
+    note.innerHTML = `Market makers (MM: known firms such as Wintermute and Cumberland, or wallets that trade like one: 85%+ maker volume, thousands of fills a day) stay in, but count at 25% in group totals and rankings, because their positions are mostly inventory from customer flow, not bets. Best = Extremely/Very profitable cohort, or a proven winner on this coin who is not in a losing cohort. Worst = Unprofitable/Very unprofitable/Rekt cohort, or a proven loser on this coin who is not in a winning cohort. From the top 30 holders of each market (top 30 setups only), largest 8 per group. "Major" = $5K or more. Trades come from two sources: their fills (exact price) and their position, read about every minute (a change of $5K+ between two reads counts as a trade; "position Δ"). Updates every 2 minutes on this sheet${tradesT ? ` · last ${ago(tradesT)} ago` : ""}${tradesBusy ? " · loading…" : ""}. Yellow = new since you last looked.`;
     const newOnes = [];
     box.innerHTML = STARS.map(c => {
       const W = walletsFor(c), sym = parse(c).sym;
@@ -367,7 +387,7 @@ body{padding-bottom:34px}
           <td class="r ${g.pnl >= 0 ? "L" : "S"}">${g.src === "pos" ? `<span style="color:var(--faint)" title="From a change of the position between two reads (${new Date(g.t0).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} – ${new Date(g.t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}); price = market price at the read">position Δ · now ${usd(g.now)}</span>` : open || !g.pnl ? "" : "PnL " + usd(g.pnl)}</td></tr>`; }).join("")}</table>${cvTxt && T.length < 5 ? `<div class="note" style="margin-top:2px">${cvTxt.trim()}</div>` : ""}`; };
       const r = (ROWS || []).find(x => x.coin === c);
       return `<div class="bt"><h4><button class="cstar on" data-star="${esc(c)}">★</button><a href="#" data-goto="${esc(c)}">${esc(sym)}</a>${r ? `<span class="${r.dir > 0 ? "L" : "S"}" style="font:600 11px var(--mono)">SMART ${r.dir > 0 ? "LONG" : "SHORT"} · rating ${r.rating}</span>` : ""}</h4>
-        <h5 class="L">Best traders · last 5 major trades</h5>${tbl(W.good, "best")}<h5 class="S">Worst traders · last 5 major trades</h5>${tbl(W.bad, "worst")}${ordHtml(c)}</div>`;
+        <h5 class="L">Best traders · last 5 major trades</h5>${tbl(W.good, "best")}<h5 class="S">Worst traders · last 5 major trades</h5>${tbl(W.bad, "worst")}${mmLine(c, W.mm)}${ordHtml(c)}</div>`;
     }).join("");
     if (fresh && newOnes.length) {
       const first = SEEN.size === 0;
@@ -383,8 +403,8 @@ body{padding-bottom:34px}
   // The overall best and worst traders across the top holders of the top 30 setups (same sets as the Traders tab), 20 of each by size.
   function globalWallets() {
     const T = {};
-    for (const X of Object.values(SPEC && SPEC.m || {})) (X.holders || []).forEach(h => { if (h.miss || isMM(h)) return;
-      const t = T[h.a] = T[h.a] || { a: h.a, lb: h.lb, coh: h.coh, q: 0, n: 0 }; t.q += h.q || 0; t.n += h.n || 0; });
+    for (const X of Object.values(SPEC && SPEC.m || {})) (X.holders || []).forEach(h => { if (h.miss) return;
+      const t = T[h.a] = T[h.a] || { a: h.a, lb: h.lb, coh: h.coh, q: 0, n: 0 }; t.q += h.q || 0; t.n += (h.n || 0) * wOf(h); });
     const all = Object.values(T);
     const good = all.filter(t => GOODC.includes(t.coh) || (t.q >= 0.25 && !BADC.includes(t.coh))).sort((a, b) => b.n - a.n).slice(0, 12);
     const bad = all.filter(t => BADC.includes(t.coh) || (t.q <= -0.25 && !GOODC.includes(t.coh))).sort((a, b) => b.n - a.n).slice(0, 12);

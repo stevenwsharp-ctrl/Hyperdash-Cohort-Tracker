@@ -1166,7 +1166,7 @@ function holdersTable(r){
   const pxNow = r.ctx && r.ctx.px;
   const dist = (p, sd) => { if (!p || !pxNow) return "–"; const d = sd * (pxNow - p) / pxNow * 100; return `${price(p)} <span style="color:var(--faint)">${d > 100 ? ">100" : d.toFixed(0)}%</span>`; };
   const rows = X.holders.map(h => { const l = LV[h.a] || {}; const sd = h.sd; return `<tr>
-    <td style="text-align:left"><a href="https://hyperdash.com/address/${esc(h.a)}" target="_blank" rel="noopener">${esc(h.lb || h.a.slice(0, 6) + "…" + h.a.slice(-4))}</a>${h.k ? ` <span title="Same side and almost the same size as other wallets: most likely one trader" style="color:var(--warn)">◆${h.k}</span>` : ""}${window.isMM && isMM(h) ? ` <span class="flag f-thin" title="Market maker: position is mostly inventory and hedges, not a bet. Left out of the best / worst groups.">MM</span>` : ""}</td>
+    <td style="text-align:left"><a href="https://hyperdash.com/address/${esc(h.a)}" target="_blank" rel="noopener">${esc(h.lb || h.a.slice(0, 6) + "…" + h.a.slice(-4))}</a>${h.k ? ` <span title="Same side and almost the same size as other wallets: most likely one trader" style="color:var(--warn)">◆${h.k}</span>` : ""}${window.isMM && isMM(h) ? ` <span class="flag f-thin" title="Market maker: position is mostly inventory and hedges, not a bet. Counts at 25% in weighted totals.">MM</span>` : ""}</td>
     <td class="${h.sd > 0 ? "L" : "S"}">${h.sd > 0 ? "long" : "short"}</td><td>${usd(h.n)}</td><td class="${h.u >= 0 ? "L" : "S"}">${usd(h.u)}</td>
     <td style="text-align:left">${coh[h.coh] || "–"}</td><td>${h.wr != null ? h.wr.toFixed(0) + "%" : "–"} <span style="color:var(--faint)">${h.tt}</span></td>
     <td>${h.cw}W / ${h.cl}L</td><td>${h.raw != null ? h.raw.toFixed(0) + "%" : "–"} <span style="color:var(--faint)">${h.wrs != null ? "→ " + h.wrs.toFixed(0) + "%" : ""}</span></td>
@@ -1301,13 +1301,13 @@ function renderTraders(){
   }
   const everyone = Object.values(T);
   const mm = t => window.isMM && isMM(t);   // market makers (stars.js): positions are inventory and hedges, not bets
-  const all = everyone.filter(t => (t.cw + t.cl >= 2 || Math.abs(t.cp) >= 25000) && !mm(t));
+  const all = everyone.filter(t => t.cw + t.cl >= 2 || Math.abs(t.cp) >= 25000);   // market makers stay, tagged MM
   const row = t => {
     const lev = t.lev.length ? (t.lev.reduce((a, x) => a + x[0] * x[1], 0) / t.lev.reduce((a, x) => a + x[1], 0)).toFixed(1) + "x" : "–";
     const stop = t.stN ? Math.round(t.st / t.stN * 100) + "%" : "–";
     const liq = t.liqD.length ? pctCap(Math.round(Math.min(...t.liqD))) : "–";
     const n = t.cw + t.cl;
-    return `<tr><td style="text-align:left"><a href="https://hyperdash.com/address/${esc(t.a)}" target="_blank" rel="noopener">${esc(t.lb || t.a.slice(0, 6) + "…" + t.a.slice(-4))}</a></td>
+    return `<tr><td style="text-align:left"><a href="https://hyperdash.com/address/${esc(t.a)}" target="_blank" rel="noopener">${esc(t.lb || t.a.slice(0, 6) + "…" + t.a.slice(-4))}</a>${mm(t) ? ` <span class="flag f-thin" title="Market maker: position is mostly inventory from customer flow. Counts at 25% in weighted totals.">MM</span>` : ""}</td>
       <td style="text-align:left">${COH[t.coh] || "–"}</td><td>${t.wr != null ? t.wr.toFixed(0) + "%" : "–"} <span style="color:var(--faint)">${t.tt}</span></td>
       <td>${t.cw}W / ${t.cl}L <span style="color:var(--faint)">${n ? Math.round(t.cw / n * 100) + "%" : ""}</span></td><td class="${t.cp >= 0 ? "L" : "S"}">${usd(t.cp)}</td>
       <td style="text-align:left">${t.pos.sort((a, b) => b.n - a.n).slice(0, 4).map(p => `<a href="#" data-goto="${esc(p.coin)}" class="${p.sd > 0 ? "L" : "S"}">${esc(parse(p.coin).sym)} ${p.sd > 0 ? "L" : "S"} ${usd(p.n)}</a>`).join(" · ")}</td>
@@ -1747,7 +1747,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) { re
 <script src="basket.js?v=1"></script>
 <script src="pcshim.js?v=1"></script>
 <script src="prochart.js?v=11"></script>
-<script src="stars.js?v=11"></script>
+<script src="stars.js?v=12"></script>
 <script>(function(){const r0=render;render=function(){const x=r0.apply(this,arguments);try{window.mcAttach&&mcAttach()}catch(e){}return x};try{window.mcAttach&&mcAttach()}catch(e){}})();</script>
 <script src="site.js?v=4"></script>
 </body>
