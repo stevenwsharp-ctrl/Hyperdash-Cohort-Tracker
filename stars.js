@@ -262,9 +262,9 @@ body{padding-bottom:34px}
       if (F && Date.now() - F.t < (starWallets.has(a) ? 110000 : 600000)) continue;
       if (Date.now() < HOLD) break;
       try {
-        if (!F) { const f = await post({ type: "userFills", user: a, aggregateByTime: true }); FILLS[a] = { t: Date.now(), f: Array.isArray(f) ? f.filter(x => x.time >= start) : [] }; pause = 1500; }
+        if (!F) { const f = await post({ type: "userFills", user: a, aggregateByTime: true }); FILLS[a] = { t: Date.now(), f: Array.isArray(f) ? f.filter(x => x.time >= start) : [] }; pause = 12000; }   // a full read costs ~120 weight: at most ~5 per minute
         else { const last = F.f.reduce((m, x) => Math.max(m, x.time), start); const f = await post({ type: "userFillsByTime", user: a, startTime: last + 1, aggregateByTime: true });
-          const nf = Array.isArray(f) ? f : []; F.f = F.f.concat(nf).filter(x => x.time >= start); F.t = Date.now(); pause = 400; }
+          const nf = Array.isArray(f) ? f : []; F.f = F.f.concat(nf).filter(x => x.time >= start); F.t = Date.now(); pause = 1500; }
       } catch (e) { if (/429/.test(e.message)) { HOLD = Date.now() + 60000; break; } }
       await new Promise(r => setTimeout(r, pause));
     }
@@ -301,7 +301,7 @@ body{padding-bottom:34px}
           <td class="r ${g.pnl >= 0 ? "L" : "S"}">${open || !g.pnl ? "" : "PnL " + usd(g.pnl)}</td></tr>`; }).join("")}</table>`; };
       const r = (ROWS || []).find(x => x.coin === c);
       return `<div class="bt"><h4><button class="cstar on" data-star="${esc(c)}">★</button><a href="#" data-goto="${esc(c)}">${esc(sym)}</a>${r ? `<span class="${r.dir > 0 ? "L" : "S"}" style="font:600 11px var(--mono)">SMART ${r.dir > 0 ? "LONG" : "SHORT"} · rating ${r.rating}</span>` : ""}</h4>
-        <h5 class="L">Best traders · last 5 major trades</h5>${tbl(W.good, "best")}<h5 class="S">Worst traders · last 5 major trades</h5>${tbl(W.bad, "worst")}</div>`;
+        <h5 class="L">Best traders · last 5 major trades</h5>${tbl(W.good, "best")}<h5 class="S">Worst traders · last 5 major trades</h5>${tbl(W.bad, "worst")}${ordHtml(c)}</div>`;
     }).join("");
     if (fresh && newOnes.length) {
       const first = SEEN.size === 0;
@@ -407,9 +407,52 @@ body{padding-bottom:34px}
     "Worst net 7d": "Spot buys minus sells of the worst traders in 7 days.", "Best hold": "Spot value the best traders hold now (number of traders).", "Worst hold": "Spot value the worst traders hold now.",
     "Signal": "Smart accumulate · fools sell = the strongest bullish spot pattern; the reverse is the strongest bearish one.", "Perp setup": "The cohort setup on the same coin's perp, if any." });
 
+  /* ---------- open orders of the best and worst holders: catch price moves, size changes, cancel/replace ---------- */
+  const ORDS = {};                                  // "wallet|dex" -> { at, list }
+  let OEV = lsG("cs_ord_ev", []), ordBusy = false;
+  const dexOf = c => c.includes(":") ? c.split(":")[0].toLowerCase() : "";
+  async function pollOrders() {
+    if (ordBusy || !STARS.length || Date.now() < HOLD || document.hidden) return; ordBusy = true;
+    const jobs = [];
+    STARS.forEach(c => { const W = walletsFor(c); if (!W) return; [...W.good.map(h => [h, "best"]), ...W.bad.map(h => [h, "worst"])].forEach(([h, g]) => jobs.push({ c, h, g, k: h.a + "|" + dexOf(c) })); });
+    const uniq = [...new Map(jobs.map(j => [j.k, j])).values()].sort((a, b) => ((ORDS[a.k] || {}).at || 0) - ((ORDS[b.k] || {}).at || 0)).slice(0, 6);
+    for (const j of uniq) {
+      if (Date.now() < HOLD) break;
+      try { const o = await post({ type: "frontendOpenOrders", user: j.h.a, dex: dexOf(j.c) });
+        const list = (o || []).map(x => ({ oid: x.oid, coin: String(x.coin), side: x.side === "B" ? 1 : -1, px: +(x.isTrigger ? x.triggerPx : x.limitPx) || +x.limitPx, sz: +x.sz, osz: +x.origSz || +x.sz, ro: !!x.reduceOnly || !!x.isPositionTpsl, trig: !!x.isTrigger, type: x.orderType || "" }));
+        const prev = ORDS[j.k]; ORDS[j.k] = { at: Date.now(), list };
+        if (prev) STARS.forEach(c => { if (dexOf(c) !== dexOf(j.c)) return; const want = hlName(c).toLowerCase(), W = walletsFor(c); if (!W) return;
+          const g = W.good.some(h => h.a === j.h.a) ? "best" : W.bad.some(h => h.a === j.h.a) ? "worst" : null; if (!g) return;
+          ordDiff(c, j.h, g, prev.list.filter(x => x.coin.toLowerCase() === want), list.filter(x => x.coin.toLowerCase() === want)); });
+      } catch (e) { if (/429/.test(e.message)) { HOLD = Date.now() + 60000; break; } }
+      await new Promise(r => setTimeout(r, 1200));
+    }
+    ordBusy = false;
+  }
+  function ordDiff(c, h, g, A, Bn) {
+    const cx = ctxOf(c), P = cx && cx.px, min = 5000, out = [];
+    const nm = o => `${o.side > 0 ? "buy" : "sell"} ${o.trig ? (o.type || "trigger").toLowerCase() : "limit"}${o.ro ? " (reduce-only)" : ""}`, val = o => o.sz * (o.px || P || 0);
+    const byA = new Map(A.map(o => [o.oid, o])), byB = new Map(Bn.map(o => [o.oid, o]));
+    for (const [id, o1] of byB) { const o0 = byA.get(id); if (!o0) continue; const dp = o0.px && o1.px ? o1.px / o0.px - 1 : 0;
+      if (Math.abs(dp) >= 0.0005 && Math.max(val(o0), val(o1)) >= min) out.push({ k: "move", txt: `moved a ${usd(val(o1))} ${nm(o1)} ${price(o0.px)} → ${price(o1.px)} (${dp > 0 ? "+" : ""}${(dp * 100).toFixed(2)}%)` });
+      else if (o1.osz !== o0.osz && Math.max(val(o0), val(o1)) >= min) out.push({ k: "size", txt: `${o1.osz > o0.osz ? "raised" : "cut"} a ${nm(o1)} @ ${price(o1.px)}: ${usd(val(o0))} → ${usd(val(o1))}` }); }
+    const gone = A.filter(o => !byB.has(o.oid)), born = Bn.filter(o => !byA.has(o.oid)), used = new Set();
+    gone.forEach(o0 => { const j = born.findIndex((o1, i) => !used.has(i) && o1.side === o0.side && o1.trig === o0.trig && o1.ro === o0.ro);
+      if (j >= 0) { used.add(j); const o1 = born[j]; if (Math.max(val(o0), val(o1)) < min) return; const dp = o0.px && o1.px ? o1.px / o0.px - 1 : 0;
+        out.push({ k: "replace", txt: `replaced a ${nm(o0)}: ${usd(val(o0))} @ ${price(o0.px)} → ${usd(val(o1))} @ ${price(o1.px)}${Math.abs(dp) >= 0.0005 ? ` (${dp > 0 ? "+" : ""}${(dp * 100).toFixed(2)}%)` : ""}` }); }
+      else if (val(o0) >= min * 2) out.push({ k: "pull", txt: `pulled a ${usd(val(o0))} ${nm(o0)} @ ${price(o0.px)} (cancelled or filled)` }); });
+    born.forEach((o1, i) => { if (!used.has(i) && val(o1) >= min * 2) out.push({ k: "place", txt: `placed a ${usd(val(o1))} ${nm(o1)} @ ${price(o1.px)}${P ? ` (${((o1.px / P - 1) * 100).toFixed(2)}% from price)` : ""}` }); });
+    out.slice(0, 4).forEach(e => { OEV.unshift({ t: Date.now(), c, a: h.a, lb: h.lb || "", coh: h.coh, g, k: e.k, txt: e.txt });
+      if (e.k !== "pull") try { toast(`<b class="${g === "best" ? "L" : "S"}">📝 ★ ${esc(parse(c).sym)} · ${g} trader</b><div>${esc(e.txt)}</div>`, g === "best" ? "tl" : "ts", () => tb.click()); } catch (x) { } });
+    if (out.length) { OEV = OEV.slice(0, 200); lsS("cs_ord_ev", OEV); if (VIEW === "starred") renderTrades(); }
+  }
+  const ordHtml = c => { const L = OEV.filter(e => e.c === c).slice(0, 6), open = Object.entries(ORDS).filter(([k]) => k.endsWith("|" + dexOf(c))).reduce((a, [, v]) => a + v.list.filter(x => x.coin.toLowerCase() === hlName(c).toLowerCase()).length, 0);
+    return `<h5>Order changes · best & worst <span style="text-transform:none;font-weight:400;color:var(--faint)">${open} open orders watched</span></h5>${L.length ? `<table>${L.map(e => `<tr><td>${new Date(e.t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</td><td><a href="https://hyperdash.com/address/${esc(e.a)}" target="_blank" rel="noopener">${esc(e.lb || e.a.slice(0, 6) + "…" + e.a.slice(-4))}</a> <b class="${e.g === "best" ? "L" : "S"}">${e.g}</b></td><td style="white-space:normal">${esc(e.txt)}</td></tr>`).join("")}</table>` : `<div class="note">No order changes yet. Orders are checked about every 2–3 minutes; a price move, size change or cancel-and-replace shows here and as a toast.</div>`}`; };
+
   /* ---------- hook into the page's render loop ---------- */
   const r0 = render;
   window.render = render = function () { const x = r0.apply(this, arguments); try { decorate(); if (VIEW === "starred") renderStarred(); tabLabels(); } catch (e) { console.warn(e); } return x; };
+  setInterval(pollOrders, 60000); setTimeout(pollOrders, 15000);
   setInterval(() => { if (STARS.length || VIEW === "starred") loadTrades(false); if (VIEW === "starred") loadMkts(); }, 30000);
   setInterval(() => { if (VIEW === "starred" && !document.hidden) { renderStarred(); const s = document.getElementById("xlSel"); if (s && SEL) s.textContent = SEL; } }, 10000);   // live prices on the sheet   // trades refresh every 2 min (in loadTrades), markets every minute
   tabLabels(); decorate();

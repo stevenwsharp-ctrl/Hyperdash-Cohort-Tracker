@@ -107,7 +107,7 @@
       if (full || !B.length) B = nb; else { const t0 = nb.length ? nb[0].t : Infinity; B = B.filter(b => b.t < t0).concat(nb); }
       err = B.length ? "" : "No candles for this market on Hyperliquid."; lastLoad = Date.now();
       update(full);
-    } catch (e) { err = "Hyperliquid did not answer: " + (e.message || e); stat(err); }
+    } catch (e) { err = "Hyperliquid did not answer: " + (e.message || e) + (/429/.test(e.message) ? " (rate limit, retry in 30 s)" : ""); stat(err); lastLoad = Date.now() + (/429/.test(e.message) ? 26000 : 6000); }
     loading = false;
   }
   const tsec = ms => Math.floor(ms / 1000);
@@ -337,7 +337,7 @@
   window.mcAttach = function () {
     const m = [...document.querySelectorAll(".mcMount")].find(x => x.offsetParent !== null) || null; if (!m) { if (wrap.isConnected && !wrap.classList.contains("mcfs")) wrap.remove(); return; }
     if (wrap.parentNode !== m) m.appendChild(wrap);
-    const c = m.dataset.coin; if (c && c !== coin) { coin = c; B = []; sel = -1; setTool(null); lastP = NaN; legend(null); load(true); } else { biasPane(); levels(); ovDirty = true; }
+    const c = m.dataset.coin; if (c && c !== coin) { coin = c; B = []; try { [S.c, S.v, S.e9, S.e21, S.e50, S.bu, S.bl, S.rsi].forEach(x => x.setData([])); } catch (e) { } sel = -1; setTool(null); lastP = NaN; legend(null); load(true); } else { biasPane(); levels(); ovDirty = true; }
   };
-  setInterval(() => { if (coin && wrap.isConnected && !loading && Date.now() - lastLoad > (document.hidden ? 15000 : 4000)) load(false); }, 1000);
+  setInterval(() => { if (coin && wrap.isConnected && !loading && Date.now() - lastLoad > (document.hidden ? 20000 : 6000)) load(false); }, 1000);
 })();

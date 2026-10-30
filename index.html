@@ -1736,15 +1736,15 @@ $("rnd").textContent = Math.random().toString(36).slice(2, 10);
 drawChips();
 refresh(true).then(livePrices);
 setInterval(() => refresh(false), 15 * 1000);   // new cohort snapshot check: every 15 s through the Worker (git refs), else every 75 s (GitHub API limit)
-let lpT = 0; setInterval(() => { if (Date.now() - lpT >= (document.hidden ? 30000 : 10000)) { lpT = Date.now(); livePrices(); } }, 1000);   // live prices and funding: every 10 s (30 s in a background tab; Hyperliquid allows about 1,200 request weight per minute)
+let lpT = 0; setInterval(() => { if (Date.now() - lpT >= (document.hidden ? 60000 : 20000)) { lpT = Date.now(); livePrices(); } }, 1000);   // live prices and funding: every 20 s (60 s in a background tab). Each read costs about 20 weight per venue; Hyperliquid allows about 1,200 weight per minute per IP, shared with the chart and the trader reads
 setInterval(renderStat, 30 * 1000);
 setInterval(() => { const t = mmss(nextFunding().ms); document.querySelectorAll(".fcd").forEach(e => e.textContent = t); }, 1000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { refresh(false); livePrices(); } });
 </script>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
-<script src="mchart.js?v=5"></script>
+<script src="mchart.js?v=6"></script>
 <script src="basket.js?v=1"></script>
-<script src="stars.js?v=6"></script>
+<script src="stars.js?v=8"></script>
 <script>(function(){const r0=render;render=function(){const x=r0.apply(this,arguments);try{window.mcAttach&&mcAttach()}catch(e){}return x};try{window.mcAttach&&mcAttach()}catch(e){}})();</script>
 <script src="site.js?v=4"></script>
 </body>

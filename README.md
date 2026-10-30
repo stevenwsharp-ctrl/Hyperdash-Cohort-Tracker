@@ -82,3 +82,8 @@ Light and dark mode, page width (fit screen by default), a heartbeat for the liv
 - Hover any column heading for a floating explanation.
 - Light / dark mode: button in the header and in the bottom sheet bar.
 - Alignment trend: the top row is the gap change in points (not the rating); the bottom row is the rank by gap size among the markets that pass your filters, and its move in each window.
+- **Order changes**: for each starred market, the open orders of its best and worst holders are checked about every 2–3 minutes. A moved price, a changed size, a cancel-and-replace, or a large new or pulled order shows on the card and as a toast.
+- **ETF lens**: the SOXX holdings that have a Hyperliquid perp, weighted like the index: smart vs fools bias per holding and for the basket. Plus the leveraged-ETF rebalance estimate and the rebalance / after-hours study from SOXX Sniper (shared in the same browser). `basket.js` is the same file in both repos.
+- **Spot**: spot buys, sells and holdings of the best and worst traders (crypto spot only; stocks trade here only as perps).
+- **Chart**: same look as SOXX Sniper (session shading, VWAP ±σ bands, PDH / PDL / prev close / pre-market high-low for stock perps, RSI pane). The Starred sheet has its own live chart; click a row or a chip to switch.
+- Rate limit: Hyperliquid allows about 1,200 request weight per minute per IP. Live prices refresh every 20 s, the chart every 6 s, and trader reads are spread out; after a 429 the page waits 30–60 s.
