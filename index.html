@@ -91,7 +91,10 @@ button.ghost:hover{color:var(--text)}
 .tk.L{border-color:#1d5a48} .tk.S{border-color:#6a2733}
 svg.spark{display:block}
 .trend small{display:block;font:10.5px var(--mono);color:var(--faint);margin-top:2px}
-.tf{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-bottom:4px}
+.tf{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;margin-bottom:4px}
+.tf.rk span{background:transparent;border:1px solid var(--line)}
+.tf .lab{font:600 8.5px var(--mono);color:var(--faint);background:none!important;border:0!important;text-align:left;padding:2px 0}
+.hsub{display:block;font:400 9.5px var(--mono);color:var(--faint);text-transform:none;letter-spacing:0}
 .tf span{font:500 10px var(--mono);text-align:center;border-radius:3px;padding:2px 0;background:var(--neutral-bg);color:var(--dim)}
 .tf span i{display:block;font-style:normal;font-size:8.5px;opacity:.7}
 .tf .up{background:var(--bull-bg);color:#7fe0c0} .tf .dn{background:var(--bear-bg);color:#f2a0aa}
@@ -248,7 +251,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
     <div class="hdr" id="hdr">
       <div>#</div><div data-sort="coin">Market</div><div>Setup</div><div data-sort="rating">Rating · gap</div>
       <div data-sort="sb">Smart bias</div><div data-sort="fb">Fools bias</div><div data-sort="minN">Money · funding</div>
-      <div data-sort="ntools">Trade with</div><div data-sort="d4" title="Change of the gap. Green = alignment gets stronger. Red = it gets weaker.">Alignment trend</div>
+      <div data-sort="ntools">Trade with</div><div data-sort="d4" title="Top row: change of the GAP (smart bias minus fools bias, in points). It is not the rating and not the rank. ▲ green = the gap got wider on the setup side (stronger). ▼ red = it got narrower. Bottom row: rank among the markets that pass your filters, ranked by gap size, then and now. ▲ = moved up the list.">Alignment trend<span class="hsub">gap Δ pts (not rating) · rank in filter</span></div>
     </div>
     <div id="list"></div>
   </section>
@@ -337,7 +340,8 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
       <li><b>Volume profile</b>: traded volume by price over 30 and 7 days. Point of control = the busiest price; value area = where 70% of volume traded; thin zones are crossed fast. The backtest tests "trading back toward value" and "breaking out of value"; they change the rating only if they hold in both test periods.</li>
       <li><b>Fidelity filter</b>: single stocks without a US exchange listing (pre-IPO, foreign-only) are hidden by default and get no alerts. Every market shown is tradable on Hyperdash. Turn the filter off in Settings.</li>
       <li><b>Froth / bloodbath</b>: how fast a market rises or falls compared with its own normal daily move, plus crowded funding, open interest building or flushing, liquidations, RSI, stretch from the 20-day average and volume. See the Heat tab. A high score means a big move is likely in either direction.</li>
-      <li><b>Alignment trend</b>: the change of the gap over 1h, 4h, 24h and 7d. ▲ green = the two groups moved further apart on the setup side (stronger). ▼ red = they moved closer (weaker). Hover a box to see the smart bias, fools bias and smart $ change.</li>
+      <li><b>Alignment trend</b>, top row ("gap"): the change of the gap in points over 30m, 1h, 4h, 24h and 7d (7d shows when there is a full 7 days of history). It is <b>not</b> the rating and <b>not</b> the rank. ▲ green = the two groups moved further apart on the setup side (stronger). ▼ red = they moved closer (weaker). Hover a box to see the smart bias, fools bias and smart $ change.</li>
+      <li><b>Alignment trend</b>, bottom row ("#N"): the rank of the market now among all markets that pass your filters, ranked by gap size, and how far it moved in each window. ▲2 = it moved up 2 places. Open a row to see the full rank table.</li>
       <li><b>Experts exiting</b>: the Extremely + Very Profitable cohorts cut 30% or more of their position on the setup side within 1h or 4h (and at least $100K). <b>Experts flipped</b>: their bias changed side. These show as red badges for 6 hours and in the Changes tab.</li>
       <li><b>Live data</b>: Hyperdash makes a new cohort snapshot every 5 minutes. The data job checks it about every 45 seconds and publishes each new one. Prices and funding come straight from Hyperliquid every 20 seconds.</li>
       <li><b>Track record</b>: each time a market first crosses the signal gap, the page checks the price 4 hours and 24 hours later, on the smart side.</li>
@@ -896,12 +900,51 @@ function spark(pts){
 }
 // Gap change per time frame. Green = alignment stronger on the setup side.
 function tfChips(r){
-  return `<div class="tf">${["30m","1h","4h","24h","7d"].filter(k => r.tr[k] || k !== "7d").map(k => {
+  return `<div class="tf" title="Change of the gap in points (smart bias minus fools bias). Not the rating, not the rank."><span class="lab">gap</span>${["30m","1h","4h","24h","7d"].filter(k => r.tr[k] || k !== "7d").map(k => {
     const v = r.tr[k]; if (!v) return `<span title="${k}: no history yet"><i>${k}</i>–</span>`;
     const s = r.dir * v[0], cls = s >= 5 ? "up" : s <= -5 ? "dn" : "";
     const net = v[3] != null ? ` · smart $ ${v[3] > 0 ? "+" : ""}${v[3]}%` : "";
     return `<span class="${cls}" title="${k}: gap ${v[0] > 0 ? "+" : ""}${v[0]}, smart bias ${v[1] > 0 ? "+" : ""}${v[1]}, fools ${v[2] > 0 ? "+" : ""}${v[2]}${net}"><i>${k}</i>${s > 0 ? "▲" : s < 0 ? "▼" : ""}${Math.abs(s)}</span>`;
+  }).join("")}</div>${rankChips(r)}`;
+}
+// Rank among the markets that pass the filters, ranked by gap size (|smart bias − fools bias|), now and at the start of each window.
+// History has the bias of every market every 5 minutes, so past ranks are exact for this metric. (The rating also uses live context
+// that is not in history, so a past rating rank cannot be rebuilt.)
+const RK_WIN = { "30m": 0.5, "1h": 1, "4h": 4, "24h": 24, "7d": 168 };
+const rkTol = h => h < 1 ? 8 * 6e4 : h >= 168 ? 3 * 36e5 : Math.max(20 * 6e4, h * 36e5 * 0.2);
+function computeRanks(rows){
+  rows.forEach(r => r.rk = null);
+  if (!rows.length) return;
+  const now = rows.slice().sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap));
+  now.forEach((r, i) => r.rk = { now: i + 1, n: rows.length });
+  const snaps = HIST && HIST.snapshots || []; if (snaps.length < 2) return;
+  const T = snaps.map(x => Date.parse(x.t)), tEnd = T[T.length - 1];
+  for (const [k, h] of Object.entries(RK_WIN)) {
+    const t = tEnd - h * 36e5, tol = rkTol(h); let bi = -1, bd = Infinity;
+    for (let i = 0; i < T.length; i++) { const d = Math.abs(T[i] - t); if (d < bd) { bd = d; bi = i; } }
+    if (bi < 0 || bd > tol || bi === T.length - 1) continue;
+    const d = snaps[bi].d || {};
+    const past = rows.filter(r => d[r.coin]).map(r => ({ r, g: Math.abs(d[r.coin][0] - d[r.coin][1]) / 200 })).sort((a, b) => b.g - a.g);
+    if (past.length < Math.min(3, rows.length)) continue;
+    past.forEach((x, i) => x.r.rk[k] = i + 1);
+  }
+}
+function rankChips(r){
+  const R = r.rk; if (!R) return "";
+  return `<div class="tf rk" title="Rank among the ${R.n} markets that pass your filters, ranked by gap size. Now #${R.now}."><span class="lab" style="white-space:nowrap">#${R.now}</span>${["30m","1h","4h","24h","7d"].filter(k => r.tr[k] || k !== "7d").map(k => {
+    const p = R[k]; if (p == null) return `<span title="${k}: no rank for this window yet (new market or not enough history)"><i>${k}</i>–</span>`;
+    const mv = p - R.now, cls = mv > 0 ? "up" : mv < 0 ? "dn" : "";
+    return `<span class="${cls}" title="${k} ago: #${p} · now: #${R.now} of ${R.n}"><i>${k}</i>${mv > 0 ? "▲" + mv : mv < 0 ? "▼" + -mv : "="}</span>`;
   }).join("")}</div>`;
+}
+function rankTable(r){
+  const R = r.rk; if (!R) return "";
+  const ks = ["30m","1h","4h","24h","7d"].filter(k => r.tr[k] || k !== "7d");
+  return `<div class="card" style="padding:6px 10px;overflow-x:auto;margin-top:8px"><b style="font-size:12px">Rank in your filtered list (${R.n} markets), by gap size</b>
+    <table class="tr" style="min-width:420px"><thead><tr><th>Window</th>${ks.map(k => `<th>${k} ago</th>`).join("")}<th>Now</th></tr></thead>
+    <tbody><tr><td>Rank</td>${ks.map(k => `<td>${R[k] == null ? "–" : "#" + R[k]}</td>`).join("")}<td><b>#${R.now}</b></td></tr>
+    <tr><td>Move</td>${ks.map(k => { const p = R[k]; if (p == null) return "<td>–</td>"; const mv = p - R.now; return `<td class="${mv > 0 ? "L" : mv < 0 ? "S" : ""}">${mv > 0 ? "▲ up " + mv : mv < 0 ? "▼ down " + -mv : "same"}</td>`; }).join("")}<td></td></tr></tbody></table>
+    <div class="note" style="margin-top:4px">The # column of the list follows your sort (rating by default). This table ranks by gap size, because the history keeps the gap of every market every 5 minutes. The rating also uses live context (funding, news, macro) that the history does not keep.</div></div>`;
 }
 
 // Alignment chart from history
@@ -946,7 +989,7 @@ function windowTable(r){
     return `<tr><td>${k}</td><td class="${s >= 0 ? "L" : "S"}">${s > 0 ? "stronger" : s < 0 ? "weaker" : "flat"} ${Math.abs(s)}</td><td>${v[1] > 0 ? "+" : ""}${v[1]}</td><td>${v[2] > 0 ? "+" : ""}${v[2]}</td>
       <td class="${(v[3] ?? 0) >= 0 ? "L" : "S"}">${v[3] == null ? "–" : (v[3] > 0 ? "+" : "") + v[3] + "%"} <span style="color:var(--faint)">${kf}</span></td><td class="${(v[5] ?? 0) >= 0 ? "L" : "S"}">${v[5] == null ? "–" : sgnPct(v[5], 2)}</td></tr>`;
   }).join("");
-  return `<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="tr" style="min-width:560px"><thead><tr><th>Window</th><th>Alignment</th><th>Smart bias Δ</th><th>Fools bias Δ</th><th>Smart $ on setup side</th><th>Price, smart side</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="tr" style="min-width:560px"><thead><tr><th>Window</th><th>Gap change (pts)</th><th>Smart bias Δ</th><th>Fools bias Δ</th><th>Smart $ on setup side</th><th>Price, smart side</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function minis(m, ids){
@@ -989,6 +1032,7 @@ function render(){
   if (VIEW !== "setups") return;
   const list = $("list");
   let rows = filtered();
+  computeRanks(rows);
   const total = rows.length; rows = rows.slice(0, S.maxRows);
   document.querySelectorAll("#hdr [data-sort]").forEach(el => el.classList.toggle("act", el.dataset.sort === S.sort));
   const hiddenFid = S.fidOnly ? ROWS.filter(r => !r.fid).length : 0;
@@ -1097,7 +1141,7 @@ function detail(r){
   const coinEvs = EVENTS && EVENTS.log ? EVENTS.log.filter(e => e.coin === r.coin).slice(0, 8) : [];
   return `<div class="detail">
     <h3>Chart · live candles, liquidation map, max pain, smart vs fools</h3><div class="mcMount" data-coin="${esc(r.coin)}"></div>
-    <h3>Alignment over time</h3>${alignChart(r)}<div style="margin-top:8px">${windowTable(r)}</div>
+    <h3>Alignment over time</h3>${alignChart(r)}<div class="note" style="margin:6px 0">Alignment = the gap between smart bias and fools bias, in points (−100…+100). "Stronger 3" means the gap got 3 points wider on the setup side. It is not the rating and not the rank.</div><div style="margin-top:8px">${windowTable(r)}</div>${rankTable(r)}
     ${coinEvs.length ? `<h3>Recent changes</h3><div class="card" style="padding:0">${coinEvs.map(evRow).join("")}</div>` : ""}
     <h3>Key points · Things to look for</h3><div class="cards"><div class="card"><h4>Key points</h4><ul class="kl">${bullets(keyPoints(r), 20)}</ul></div><div class="card"><h4>Things to look for</h4><ul class="kl">${(() => { const lf = lookFor(r); return lf.length ? bullets(lf, 20) : `<li class="N">Nothing stands out.</li>`; })()}</ul></div>${r.cy ? cycleCard(r) : ""}</div>
     <h3>Funding · flow · liquidation map · volume profile</h3><div class="cards">${fundingCard(r)}${flowCard(r)}</div>
