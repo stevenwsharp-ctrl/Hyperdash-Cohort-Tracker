@@ -1023,9 +1023,10 @@ function minis(m, ids){
 }
 const sideCls = b => b > 0.1 ? "L" : b < -0.1 ? "S" : "N";
 
-function filtered(){
-  const q = S.q.trim().toUpperCase();
-  let rows = ROWS.filter(r =>
+function filtered(noSearch){
+  const q = noSearch ? "" : S.q.trim().toUpperCase();
+  // a search finds the market even when the other filters hide it (its # then shows NR)
+  let rows = q ? ROWS.filter(r => r.coin.toUpperCase().includes(q)) : ROWS.filter(r =>
     (S.cls === "All" || r.cls === S.cls) &&
     (S.dir === "both" || (S.dir === "long" ? r.dir > 0 : r.dir < 0)) &&
     r.minN >= S.minN && r.rating >= S.minScore &&
@@ -1054,7 +1055,9 @@ function render(){
   if (VIEW !== "setups") return;
   const list = $("list");
   let rows = filtered();
-  computeRanks(rows);
+  // the # column is the place in the list without the search box; a market the other filters hide shows NR
+  const full = S.q.trim() ? filtered(true) : rows, place = new Map(full.map((r, i) => [r.coin, i + 1]));
+  computeRanks(full);
   const total = rows.length; rows = rows.slice(0, S.maxRows);
   document.querySelectorAll("#hdr [data-sort]").forEach(el => el.classList.toggle("act", el.dataset.sort === S.sort));
   const hiddenFid = S.fidOnly ? ROWS.filter(r => !r.fid).length : 0;
@@ -1100,7 +1103,7 @@ function render(){
     if (!tw.length) tw.push(`<span class="no">Perp only</span>`);
     const ch = r.ctx && r.ctx.ch != null ? ` <span class="${r.ctx.ch >= 0 ? "L" : "S"}">${sgnPct(r.ctx.ch)}</span>` : "";
     const row = `<div class="row${OPEN === r.coin ? " open" : ""}" data-coin="${esc(r.coin)}">
-      <div class="rank">${i+1}</div>
+      <div class="rank" title="${place.has(r.coin) ? "Place in the list with your filters and sort" : "Not ranked: your filters hide this market"}">${place.get(r.coin) || "NR"}</div>
       <div class="mkt"><b>${esc(r.sym)}</b>${r.ctx ? `<span class="px">${price(r.ctx.px)}${ch}</span>` : ""}<span class="tag">${esc(r.cls)}</span>${r.venue ? `<span class="tag">${esc(r.venue)}</span>` : ""}${r.lst && r.lst.sp ? `<span class="tag" title="${esc(r.lst.sec || "")}">S&P</span>` : ""}${r.inst && r.inst.u && r.inst.u.ex ? `<span class="tag">${esc(r.inst.u.ex)}</span>` : ""}</div>
       <div class="setup"><span class="s ${dl ? "L" : "S"}">SMART ${dl ? "LONG" : "SHORT"}</span><span class="s ${sideCls(r.fo.b)}">fools ${r.fo.b > 0.1 ? "long" : r.fo.b < -0.1 ? "short" : "flat"}</span></div>
       <div class="sc" title="Rating = disparity ${r.score} adjusted for liquidity, funding, trend, momentum, earnings, macro and news"><div class="score">${sc}<small class="${dl ? "L" : "S"}">${pct(r.gap)}</small></div><div style="font:10.5px var(--mono);color:var(--faint)">disparity ${r.score}</div><div class="meter"><i style="width:${sc}%;background:${mc}"></i></div></div>
