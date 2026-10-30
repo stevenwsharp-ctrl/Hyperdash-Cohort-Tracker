@@ -124,7 +124,7 @@ body{padding-bottom:34px}
   const tb = document.createElement("button"); tb.className = "tab"; tb.dataset.tab = "starred";
   tabs.insertBefore(tb, tabs.children[1] || null);
   const sec = document.createElement("section"); sec.id = "v-starred"; sec.hidden = true;
-  sec.innerHTML = `<div id="stMk"></div><div id="stSheet"></div><h3 style="margin:16px 0 0">Big trades on your starred markets · best vs worst traders</h3><div class="note" id="stBtNote" style="max-width:none"></div><div class="bt-grid" id="stBt"></div>`;
+  sec.innerHTML = `<div id="stMk"></div><div id="stSheet"></div><h3 style="margin:16px 0 0">Big trades on your starred markets · best vs worst traders</h3><div class="note" id="stBtNote" style="max-width:none"></div><div class="bt-grid" id="stBt"></div><h3 style="margin:18px 0 0">Spot · what the best and worst traders buy, sell and hold</h3><div class="note" id="spNote" style="max-width:none"></div><div id="spBody"></div>`;
   document.getElementById("v-setups").after(sec);
   const sheet = document.createElement("div"); sheet.className = "sheetbar";
   sheet.innerHTML = `<span class="nav">◀ ▶</span><button data-sheet="setups">Setups</button><button data-sheet="starred"></button><button data-sheet="traders">Traders</button><button data-sheet="heat">Heat</button><button class="thx" id="sbTheme" title="Light / dark mode"></button>`;
@@ -144,7 +144,7 @@ body{padding-bottom:34px}
     VIEW = "starred";
     document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === tb));
     document.querySelectorAll("main section, .wrap > section, section[id^='v-']").forEach(s => { if (/^v-/.test(s.id)) s.hidden = s.id !== "v-starred"; });
-    sec.hidden = false; render(); renderStarred(); loadMkts(); loadTrades(false);
+    sec.hidden = false; render(); renderStarred(); loadMkts(); loadTrades(false); loadSpot();
   };
 
   /* ---------- market overview ---------- */
@@ -222,18 +222,21 @@ body{padding-bottom:34px}
     return { good, bad };
   }
   async function loadTrades(force) {
-    if (tradesBusy || !STARS.length) return;
+    if (tradesBusy) return;
     if (!force && Date.now() - tradesT < 120000) { renderTrades(); return; }
     tradesBusy = true; tradesT = Date.now();
     const ws = new Set();
     STARS.forEach(c => { const W = walletsFor(c); if (W) [...W.good, ...W.bad].forEach(h => ws.add(h.a)); });
+    const G = globalWallets(); [...G.good, ...G.bad].forEach(t => ws.add(t.a));   // also the overall best and worst traders, for the spot flow
     const start = Date.now() - 14 * 864e5;
     for (const a of ws) {
       if (FILLS[a] && Date.now() - FILLS[a].t < 110000) continue;
-      try { const f = await post({ type: "userFillsByTime", user: a, startTime: start, aggregateByTime: true }); FILLS[a] = { t: Date.now(), f: Array.isArray(f) ? f : [] }; } catch (e) { }
+      // userFills = the newest 2,000 fills (userFillsByTime would return the OLDEST 2,000 from the start time for a busy trader)
+      try { const f = await post({ type: "userFills", user: a, aggregateByTime: true }); FILLS[a] = { t: Date.now(), f: Array.isArray(f) ? f.filter(x => x.time >= start) : [] }; } catch (e) { }
       await new Promise(r => setTimeout(r, 350));   // stay well under Hyperliquid's weight limit
     }
     tradesBusy = false; renderTrades(true);
+    loadSpot();
   }
   function tradesOf(coin, hs) {
     const want = hlName(coin).toLowerCase(), out = [];
@@ -276,10 +279,103 @@ body{padding-bottom:34px}
   box_goto();
   function box_goto() { document.addEventListener("click", e => { const a = e.target.closest("#v-starred [data-goto]"); if (a) { e.preventDefault(); gotoCoin(a.dataset.goto); } }); }
 
+  /* ---------- spot: buys, sells and holdings of the best vs worst traders ---------- */
+  const GOODC = ["EP", "VP"], BADC = ["U", "VU", "R"];
+  // The overall best and worst traders across the top holders of the top 30 setups (same sets as the Traders tab), 20 of each by size.
+  function globalWallets() {
+    const T = {};
+    for (const X of Object.values(SPEC && SPEC.m || {})) (X.holders || []).forEach(h => { if (h.miss) return;
+      const t = T[h.a] = T[h.a] || { a: h.a, lb: h.lb, coh: h.coh, q: 0, n: 0 }; t.q += h.q || 0; t.n += h.n || 0; });
+    const all = Object.values(T);
+    const good = all.filter(t => GOODC.includes(t.coh) || (t.q >= 0.25 && !BADC.includes(t.coh))).sort((a, b) => b.n - a.n).slice(0, 20);
+    const bad = all.filter(t => BADC.includes(t.coh) || (t.q <= -0.25 && !GOODC.includes(t.coh))).sort((a, b) => b.n - a.n).slice(0, 20);
+    return { good, bad };
+  }
+  let SPM = null, spmT = 0;              // spot pairs: "@107" -> { base, px, ch, vol }
+  const BAL = {};                        // wallet -> { t, b: balances }
+  let spotBusy = false, spotT = 0;
+  async function loadSpotMeta() {
+    if (SPM && Date.now() - spmT < 60000) return;
+    try {
+      const [meta, ctxs] = await post({ type: "spotMetaAndAssetCtxs" });
+      const tok = {}; meta.tokens.forEach(t => tok[t.index] = t.name);
+      const m = {};
+      meta.universe.forEach((u, i) => { const c = ctxs[i] || {}; const base = tok[u.tokens[0]], quote = tok[u.tokens[1]];
+        const px = +c.markPx || +c.midPx || 0, prev = +c.prevDayPx || 0;
+        m[u.name] = { base, quote, px, ch: prev ? (px / prev - 1) * 100 : null, vol: +c.dayNtlVlm || 0 }; });
+      SPM = m; spmT = Date.now();
+    } catch (e) { }
+  }
+  const baseOf = coin => { const p = SPM && SPM[coin]; return p ? p.base : String(coin).includes("/") ? String(coin).split("/")[0] : null; };
+  const pxOf = tok => { if (!SPM) return null; if (/^USD[CTH]?$/.test(tok)) return 1; let best = null; for (const p of Object.values(SPM)) if (p.base === tok && /^USD/.test(p.quote || "") && (!best || p.vol > best.vol)) best = p; return best; };
+  async function loadSpot() {
+    if (spotBusy || Date.now() - spotT < 240000) { renderSpot(); return; }
+    spotBusy = true; spotT = Date.now(); await loadSpotMeta();
+    const G = globalWallets();
+    for (const t of [...G.good, ...G.bad]) {
+      if (BAL[t.a] && Date.now() - BAL[t.a].t < 230000) continue;
+      try { const j = await post({ type: "spotClearinghouseState", user: t.a }); BAL[t.a] = { t: Date.now(), b: j && j.balances || [] }; } catch (e) { }
+      await new Promise(r => setTimeout(r, 200));
+    }
+    spotBusy = false; renderSpot();
+  }
+  function renderSpot() {
+    const body = document.getElementById("spBody"); if (!body) return;
+    const G = globalWallets(), grp = {}; G.good.forEach(t => grp[t.a] = "g"); G.bad.forEach(t => grp[t.a] = "b");
+    // starred-coin holders count too
+    STARS.forEach(c => { const W = walletsFor(c); if (W) { W.good.forEach(h => grp[h.a] = grp[h.a] || "g"); W.bad.forEach(h => grp[h.a] = grp[h.a] || "b"); } });
+    const now = Date.now(), T = {};
+    const row = tok => T[tok] = T[tok] || { tok, g24: 0, g7: 0, b24: 0, b7: 0, gB: new Set(), gS: new Set(), bB: new Set(), bS: new Set(), gH: 0, bH: 0, gHn: 0, bHn: 0, last: [] };
+    let nW = 0;
+    for (const [a, F] of Object.entries(FILLS)) { const g = grp[a]; if (!g) continue; nW++;
+      F.f.forEach(x => { if (!(String(x.coin).startsWith("@") || String(x.coin).includes("/"))) return;   // spot fills only
+        const tok = baseOf(x.coin); if (!tok) return; const r = row(tok), v = +x.sz * +x.px * (x.side === "B" ? 1 : -1), age = now - x.time;
+        if (age <= 7 * 864e5) { r[g + "7"] += v; (v > 0 ? r[g + "B"] : r[g + "S"]).add(a); }
+        if (age <= 864e5) r[g + "24"] += v;
+        if (Math.abs(v) >= 2000) r.last.push({ a, g, v, t: x.time, px: +x.px }); }); }
+    for (const [a, B] of Object.entries(BAL)) { const g = grp[a]; if (!g) continue;
+      B.b.forEach(b => { if (/^USD/.test(b.coin)) return; const p = pxOf(b.coin), px = p == null ? null : typeof p === "number" ? p : p.px; if (!px) return;
+        const v = +b.total * px; if (v < 100) return; const r = row(b.coin); r[g + "H"] += v; r[g + "Hn"]++; }); }
+    const list = Object.values(T).filter(r => Math.abs(r.g7) + Math.abs(r.b7) + r.gH + r.bH >= 1000)
+      .sort((a, b) => (Math.abs(b.g7) + Math.abs(b.b7) + (b.gH + b.bH) / 4) - (Math.abs(a.g7) + Math.abs(a.b7) + (a.gH + a.bH) / 4)).slice(0, 25);
+    const sig = r => { const gs = Math.sign(Math.round(r.g7 / 1000)), bs = Math.sign(Math.round(r.b7 / 1000));
+      if (gs > 0 && bs < 0) return ["L", "Smart accumulate · fools sell"]; if (gs < 0 && bs > 0) return ["S", "Smart distribute · fools buy"];
+      if (gs > 0 && bs > 0) return ["", "Both buying"]; if (gs < 0 && bs < 0) return ["", "Both selling"];
+      if (gs > 0) return ["L", "Smart buying"]; if (gs < 0) return ["S", "Smart selling"]; if (bs > 0) return ["S", "Fools buying"]; if (bs < 0) return ["L", "Fools selling"]; return ["N", "Holding"]; };
+    const $v = v => v ? `<span class="${v > 0 ? "L" : "S"}">${v > 0 ? "+" : ""}${usd(v)}</span>` : `<span class="N">0</span>`;
+    const perp = tok => { const c = [tok, tok.replace(/^U(?=[A-Z]{3,})/, ""), "K" + tok].find(x => ctxOf(x)); return c ? `<a href="#" data-goto="${esc(c)}">${esc(c)} perp</a>` : ""; };
+    const sm = ROWS ? Object.fromEntries((ROWS || []).map(r => [r.coin, r])) : {};
+    const cells = list.map(r => { const p = pxOf(r.tok), px = p && typeof p === "object" ? p : null, s = sig(r);
+      const pc = [r.tok, r.tok.replace(/^U(?=[A-Z]{3,})/, "")].find(x => sm[x]); const pr = pc ? sm[pc] : null;
+      return `<tr><td class="tl"><b>${esc(r.tok)}</b> ${perp(r.tok)}</td><td>${px ? price(px.px) : "–"}</td><td>${px && px.ch != null ? `<span class="${px.ch >= 0 ? "L" : "S"}">${px.ch >= 0 ? "+" : ""}${px.ch.toFixed(2)}%</span>` : "–"}</td><td>${px ? usd(px.vol) : "–"}</td>
+        <td>${$v(r.g24)}</td><td>${$v(r.g7)} <span style="color:var(--faint)">${r.gB.size}↑ ${r.gS.size}↓</span></td><td>${$v(r.b24)}</td><td>${$v(r.b7)} <span style="color:var(--faint)">${r.bB.size}↑ ${r.bS.size}↓</span></td>
+        <td>${r.gH ? usd(r.gH) + ` <span style="color:var(--faint)">${r.gHn}</span>` : "–"}</td><td>${r.bH ? usd(r.bH) + ` <span style="color:var(--faint)">${r.bHn}</span>` : "–"}</td>
+        <td class="tl ${s[0]}">${s[1]}</td><td class="tl">${pr ? `<span class="${pr.dir > 0 ? "L" : "S"}">perp smart ${pr.dir > 0 ? "long" : "short"} ${pr.rating}</span>` : "–"}</td></tr>`; }).join("");
+    // general spot market movement: biggest pairs by 24h volume
+    const top = SPM ? Object.values(SPM).filter(p => /^USD/.test(p.quote || "") && p.vol > 0).sort((a, b) => b.vol - a.vol).slice(0, 12) : [];
+    const totV = SPM ? Object.values(SPM).reduce((a, p) => a + (/^USD/.test(p.quote || "") ? p.vol : 0), 0) : 0;
+    const up = top.filter(p => p.ch > 0).length;
+    const nb = Object.values(T).reduce((a, r) => a + r.g7, 0), nf = Object.values(T).reduce((a, r) => a + r.b7, 0);
+    document.getElementById("spNote").innerHTML = `From the spot fills (last 7 days, newest 2,000 fills per wallet) and spot balances of the ${G.good.length} best and ${G.bad.length} worst traders among the top holders of the top 30 setups, plus the holders of your starred markets (${nW} wallets with fills loaded). Net = buys minus sells in $. ↑/↓ = number of traders who bought / sold. Hold = spot value held now (number of traders). Most Hyperliquid spot is crypto (U-tokens such as UBTC, UETH, USOL are bridged BTC, ETH, SOL); stocks trade only as perps here, so for a stock the useful spot signal is the general risk appetite below. Balances refresh every 4 minutes${spotT ? ` · last ${ago(spotT)} ago` : ""}${spotBusy ? " · loading…" : ""}.`;
+    body.innerHTML = `<div class="mkts" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
+      <div class="mk"><span class="src">7d</span>Best traders, net spot<b class="${nb >= 0 ? "L" : "S"}">${nb >= 0 ? "+" : ""}${usd(nb)}</b>${nb >= 0 ? "buying" : "selling"} crypto spot</div>
+      <div class="mk"><span class="src">7d</span>Worst traders, net spot<b class="${nf >= 0 ? "L" : "S"}">${nf >= 0 ? "+" : ""}${usd(nf)}</b>${nf >= 0 ? "buying" : "selling"} crypto spot</div>
+      <div class="mk"><span class="src">24h</span>Spot volume (USD pairs)<b>${usd(totV)}</b>${up}/${top.length} top pairs up</div>
+      ${top.slice(0, 5).map(p => `<div class="mk"><span class="src">spot</span>${esc(p.base)}<b>${price(p.px)}</b><span class="${p.ch >= 0 ? "L" : "S"}">${p.ch != null ? (p.ch >= 0 ? "+" : "") + p.ch.toFixed(2) + "%" : "–"}</span> · ${usd(p.vol)}</div>`).join("")}</div>
+      ${list.length ? `<div class="xlwrap"><table class="xl"><thead><tr class="nm"><th>Token</th><th>Price</th><th>24h</th><th>Spot vol 24h</th><th>Best net 24h</th><th>Best net 7d</th><th>Worst net 24h</th><th>Worst net 7d</th><th>Best hold</th><th>Worst hold</th><th>Signal</th><th>Perp setup</th></tr></thead><tbody>${cells}</tbody></table></div>`
+        : `<div class="empty">${spotBusy || tradesBusy ? "Loading spot fills and balances…" : "No spot trades or holdings of $1K+ by these traders yet."}</div>`}`;
+    tagTips(body);
+  }
+  Object.assign(TIPS, { "Token": "Hyperliquid spot token. U-tokens are bridged coins (UBTC = BTC). Link = the perp market for the same coin.",
+    "Spot vol 24h": "24h spot volume of the token's main USD pair.", "Best net 24h": "Spot buys minus sells of the best traders in 24h.",
+    "Best net 7d": "Spot buys minus sells of the best traders in 7 days; ↑ traders who bought, ↓ traders who sold.", "Worst net 24h": "Spot buys minus sells of the worst traders in 24h.",
+    "Worst net 7d": "Spot buys minus sells of the worst traders in 7 days.", "Best hold": "Spot value the best traders hold now (number of traders).", "Worst hold": "Spot value the worst traders hold now.",
+    "Signal": "Smart accumulate · fools sell = the strongest bullish spot pattern; the reverse is the strongest bearish one.", "Perp setup": "The cohort setup on the same coin's perp, if any." });
+
   /* ---------- hook into the page's render loop ---------- */
   const r0 = render;
   window.render = render = function () { const x = r0.apply(this, arguments); try { decorate(); if (VIEW === "starred") renderStarred(); tabLabels(); } catch (e) { console.warn(e); } return x; };
-  setInterval(() => { if (STARS.length) loadTrades(false); if (VIEW === "starred") loadMkts(); }, 30000);
+  setInterval(() => { if (STARS.length || VIEW === "starred") loadTrades(false); if (VIEW === "starred") loadMkts(); }, 30000);
   setInterval(() => { if (VIEW === "starred" && !document.hidden) { renderStarred(); const s = document.getElementById("xlSel"); if (s && SEL) s.textContent = SEL; } }, 10000);   // live prices on the sheet   // trades refresh every 2 min (in loadTrades), markets every minute
   tabLabels(); decorate();
 })();
