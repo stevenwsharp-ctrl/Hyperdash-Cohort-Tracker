@@ -351,6 +351,23 @@ body{padding-bottom:34px}
     return rows.length ? `<div style="font:11px var(--mono);color:var(--dim);margin:2px 0 4px">${netTxt}Holds now: ${rows.map(({ h, x }) => { const sz = x ? x[0] : h.sd * h.n, v = x ? Math.abs(x[0]) * (ctxOf(c) || {}).px || Math.abs(x[0] * x[1]) : h.n;
       return `<span class="${sz > 0 ? "L" : "S"}">${esc(h.lb || h.a.slice(0, 6) + "…")}${isMM(h) ? ` <span class="flag f-thin" title="Market maker: counts at 25%">MM</span>` : ""} ${usd(v)} ${sz > 0 ? "long" : "short"}${x && x[1] ? " @ " + price(x[1]) : ""}</span>${x && x[2] ? ` <span class="${x[2] >= 0 ? "L" : "S"}">(${x[2] >= 0 ? "+" : ""}${usd(x[2])})</span>` : ""}`; }).join(" · ")}</div>` : ""; };
 
+  /* Market-maker record: every 10 minutes, log each coin's market-maker net inventory and price; 4 hours later check
+     whether price moved against the inventory (MMs short → price up). The hit rate tunes the rating factor in index.html. */
+  let MMLOG = lsG("cs_mm_log", []);
+  function mmRecord() {
+    if (typeof mmInventory !== "function" || !SPEC || !SPEC.m) return;
+    const now = Date.now(), H = 4 * 36e5;
+    MMLOG.forEach(e => { if (e.r == null && now - e.t >= H && now - e.t < H + 36e5) { const c = ctxOf(e.c); if (c && c.px && e.px) e.r = c.px / e.px - 1; } else if (e.r == null && now - e.t >= H + 36e5) e.r = NaN; });
+    const last = MMLOG.length ? MMLOG[MMLOG.length - 1].t : 0;
+    if (now - last >= 10 * 6e4) Object.keys(SPEC.m).forEach(c => { const M = mmInventory(c), x = ctxOf(c); if (M && Math.abs(M.net) >= 100000 && M.share >= 0.05 && x && x.px) MMLOG.push({ t: now, c, net: Math.round(M.net), sh: Math.round(M.share * 100) / 100, px: x.px }); });
+    MMLOG = MMLOG.filter(e => now - e.t < 14 * 864e5).slice(-4000); lsS("cs_mm_log", MMLOG);
+    // one check per coin per 4 hours, so overlapping logs do not count many times
+    const seen = {}, done = MMLOG.filter(e => isFinite(e.r) && Math.abs(e.r) > 0.0005).filter(e => { const k = e.c + "|" + Math.floor(e.t / H); if (seen[k]) return false; seen[k] = 1; return true; });
+    const hit = done.filter(e => Math.sign(e.r) === -Math.sign(e.net)).length;
+    window.MMREC = { n: done.length, hit: done.length ? hit / done.length : 0, avg: done.length ? done.reduce((a, e) => a + -Math.sign(e.net) * e.r, 0) / done.length : 0, open: MMLOG.filter(e => e.r == null).length };
+  }
+  mmRecord(); setInterval(mmRecord, 60000);
+
   // Market-maker inventory: shown apart, with what it means
   function mmLine(c, mm) {
     if (!mm || !mm.length) return "";
@@ -361,7 +378,9 @@ body{padding-bottom:34px}
     const read = net < 0 ? "Market makers are net SHORT: customers have been net buyers and the market makers sold to them. That is buying flow, not a bearish bet. If they cover (buy back) fast, that adds to upward pressure."
       : "Market makers are net LONG: customers have been net sellers and the market makers bought from them. That is selling flow, not a bullish bet. If they unload, that adds to downward pressure.";
     const vs = r ? ` The smart cohorts are ${r.dir > 0 ? "long" : "short"}: ${(net < 0) === (r.dir > 0) ? "customer flow goes with the smart side." : "customer flow goes against the smart side, so the smart side is fading the crowd."}` : "";
-    return `<h5>Market makers · inventory (counted at 25%)</h5><div style="font:11px var(--mono);margin:2px 0">${L.map(o => `<span class="${o.v > 0 ? "L" : "S"}">${esc(o.h.lb || o.h.a.slice(0, 6) + "…")} ${usd(Math.abs(o.v))} ${o.v > 0 ? "long" : "short"}</span>`).join(" · ")} → <b class="${net >= 0 ? "L" : "S"}">net ${net >= 0 ? "long" : "short"} ${usd(Math.abs(net))}</b></div><div class="note" style="max-width:none">${read}${vs}</div>`;
+    const R = window.MMREC, rec = R && R.n ? ` Our record so far: price moved against market-maker inventory within 4 hours in ${Math.round(R.hit * 100)}% of ${R.n} checks (average ${(R.avg * 100).toFixed(2)}% in that direction)${R.n < 40 ? "; the rating uses a small weight until there are 40 checks" : ""}.` : " The page logs this every 10 minutes and checks the price 4 hours later, to learn how much it predicts.";
+    const f = r && (r.factors || []).find(x => x.name === "Market-maker inventory");
+    return `<h5>Market makers · inventory (counted at 25%)</h5><div style="font:11px var(--mono);margin:2px 0">${L.map(o => `<span class="${o.v > 0 ? "L" : "S"}">${esc(o.h.lb || o.h.a.slice(0, 6) + "…")} ${usd(Math.abs(o.v))} ${o.v > 0 ? "long" : "short"}</span>`).join(" · ")} → <b class="${net >= 0 ? "L" : "S"}">net ${net >= 0 ? "long" : "short"} ${usd(Math.abs(net))}</b></div><div class="note" style="max-width:none">${read}${vs}${f ? ` Rating effect: ${f.mult >= 1 ? "+" : "−"}${Math.abs(Math.round((f.mult - 1) * 1000) / 10)}%.` : ""}${rec}</div>`;
   }
   function renderTrades(fresh) {
     const box = document.getElementById("stBt"); if (!box) return;
@@ -386,7 +405,7 @@ body{padding-bottom:34px}
           <td class="${lng ? "L" : "S"}">${esc(g.dir)}</td><td class="r">${usd(g.ntl)}</td><td class="r">@ ${price(g.px)}</td>
           <td class="r ${g.pnl >= 0 ? "L" : "S"}">${g.src === "pos" ? `<span style="color:var(--faint)" title="From a change of the position between two reads (${new Date(g.t0).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} – ${new Date(g.t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}); price = market price at the read">position Δ · now ${usd(g.now)}</span>` : open || !g.pnl ? "" : "PnL " + usd(g.pnl)}</td></tr>`; }).join("")}</table>${cvTxt && T.length < 5 ? `<div class="note" style="margin-top:2px">${cvTxt.trim()}</div>` : ""}`; };
       const r = (ROWS || []).find(x => x.coin === c);
-      return `<div class="bt"><h4><button class="cstar on" data-star="${esc(c)}">★</button><a href="#" data-goto="${esc(c)}">${esc(sym)}</a>${r ? `<span class="${r.dir > 0 ? "L" : "S"}" style="font:600 11px var(--mono)">SMART ${r.dir > 0 ? "LONG" : "SHORT"} · rating ${r.rating}</span>` : ""}</h4>
+      return `<div class="bt"><h4><button class="cstar on" data-star="${esc(c)}">★</button><a href="#" data-goto="${esc(c)}">${esc(sym)}</a>${r ? `<span class="${r.dir > 0 ? "L" : "S"}" style="font:600 11px var(--mono)">SMART ${r.dir > 0 ? "LONG" : "SHORT"} · rating ${r.rating}</span>` : ""}</h4>${window.Web ? `<div style="margin:-2px 0 4px">${Web.forecastHtml(sym) || ""}</div>` : ""}
         <h5 class="L">Best traders · last 5 major trades</h5>${tbl(W.good, "best")}<h5 class="S">Worst traders · last 5 major trades</h5>${tbl(W.bad, "worst")}${mmLine(c, W.mm)}${ordHtml(c)}</div>`;
     }).join("");
     if (fresh && newOnes.length) {
@@ -535,9 +554,48 @@ body{padding-bottom:34px}
   const ordHtml = c => { const L = OEV.filter(e => e.c === c).slice(0, 6), open = Object.entries(ORDS).filter(([k]) => k.endsWith("|" + dexOf(c))).reduce((a, [, v]) => a + v.list.filter(x => x.coin.toLowerCase() === hlName(c).toLowerCase()).length, 0);
     return `<h5>Order changes · best & worst <span style="text-transform:none;font-weight:400;color:var(--faint)">${open} open orders watched</span></h5>${L.length ? `<table>${L.map(e => `<tr><td>${new Date(e.t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</td><td><a href="https://hyperdash.com/address/${esc(e.a)}" target="_blank" rel="noopener">${esc(e.lb || e.a.slice(0, 6) + "…" + e.a.slice(-4))}</a> <b class="${e.g === "best" ? "L" : "S"}">${e.g}</b></td><td style="white-space:normal">${esc(e.txt)}</td></tr>`).join("")}</table>` : `<div class="note">No order changes yet. Orders are checked about every 2–3 minutes; a price move, size change or cancel-and-replace shows here and as a toast.</div>`}`; };
 
+  /* ---------- Signal web (web.js): feed it every cohort signal, show the web, use what it learned ---------- */
+  const clip = v => Math.max(-1, Math.min(1, v));
+  let webT = 0;
+  function feedWeb() {
+    if (!window.Web || !ROWS || !ROWS.length || Date.now() - webT < 60000) return; webT = Date.now();
+    if (!feedWeb.p) { feedWeb.p = 1; Web.addPrice(a => { for (const v of ["", "XYZ:", "PARA:", "IO:", "CASH:", "FLX:", "KM:"]) { const c = ctxOf(v + a); if (c && c.px > 0) return c.px; } return null; }); }
+    ROWS.slice().sort((a, b) => b.rating - a.rating).slice(0, 80).forEach(r => {
+      const a = r.sym || parse(r.coin).sym;
+      Web.emit("cohort.gap", a, clip(r.dir * r.rating / 100), "Cohort · smart side × rating");
+      Web.emit("cohort.smart", a, clip(r.sm.b), "Cohort · smart bias");
+      Web.emit("cohort.fools", a, clip(r.fo.b), "Cohort · fools bias");
+      const t4 = r.tr && r.tr["4h"]; if (t4) Web.emit("cohort.trend4h", a, clip(t4[0] / 20), "Cohort · gap change 4h");
+      const t1 = r.tr && r.tr["1h"]; if (t1) Web.emit("cohort.trend1h", a, clip(t1[0] / 10), "Cohort · gap change 1h");
+      if (r.spx && r.spx.agg && r.spx.agg.conf >= 0.3) Web.emit("cohort.spec", a, clip(r.spx.agg.sig * r.spx.agg.conf), "Cohort · coin specialists");
+      const M = typeof mmInventory === "function" ? mmInventory(r.coin) : null; if (M && M.share >= 0.03) Web.emit("cohort.mm", a, clip(-Math.sign(M.net) * M.share / 0.25), "Cohort · market makers (contra inventory)");
+      if (r.lv && r.lv.fuelPct) Web.emit("cohort.liqfuel", a, clip(r.lv.dir * r.lv.fuelPct / 30), "Cohort · liquidation fuel");
+      if (r.earn != null) Web.emit("cohort.funding", a, clip(r.dir * r.earn / 50), "Cohort · funding (smart side earns +)");
+      if (r.ctx && r.ctx.ch != null) Web.emit("cohort.mom24", a, clip(r.ctx.ch / 8), "Cohort · 24h momentum");
+      if (r.big && r.big.n) Web.emit("cohort.big", a, clip(r.big.b), "Cohort · apex + whale size cohorts");
+    });
+    try { const B = window.Basket && DATA ? Basket.compute(DATA, { wD: S.wD }) : null; if (B && B.basket.gap != null) { Web.emit("basket.gap", "SEMIS", clip(B.basket.gap * 2), "Semis basket: smart vs fools gap"); if (B.basket.d4h != null) Web.emit("basket.trend4h", "SEMIS", clip(B.basket.d4h / 20), "Semis basket: gap change 4h"); } } catch (e) { }
+  }
+  // the Web tab
+  const wtb = document.createElement("button"); wtb.className = "tab"; wtb.dataset.tab = "web"; wtb.textContent = "🕸 Web";
+  tb.after(wtb);
+  const wsec = document.createElement("section"); wsec.id = "v-web"; wsec.hidden = true;
+  wsec.innerHTML = `<div class="info" style="margin-top:12px">The signal web connects every signal on this site and on SOXX Sniper (same browser). Every 30 minutes it takes a snapshot of each market's live signals and price; 4 hours later it scores the snapshot and learns: a weight for each signal (online logistic regression), each signal's own record, and how pairs of signals do when they agree. It keeps growing while either site is open. Its forecast feeds the rating once it has 100 scored snapshots ("Signal web" factor, up to ±8%).</div><div id="webBody" style="margin-top:10px"></div><h3>Forecasts now (markets in your Setups list)</h3><div id="webFc"></div>`;
+  sec.after(wsec);
+  document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => { wsec.hidden = b.dataset.tab !== "web"; }));
+  wtb.onclick = () => { VIEW = "web"; document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === wtb)); document.querySelectorAll("section[id^='v-']").forEach(s => s.hidden = s.id !== "v-web"); render(); renderWeb(); };
+  function renderWeb() {
+    if (VIEW !== "web" || !window.Web) return;
+    Web.render(document.getElementById("webBody"), { h: 460 });
+    const rows = (typeof filtered === "function" ? filtered() : ROWS).slice(0, 25);
+    document.getElementById("webFc").innerHTML = `<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="tr"><thead><tr><th style="text-align:left">Market</th><th>Setup</th><th>Rating</th><th style="text-align:left">Signal web</th></tr></thead><tbody>${rows.map(r => `<tr><td style="text-align:left"><a href="#" data-goto="${esc(r.coin)}">${esc(r.sym)}</a></td><td class="${r.dir > 0 ? "L" : "S"}">SMART ${r.dir > 0 ? "LONG" : "SHORT"}</td><td>${r.rating}</td><td style="text-align:left">${Web.forecastHtml(r.sym) || "–"}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+  document.addEventListener("click", e => { const a = e.target.closest("#v-web [data-goto]"); if (a) { e.preventDefault(); gotoCoin(a.dataset.goto); } });
+
   /* ---------- hook into the page's render loop ---------- */
   const r0 = render;
-  window.render = render = function () { const x = r0.apply(this, arguments); try { decorate(); if (VIEW === "starred") renderStarred(); tabLabels(); } catch (e) { console.warn(e); } return x; };
+  window.render = render = function () { const x = r0.apply(this, arguments); try { decorate(); if (VIEW === "starred") renderStarred(); tabLabels(); feedWeb(); } catch (e) { console.warn(e); } return x; };
+  setInterval(() => { try { feedWeb(); if (VIEW === "web") renderWeb(); } catch (e) { } }, 60000);
   setInterval(pollOrders, 60000); setTimeout(pollOrders, 15000);
   setInterval(pollPositions, 30000); setTimeout(pollPositions, 3000);
   setInterval(() => { if (STARS.length || VIEW === "starred") loadTrades(false); if (VIEW === "starred") loadMkts(); }, 30000);

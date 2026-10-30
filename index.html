@@ -441,6 +441,16 @@ function macro(){
 }
 const RISK_CLASSES = new Set(["Crypto", "Stock", "Index", "ETF"]);
 
+// Market-maker inventory on a coin, from the top holders (known market-making firms, or wallets that trade like one).
+// A market maker that is net short has sold to buying customers (and must buy back); net long = it bought from sellers.
+const MM_NAME_RE = /wintermute|cumberland|\bjump\b|\bgsr\b|flow ?traders|amber|b2c2|\bdwf\b|keyrock|galaxy|auros|selini|\bhlp\b|hyperliquidity|jane ?street|citadel|virtu|optiver|\bimc\b|\bdrw\b|susquehanna|\bsig\b|\bxtx\b|tower research|\bqcp\b|presto|kronos|market ?mak|\bmm\b/i;
+function mmInventory(coin){
+  const X = SPEC && SPEC.m && SPEC.m[coin]; if (!X || !X.holders) return null;
+  const isM = h => window.isMM ? isMM(h) : MM_NAME_RE.test(h.lb || "");
+  let net = 0, gross = 0, tot = 0; const who = [];
+  X.holders.forEach(h => { if (h.miss) return; tot += h.n; if (isM(h)) { net += h.sd * h.n; gross += h.n; who.push(h); } });
+  return who.length ? { net, gross, tot, share: tot ? Math.abs(net) / tot : 0, who } : null;
+}
 // Context factors: each one multiplies the disparity score. Shown in the detail panel.
 function contextFactors(r, MAC){
   const f = [];
@@ -487,6 +497,18 @@ function contextFactors(r, MAC){
     if (fp >= 10) add("Liquidation fuel", 1 + Math.min(0.08, fp / 250), `${r.lv.fuelPct}% of top-holder money (${usd(r.lv.fuelUsd)}) is losing-side positions whose liquidation or stop order is within 10% in the smart direction${r.lv.fuelIPct ? `, and ${r.lv.fuelIPct}% more (${usd(r.lv.fuelIUsd)}) hits the level where those traders usually cut losses (counted at half weight)` : ""}. Forced closes would push price further that way.`);
     if (r.lv.riskPct >= 10) add("Smart side near liquidation", 1 - Math.min(0.1, r.lv.riskPct / 200), `${r.lv.riskPct}% of top-holder money (${usd(r.lv.riskUsd)}) is good traders on the smart side with liquidation within 7%. A squeeze could force them out.`);
   }
+  // Market-maker inventory. Order-flow research: net customer buying (market makers left short) tends to push price up
+  // for a while, and market makers lean their quotes to work the inventory off. The strength is learned from our own
+  // record (stars.js logs every coin's market-maker inventory and checks the price 4 hours later): until 40 checks exist
+  // it uses a small prior; after that the measured hit rate sets it (and can turn it off or flip it).
+  { const M = mmInventory(r.coin);
+    if (M && Math.abs(M.net) >= 100000 && M.share >= 0.05) {
+      const R = window.MMREC, k = R && R.n >= 40 ? Math.max(-1, Math.min(1, (R.hit - 0.5) * 4)) : 0.5, s = Math.min(1, M.share / 0.25);
+      const withSmart = (M.net < 0) === (r.dir > 0), mult = 1 + (withSmart ? 1 : -1) * 0.06 * s * k;
+      if (Math.abs(mult - 1) >= 0.005) add("Market-maker inventory", Math.round(mult * 1000) / 1000, `Market makers are net ${M.net < 0 ? "short" : "long"} ${usd(Math.abs(M.net))} (${Math.round(M.share * 100)}% of top-holder $): customers have been net ${M.net < 0 ? "buying" : "selling"}, which ${withSmart ? "goes with" : "goes against"} the smart side. ${R && R.n >= 40 ? `Our record: price moved against market-maker inventory within 4h in ${Math.round(R.hit * 100)}% of ${R.n} checks.` : "Small weight until our own record has 40 checks."}`);
+    } }
+  // Signal web (web.js): once it has 100 scored snapshots, its 4h forecast nudges the rating toward or away from the smart side
+  if (window.Web) { const F = Web.forecast(r.sym || parse(r.coin).sym); if (F && F.ready) { const e = (F.p - 0.5) * 2 * r.dir; if (Math.abs(e) >= 0.1) add("Signal web", Math.round((1 + 0.08 * Math.max(-1, Math.min(1, e))) * 1000) / 1000, `The learned web of all signals (both sites) gives P(up 4h) ${Math.round(F.p * 100)}%: ${e > 0 ? "agrees with" : "goes against"} the smart side. Top drivers: ${F.contrib.slice(0, 3).map(c => c.label).join(", ")}.`); } }
   const ns = r.news.filter(n => n.b && n.s && Date.now() - n.t < 24 * 36e5);
   const net = ns.reduce((a, n) => a + (n.s === "bull" ? 1 : n.s === "bear" ? -1 : 0), 0) * r.dir;
   if (net <= -2) add("News", 0.9, `Recent big news leans against the smart side.`);
@@ -1745,9 +1767,10 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) { re
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <script src="mchart.js?v=7"></script>
 <script src="basket.js?v=1"></script>
+<script src="web.js?v=1"></script>
 <script src="pcshim.js?v=1"></script>
 <script src="prochart.js?v=11"></script>
-<script src="stars.js?v=12"></script>
+<script src="stars.js?v=14"></script>
 <script>(function(){const r0=render;render=function(){const x=r0.apply(this,arguments);try{window.mcAttach&&mcAttach()}catch(e){}return x};try{window.mcAttach&&mcAttach()}catch(e){}})();</script>
 <script src="site.js?v=4"></script>
 </body>
