@@ -18,13 +18,13 @@
 (function () {
   "use strict";
   if (window.Web) return;
-  const KEY = "web_v2", HZ = [1, 4, 24], BUCKET = 30 * 6e4, H = 36e5;
+  const KEY = "web_v3", HZ = [1, 4, 24], BUCKET = 30 * 6e4, H = 36e5;
   const LRF = 0.25, LRS = 0.04, DEC = 0.995, L2 = 0.0005, MAXP = 24;
   const lsG = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
   const lsS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } };
   const newM = () => ({ f: { w: {}, g: {}, b: 0 }, s: { w: {}, g: {}, b: 0 }, Lf: 0.693, Ls: 0.693, n: 0, calls: 0, right: 0 });
   function fresh() { const d = { v: 2, M: {}, A: { N: {}, P: {} }, hist: {}, S: [], vol: {}, pairs: [], n: 0, at: Date.now() }; HZ.forEach(h => d.M[h] = newM());
-    try { localStorage.removeItem("web_v1"); } catch (e) { } return d; }   // v1 is replaced: history is learned again into the richer model
+    try { localStorage.removeItem("web_v1"); localStorage.removeItem("web_v2"); } catch (e) { } return d; }   // v1 is replaced: history is learned again into the richer model
   const fix = d => { if (!d || d.v !== 2) return fresh(); HZ.forEach(h => { if (!d.M[h]) d.M[h] = newM(); }); d.A = d.A || { N: {}, P: {} }; d.hist = d.hist || {}; d.S = d.S || []; d.vol = d.vol || {}; d.pairs = d.pairs || []; return d; };
   let D = fix(lsG(KEY, null));
   const LIVE = {}, PRICE = [], LABEL = lsG("web_labels", {}), PX = {};   // PX: recent prices per asset (for the live volatility regime)
@@ -105,8 +105,15 @@
     reload();
     const last = D.hist[src] ? D.hist[src].t : 0, L = items.filter(it => it.t > last && Object.keys(it.x || {}).length).sort((a, b) => a.t - b.t);
     if (!L.length) return 0;
-    L.forEach(it => { for (const k in it.x) { it.x[k] = Math.round(c1(it.x[k]) * 100) / 100; if (!it.x[k]) delete it.x[k]; }
-      const R = it.rh || { 4: it.r }; for (const h of HZ) if (R[h] != null) learnH(h, it.x, it.reg || 0, R[h], null); });
+    // replay in time order, like live: predict each item when it happens, learn it only once its result would be known
+    // (otherwise many markets that share the same future move would leak that move into each other's forecasts)
+    const Q = Object.fromEntries(HZ.map(h => [h, []])), K = Object.fromEntries(HZ.map(h => [h, 0]));
+    L.forEach(it => {
+      for (const k in it.x) { it.x[k] = Math.round(c1(it.x[k]) * 100) / 100; if (!it.x[k]) delete it.x[k]; }
+      for (const h of HZ) { const P = Q[h]; while (K[h] < P.length && P[K[h]].ready <= it.t) { const q = P[K[h]++]; learnH(h, q.x, q.reg, q.r, q.p); } if (K[h] > 2000) { P.splice(0, K[h]); K[h] = 0; } }
+      const R = it.rh || { 4: it.r }, z = expand(it.x, it.reg || 0);
+      for (const h of HZ) if (R[h] != null && isFinite(R[h])) Q[h].push({ ready: it.t + h * H, x: it.x, reg: it.reg || 0, r: R[h], p: prob(h, z).p }); });
+    for (const h of HZ) Q[h].slice(K[h]).forEach(q => learnH(h, q.x, q.reg, q.r, q.p));
     choosePairs();
     D.hist[src] = { t: L[L.length - 1].t, n: (D.hist[src] ? D.hist[src].n : 0) + L.length, label: label || src, at: Date.now() };
     save(); return L.length;
