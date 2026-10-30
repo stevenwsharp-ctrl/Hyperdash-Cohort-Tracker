@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem("cs_theme")||(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");document.documentElement.dataset.theme=t;var pw=localStorage.getItem("site_width")||"fit";document.documentElement.style.setProperty("--pagew",pw==="fit"?"100%":pw==="classic"?"1360px":pw+"px")}catch(e){}</script>
+<meta name="description" content="Every Hyperliquid market where the profitable Hyperdash cohorts and the losing cohorts hold opposite sides: live ratings, liquidation maps, pro charts and alerts.">
+<meta property="og:type" content="website"><meta property="og:title" content="Cohort Sniper · smart money vs fools, live"><meta property="og:description" content="Every Hyperliquid market where the profitable Hyperdash cohorts and the losing cohorts hold opposite sides: live ratings, liquidation maps, pro charts and alerts."><meta property="og:url" content="https://stevenwsharp-ctrl.github.io/Hyperdash-Cohort-Tracker/"><meta property="og:image" content="https://stevenwsharp-ctrl.github.io/Hyperdash-Cohort-Tracker/og.png">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Cohort Sniper · smart money vs fools, live"><meta name="twitter:description" content="Every Hyperliquid market where the profitable Hyperdash cohorts and the losing cohorts hold opposite sides: live ratings, liquidation maps, pro charts and alerts."><meta name="twitter:image" content="https://stevenwsharp-ctrl.github.io/Hyperdash-Cohort-Tracker/og.png">
+<link rel="icon" href="favicon.svg?v=1" type="image/svg+xml"><link rel="icon" href="favicon-32.png?v=1" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=1">
 <title>Cohort Sniper</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1091,6 +1096,7 @@ function detail(r){
 
   const coinEvs = EVENTS && EVENTS.log ? EVENTS.log.filter(e => e.coin === r.coin).slice(0, 8) : [];
   return `<div class="detail">
+    <h3>Chart · live candles, liquidation map, max pain, smart vs fools</h3><div class="mcMount" data-coin="${esc(r.coin)}"></div>
     <h3>Alignment over time</h3>${alignChart(r)}<div style="margin-top:8px">${windowTable(r)}</div>
     ${coinEvs.length ? `<h3>Recent changes</h3><div class="card" style="padding:0">${coinEvs.map(evRow).join("")}</div>` : ""}
     <h3>Key points · Things to look for</h3><div class="cards"><div class="card"><h4>Key points</h4><ul class="kl">${bullets(keyPoints(r), 20)}</ul></div><div class="card"><h4>Things to look for</h4><ul class="kl">${(() => { const lf = lookFor(r); return lf.length ? bullets(lf, 20) : `<li class="N">Nothing stands out.</li>`; })()}</ul></div>${r.cy ? cycleCard(r) : ""}</div>
@@ -1685,5 +1691,9 @@ setInterval(renderStat, 30 * 1000);
 setInterval(() => { const t = mmss(nextFunding().ms); document.querySelectorAll(".fcd").forEach(e => e.textContent = t); }, 1000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { refresh(false); livePrices(); } });
 </script>
+<script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="mchart.js?v=1"></script>
+<script>(function(){const r0=render;render=function(){const x=r0.apply(this,arguments);try{window.mcAttach&&mcAttach()}catch(e){}return x};try{window.mcAttach&&mcAttach()}catch(e){}})();</script>
+<script src="site.js?v=1"></script>
 </body>
 </html>

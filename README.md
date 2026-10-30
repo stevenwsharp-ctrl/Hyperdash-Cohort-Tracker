@@ -45,6 +45,20 @@ Site: https://stevenwsharp-ctrl.github.io/Hyperdash-Cohort-Tracker/
 - **Live prices**: the page reads Hyperliquid prices and funding directly every 20 seconds.
 - **Alerts**: add repo secret `NTFY_TOPIC` (ntfy phone app) and/or `DISCORD_WEBHOOK_URL`. Optional repo variables: `ALERT_MIN_SCORE` (default 65) and `ALERT_TYPES` (default `setup,exit,flip`; also `fade`, `add`, `new`). Test: Actions → Run workflow → tick "Send a test alert".
 
+## Market chart (each market)
+
+Open a market row: the detail starts with a live chart (TradingView Lightweight Charts, candles from Hyperliquid).
+- Timeframes 1m, 5m, 15m, 1h, 4h, 1D; updates every few seconds.
+- VWAP with ±1σ/±2σ bands, EMA 9/21/50, Bollinger 20/2, volume, volume profile of the visible range.
+- Liquidation map as side bars, max pain for longs and shorts, 30-day POC and value area, options max pain (scaled to the perp).
+- Smart-money events (exit, flip, fade, add) as markers, and a lower pane with smart bias, fools bias and the gap from the 5-minute snapshots.
+- Drawing tools: trend line, extended line, ray, level, alert line (browser alert when price crosses), parallel channel, zone, Fibonacci, long/short position with R:R, measure. Drawings are kept per market in your browser; select one and press Delete to remove it.
+- Snapshot (saved and copied to the clipboard) and full screen.
+
+## Site tools
+
+Light and dark mode, page width (fit screen by default), a heartbeat for the live prices, a terms / disclaimer / privacy page, link-preview image (`og.png`) and tab icon. Contact: sniperdesk@proton.me.
+
 ## Backtest
 
 `.github/workflows/backtest.yml` (every Sunday, or Actions → Backtest → Run workflow, 2–3 hours) rebuilds the hourly positions of ~2,400 sampled traders (best and worst by all-time PnL) from their Hyperliquid fills, puts each one in the cohort they were in at that hour, recomputes the smart-vs-fools gap per market, and tests it against the next 4h / 24h / 72h move. Fit = first 60% of the window, check = last 40%. Results go to the `backtest` branch and the **Backtest** tab. Conditions that move the hit rate the same way in both periods set the size of the matching rating factor; the rest are removed.
