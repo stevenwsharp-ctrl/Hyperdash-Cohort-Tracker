@@ -128,7 +128,8 @@
     const t = T(); const d = new Map(); pts.forEach(p => d.set(p.t, p)); const P = [...d.values()].sort((a, b) => a.t - b.t);
     S.sm.setData(P.map(p => ({ time: p.t, value: p.s }))); S.fo.setData(P.map(p => ({ time: p.t, value: p.f })));
     S.gp.setData(P.map(p => { const g = (p.s - p.f) / 2; return { time: p.t, value: g, color: g >= 0 ? alpha(t.up, 0.35) : alpha(t.dn, 0.35) }; }));
-    if (!P.length) $m("mcPLeg").textContent = "Bias history builds every 5 minutes (7 days kept).";
+    const lp = P[P.length - 1];
+    $m("mcPLeg").textContent = P.length ? `Smart bias ${Math.round(lp.s)} · fools bias ${Math.round(lp.f)} · gap ${Math.round((lp.s - lp.f) / 2)} (−100 short … +100 long) · bars: gap` : "Bias history builds every 5 minutes (7 days kept).";
   }
   function markers() {
     const mk = [];
