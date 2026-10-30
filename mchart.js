@@ -9,7 +9,8 @@
   "use strict";
   const LW = window.LightweightCharts; if (!LW) { console.warn("Market chart: library not loaded"); return; }
   const API = "https://api.hyperliquid.xyz/info";
-  const TF = { "1m": { s: 60, d: 1 }, "5m": { s: 300, d: 4 }, "15m": { s: 900, d: 10 }, "1h": { s: 3600, d: 40 }, "4h": { s: 14400, d: 150 }, "1d": { s: 86400, d: 500 } };
+  const TF = { "1m": { s: 60, d: 1 }, "3m": { s: 180, d: 3 }, "5m": { s: 300, d: 4 }, "15m": { s: 900, d: 10 }, "30m": { s: 1800, d: 20 }, "1h": { s: 3600, d: 40 }, "2h": { s: 7200, d: 80 }, "4h": { s: 14400, d: 150 },
+    "8h": { s: 28800, d: 300 }, "12h": { s: 43200, d: 400 }, "1d": { s: 86400, d: 500 }, "3d": { s: 259200, d: 1000 }, "1w": { s: 604800, d: 1500 }, "1M": { s: 2592000, d: 2500 } };   // all Hyperliquid candle intervals
   const lsG = k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, lsS = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } };
   let O = { tf: "15m", ind: { vwap: 1, vwapb: 1, ema: 1, ema50: 0, bb: 0, vol: 1, vp: 1, liq: 1, lv: 1, ev: 1, bias: 1, rsi: 1, sess: 1, keys: 1 }, draw: {} };
   try { const x = JSON.parse(lsG("cs_mc") || "null"); if (x) { if (!x.v2 && x.ind) { x.ind.vwapb = 1; } O = { ...O, ...x, ind: { ...O.ind, ...(x.ind || {}) }, draw: x.draw || {} }; } } catch (e) { }

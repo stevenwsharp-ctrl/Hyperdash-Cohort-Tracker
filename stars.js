@@ -193,12 +193,19 @@ body{padding-bottom:34px}
   // one live chart (the same pro chart as on Setups) for the chosen starred market; chips switch it
   function renderChart() {
     const el = document.getElementById("stChart"); if (!el) return;
-    if (!STARS.length) { el.innerHTML = ""; return; }
+    const undock = () => { const mt0 = el.querySelector(".stmount"); if (mt0 && mt0.dataset.pro && window.pcUndock) { pcUndock(); mt0.dataset.pro = ""; } };   // keep the pro chart in the page (it must not be detached)
+    if (!STARS.length) { undock(); el.innerHTML = ""; return; }
     if (!STARS.includes(CH)) CH = STARS[0];
     let chips = el.querySelector(".stchips");
     if (!chips) { el.innerHTML = `<div class="stchips" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:4px"></div><div class="stmount"></div>`; chips = el.querySelector(".stchips"); }
     chips.innerHTML = `<b style="font:600 12px var(--sans);margin-right:6px">Chart</b>` + STARS.map(c => `<button class="wbtn ${c === CH ? "on" : ""}" data-chart="${esc(c)}">${esc(parse(c).sym)}</button>`).join("");
-    const mt = el.querySelector(".stmount"); if (!mt.firstElementChild || mt.firstElementChild.dataset.coin !== CH) mt.innerHTML = `<div class="mcMount" data-coin="${esc(CH)}"></div>`;
+    const mt = el.querySelector(".stmount"), r = (ROWS || []).find(x => x.coin === CH), p = parse(CH);
+    // stocks and ETFs: SOXX Sniper's pro chart on the real symbol (pre-market and after-hours, key levels, news, replay);
+    // crypto, indexes, commodities and FX: the Hyperliquid market chart
+    const pro = window.pcDock && p.venue && /^[A-Z][A-Z.\-]{0,7}$/.test(p.sym) && (!r || ["Stock", "ETF"].includes(r.cls));
+    if (pro) { if (mt.dataset.pro !== p.sym) { mt.innerHTML = `<div class="pcHome"></div>`; mt.dataset.pro = p.sym; } pcDock(mt.firstElementChild, p.sym); try { window.mcAttach && mcAttach(); } catch (e) { } return; }
+    undock();
+    if (!mt.firstElementChild || mt.firstElementChild.dataset.coin !== CH) mt.innerHTML = `<div class="mcMount" data-coin="${esc(CH)}"></div>`;
     try { window.mcAttach && mcAttach(); } catch (e) { }
   }
   document.addEventListener("click", e => { const b = e.target.closest("[data-chart]"); if (!b) return; CH = b.dataset.chart; lsS("cs_star_chart", CH); renderChart(); });
@@ -207,7 +214,7 @@ body{padding-bottom:34px}
     try { if (typeof computeRanks === "function") computeRanks(filtered()); } catch (e) { }   // ranks in the Setups filter
     renderMk();
     const el = document.getElementById("stSheet");
-    if (!STARS.length) { el.innerHTML = `<div class="empty">No starred markets yet. Click ☆ next to a market on the Setups sheet to add it here.</div>`; document.getElementById("stBt").innerHTML = ""; document.getElementById("stBtNote").textContent = ""; return; }
+    if (!STARS.length) { el.innerHTML = `<div class="empty">No starred markets yet. Click ☆ next to a market on the Setups sheet to add it here.</div>`; document.getElementById("stBt").innerHTML = ""; document.getElementById("stBtNote").textContent = ""; renderChart(); return; }
     const body = STARS.map((c, i) => `<tr data-go="${esc(c)}"><td class="rn">${i + 2}</td>${cells(c).map((v, j) => `<td class="${j <= 1 || j >= 15 ? "tl" : ""}" data-c="${L(j + 1)}${i + 2}">${v}</td>`).join("")}</tr>`).join("");
     el.innerHTML = `<div class="xlbar"><i>fx</i><span id="xlSel">${SEL ? esc(SEL) : "Click a row to chart it · double-click to open the market"}</span></div><div class="xlwrap"><table class="xl"><thead><tr class="let"><th class="rn"></th>${COLS.map((_, j) => `<th>${L(j + 1)}</th>`).join("")}</tr><tr class="nm"><th class="rn">1</th>${COLS.map(c => `<th>${c}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
     tagTips(el);
