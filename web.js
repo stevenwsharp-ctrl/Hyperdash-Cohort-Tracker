@@ -74,6 +74,11 @@
     done.forEach(s => { const ks = Object.keys(s.x).filter(k => s.x[k]); for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) {
       const a = ks[i] < ks[j] ? ks[i] : ks[j], b = ks[i] < ks[j] ? ks[j] : ks[i], k = a + "|" + b, e = E[k] = E[k] || { a, b, n: 0, agree: 0, both: 0, bothHit: 0 };
       e.n++; const ag = Math.sign(s.x[a]) === Math.sign(s.x[b]); if (ag) { e.agree++; e.both++; if (Math.sign(s.x[a]) === Math.sign(s.r)) e.bothHit++; } } });
+    // live links too: signals that are on at the same time on the same assets (before any result exists)
+    const now = Date.now();
+    for (const L of Object.values(LIVE)) { const ks = Object.keys(L).filter(k => now - L[k].t < 2 * BUCKET); for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) {
+      const a = ks[i] < ks[j] ? ks[i] : ks[j], b = ks[i] < ks[j] ? ks[j] : ks[i], k = a + "|" + b, e = E[k] = E[k] || { a, b, n: 0, agree: 0, both: 0, bothHit: 0, live: 0 };
+      if (e.live == null) e.live = 0; e.live++; e.n++; if (Math.sign(L[a].v) === Math.sign(L[b].v)) e.agree++; } }
     return Object.values(E).map(e => ({ ...e, agreeR: e.n ? e.agree / e.n : 0, bothR: e.both ? e.bothHit / e.both : null }));
   }
   function forecast(asset) {
@@ -96,9 +101,9 @@
     const P = L.map((n, i) => ({ x: W / 2 + Math.cos(i * 2.4) * (60 + i * 6), y: Ht / 2 + Math.sin(i * 2.4) * (40 + i * 4), vx: 0, vy: 0 }));
     const links = E.filter(e => idx.has(e.a) && idx.has(e.b)).map(e => ({ i: idx.get(e.a), j: idx.get(e.b), s: e.agreeR, e }));
     for (let it = 0; it < 220; it++) {
-      for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) { const dx = P[i].x - P[j].x, dy = P[i].y - P[j].y, d2 = dx * dx + dy * dy + 0.01, f = 900 / d2; P[i].vx += dx * f; P[i].vy += dy * f; P[j].vx -= dx * f; P[j].vy -= dy * f; }
+      for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) { const dx = P[i].x - P[j].x, dy = P[i].y - P[j].y, d2 = dx * dx + dy * dy + 0.01, f = 350 / d2; P[i].vx += dx * f; P[i].vy += dy * f; P[j].vx -= dx * f; P[j].vy -= dy * f; }
       links.forEach(l => { const a = P[l.i], b = P[l.j], dx = b.x - a.x, dy = b.y - a.y, d = Math.sqrt(dx * dx + dy * dy) || 1, k = (d - (140 - 90 * l.s)) * 0.004; a.vx += dx / d * k * d; a.vy += dy / d * k * d; b.vx -= dx / d * k * d; b.vy -= dy / d * k * d; });
-      P.forEach(p => { p.vx += (W / 2 - p.x) * 0.002; p.vy += (Ht / 2 - p.y) * 0.002; p.x += Math.max(-8, Math.min(8, p.vx * 0.1)); p.y += Math.max(-8, Math.min(8, p.vy * 0.1)); p.vx *= 0.6; p.vy *= 0.6; p.x = Math.max(30, Math.min(W - 30, p.x)); p.y = Math.max(20, Math.min(Ht - 20, p.y)); });
+      P.forEach(p => { p.vx += (W / 2 - p.x) * 0.01; p.vy += (Ht / 2 - p.y) * 0.012; p.x += Math.max(-8, Math.min(8, p.vx * 0.1)); p.y += Math.max(-8, Math.min(8, p.vy * 0.1)); p.vx *= 0.6; p.vy *= 0.6; p.x = Math.max(30, Math.min(W - 30, p.x)); p.y = Math.max(20, Math.min(Ht - 20, p.y)); });
     }
     const svgL = links.map(l => `<line x1="${P[l.i].x.toFixed(1)}" y1="${P[l.i].y.toFixed(1)}" x2="${P[l.j].x.toFixed(1)}" y2="${P[l.j].y.toFixed(1)}" stroke="${l.e.bothR == null ? line : l.e.bothR >= 0.5 ? up : dn}" stroke-opacity="${(0.15 + 0.6 * Math.min(1, l.e.n / 60)).toFixed(2)}" stroke-width="${(0.5 + 2.5 * l.s).toFixed(1)}"><title>${l.e.a} + ${l.e.b}: agree ${Math.round(l.s * 100)}% of ${l.e.n}; together right ${l.e.bothR == null ? "–" : Math.round(l.e.bothR * 100) + "%"}</title></line>`).join("");
     const svgN = L.map((n, i) => { const r = 5 + Math.min(16, Math.sqrt(n.n) * 1.4), c = n.n < 10 ? dim : n.hitR >= 0.5 ? up : dn;
