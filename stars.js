@@ -190,6 +190,7 @@ body{padding-bottom:34px}
   let SEL = null;
   function renderStarred() {
     if (VIEW !== "starred") return;
+    try { if (typeof computeRanks === "function") computeRanks(filtered()); } catch (e) { }   // ranks in the Setups filter
     renderMk();
     const el = document.getElementById("stSheet");
     if (!STARS.length) { el.innerHTML = `<div class="empty">No starred markets yet. Click ☆ next to a market on the Setups sheet to add it here.</div>`; document.getElementById("stBt").innerHTML = ""; document.getElementById("stBtNote").textContent = ""; return; }
@@ -207,14 +208,17 @@ body{padding-bottom:34px}
 
   /* ---------- big trades of the best and worst traders ---------- */
   const COHN = { EP: "Ext profitable", VP: "Very profitable", P: "Profitable", U: "Unprofitable", VU: "Very unprofitable", R: "Rekt" };
+  const MAJOR = 5000;
   const FILLS = {};          // wallet -> { t: fetched ms, f: fills }
   const SEEN = new Set(lsG("cs_bt_seen", []));
   let tradesBusy = false, tradesT = 0;
   function walletsFor(coin) {
     const X = SPEC && SPEC.m && SPEC.m[coin]; if (!X || !X.holders) return null;
     const hs = X.holders.filter(h => !h.miss);
-    const good = hs.filter(h => h.q >= 0.25 || h.coh === "EP" || h.coh === "VP").sort((a, b) => b.n - a.n).slice(0, 8);
-    const bad = hs.filter(h => h.q <= -0.25 || ["U", "VU", "R"].includes(h.coh)).sort((a, b) => b.n - a.n).slice(0, 8);
+    const GOODC = ["EP", "VP"], BADC = ["U", "VU", "R"];
+    // cohort decides first; the coin record only adds traders whose cohort does not say the opposite
+    const good = hs.filter(h => GOODC.includes(h.coh) || (h.q >= 0.25 && !BADC.includes(h.coh))).sort((a, b) => b.n - a.n).slice(0, 8);
+    const bad = hs.filter(h => BADC.includes(h.coh) || (h.q <= -0.25 && !GOODC.includes(h.coh))).sort((a, b) => b.n - a.n).slice(0, 8);
     return { good, bad };
   }
   async function loadTrades(force) {
@@ -240,19 +244,19 @@ body{padding-bottom:34px}
         g.t = Math.max(g.t, x.time); g.sz += +x.sz; g.ntl += +x.sz * +x.px; g.pnl += +x.closedPnl || 0; });
       Object.values(by).forEach(g => { g.px = g.ntl / g.sz; out.push(g); });
     });
-    // "major" = the 20 largest trades in 14 days; show the 5 newest of them
-    return out.sort((a, b) => b.ntl - a.ntl).slice(0, 20).sort((a, b) => b.t - a.t).slice(0, 5);
+    // "major" = $5K or more and among the 20 largest orders in 14 days; show the 5 newest of them
+    return out.filter(g => g.ntl >= MAJOR).sort((a, b) => b.ntl - a.ntl).slice(0, 20).sort((a, b) => b.t - a.t).slice(0, 5);
   }
   function renderTrades(fresh) {
     const box = document.getElementById("stBt"); if (!box) return;
     const note = document.getElementById("stBtNote");
-    note.innerHTML = `Best = Extremely/Very profitable cohort or a proven winner on this coin. Worst = Unprofitable/Very unprofitable/Rekt or a proven loser on this coin. From the top 30 holders of each market (top 30 setups only), largest 8 per group. "Major" = the 20 largest orders in 14 days; the table shows the 5 newest. Updates every 2 minutes on this sheet${tradesT ? ` · last ${ago(tradesT)} ago` : ""}${tradesBusy ? " · loading…" : ""}. Yellow = new since you last looked.`;
+    note.innerHTML = `Best = Extremely/Very profitable cohort, or a proven winner on this coin who is not in a losing cohort. Worst = Unprofitable/Very unprofitable/Rekt cohort, or a proven loser on this coin who is not in a winning cohort. From the top 30 holders of each market (top 30 setups only), largest 8 per group. "Major" = an order of $5K or more, among the 20 largest in 14 days; the table shows the 5 newest. Updates every 2 minutes on this sheet${tradesT ? ` · last ${ago(tradesT)} ago` : ""}${tradesBusy ? " · loading…" : ""}. Yellow = new since you last looked.`;
     const newOnes = [];
     box.innerHTML = STARS.map(c => {
       const W = walletsFor(c), sym = parse(c).sym;
       if (!W) return `<div class="bt"><h4>${esc(sym)}</h4><div class="note">No holder data for this market. Holder analysis runs for the top 30 setups.</div></div>`;
       const tbl = (hs, cls) => { const T = tradesOf(c, hs); if (!hs.length) return `<div class="note">No ${cls} traders among the top holders.</div>`;
-        if (!T.length) return `<div class="note">${hs.some(h => FILLS[h.a]) ? "No trades on this coin in 14 days." : "Loading…"}</div>`;
+        if (!T.length) return `<div class="note">${hs.some(h => FILLS[h.a]) ? "No major trades ($5K+) on this coin in 14 days." : "Loading…"}</div>`;
         return `<table>${T.map(g => { const id = g.a + g.t + g.dir; const nw = !SEEN.has(id); if (nw) newOnes.push({ c, g, cls });
           const open = /Open/.test(g.dir), lng = /Long/.test(g.dir) || (g.dir === "Buy");
           return `<tr class="${nw ? "new" : ""}"><td>${new Date(g.t).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</td>
