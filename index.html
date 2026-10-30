@@ -508,7 +508,14 @@ function contextFactors(r, MAC){
       if (Math.abs(mult - 1) >= 0.005) add("Market-maker inventory", Math.round(mult * 1000) / 1000, `Market makers are net ${M.net < 0 ? "short" : "long"} ${usd(Math.abs(M.net))} (${Math.round(M.share * 100)}% of top-holder $): customers have been net ${M.net < 0 ? "buying" : "selling"}, which ${withSmart ? "goes with" : "goes against"} the smart side. ${R && R.n >= 40 ? `Our record: price moved against market-maker inventory within 4h in ${Math.round(R.hit * 100)}% of ${R.n} checks.` : "Small weight until our own record has 40 checks."}`);
     } }
   // Signal web (web.js): once it has 100 scored snapshots, its 4h forecast nudges the rating toward or away from the smart side
-  if (window.Web) { const F = Web.forecast(r.sym || parse(r.coin).sym); if (F && F.ready) { const e = (F.p - 0.5) * 2 * r.dir; if (Math.abs(e) >= 0.1) add("Signal web", Math.round((1 + 0.08 * Math.max(-1, Math.min(1, e))) * 1000) / 1000, `The learned web of all signals (both sites) gives P(up 4h) ${Math.round(F.p * 100)}%: ${e > 0 ? "agrees with" : "goes against"} the smart side. Top drivers: ${F.contrib.slice(0, 3).map(c => c.label).join(", ")}.`); } }
+  // The influence grows with the web's own measured accuracy (no influence at 50% right, the full ±12% at 58%+).
+  if (window.Web) { const F = Web.forecast(r.sym || parse(r.coin).sym), st = Web.stats().hz || {};
+    if (F && F.n >= 300) { const p = 0.4 * F.ph[4] + 0.6 * F.ph[24], hit = Math.max(st[4] && st[4].hit || 0.5, st[24] && st[24].hit || 0.5), cap = Math.max(0, Math.min(0.12, (hit - 0.5) * 1.5)), e = (p - 0.5) * 2 * r.dir;
+      if (cap > 0.005 && Math.abs(e) >= 0.08) add("Signal web", Math.round((1 + cap * Math.max(-1, Math.min(1, e * 2))) * 1000) / 1000, `The learned web of all signals (both sites, ${F.n.toLocaleString()} lessons, right ${Math.round(hit * 100)}%) gives P(up) ${Math.round(F.ph[4] * 100)}% in 4h and ${Math.round(F.ph[24] * 100)}% in 24h: ${e > 0 ? "agrees with" : "goes against"} the smart side. Drivers: ${F.contrib.slice(0, 3).map(c => c.label).join(", ")}.`); } }
+  // Spot takers on the same coin (Hyperliquid spot, live): urgent buying or selling in the last hour, vs the smart side
+  if (window.SFJ && SFJ.tokens) { const sym = r.sym || parse(r.coin).sym, T = SFJ.tokens[sym] || SFJ.tokens["U" + sym];
+    if (T && T.W && T.W["1h"]) { const [b, sl] = T.W["1h"], tot = b + sl; if (tot >= 200000) { const sh = (b - sl) / tot * r.dir;
+      if (Math.abs(sh) >= 0.15) add("Spot takers (1h)", Math.round((1 + 0.05 * Math.max(-1, Math.min(1, sh * 2))) * 1000) / 1000, `Spot takers ${b > sl ? "bought" : "sold"} a net ${usd(Math.abs(b - sl))} of ${usd(tot)} in the last hour: ${sh > 0 ? "with" : "against"} the smart side.`); } } }
   const ns = r.news.filter(n => n.b && n.s && Date.now() - n.t < 24 * 36e5);
   const net = ns.reduce((a, n) => a + (n.s === "bull" ? 1 : n.s === "bear" ? -1 : 0), 0) * r.dir;
   if (net <= -2) add("News", 0.9, `Recent big news leans against the smart side.`);
@@ -871,6 +878,9 @@ function compute(){
     const fid = p.cls !== "Stock" || !INST || !!(inst && inst.u);
     const r = { coin, ...p, m, sm, fo, gap, dir, agree, red, score, minN: minSide, big, thin, ctx, earn, hist: h, held: h.heldH, since, inst, tools, ntools: tools.n, tr, d4, evs, whale, lst, er, news, spx, lv, cy, ht, fl, fid };
     r.factors = S.useCtx ? contextFactors(r, MAC) : [];
+    // learned trust (stars.js grades every factor against what price did 4h / 24h later): effect = (mult − 1) × trust
+    if (window.FTRUST) r.factors.forEach(f => { if (/backtested/.test(f.name)) return; const t = FTRUST[f.name]; if (!t || t.n < 20 || Math.abs(t.t - 1) < 0.03) return;
+      f.raw = f.raw || f.mult; f.mult = Math.round((1 + (f.raw - 1) * t.t) * 1000) / 1000; f.why += ` (learned trust ×${t.t.toFixed(2)}: right ${Math.round(t.ok / t.n * 100)}% of ${t.n} graded)`; });
     r.rating = Math.min(100, Math.round(score * r.factors.reduce((a, f) => a * f.mult, 1)));
     out.push(r);
   }
@@ -1289,6 +1299,8 @@ function ratingCard(r){
   const e = btEdge(r.score);
   return `<div class="card"><h4>Rating ${r.rating} = disparity ${r.score}${r.factors.length ? " × context" : ""}</h4>
     ${e ? `<div class="kv"><span>Backtest, next 24h for the smart side (disparity ${e.lo}–${e.hi === 101 ? 100 : e.hi})</span><b class="${!e.same ? "" : e.avg >= 0 ? "L" : "S"}">fit ${pc(e.fit.avg)} · ${e.fit.hit}% / check ${pc(e.check.avg)} · ${e.check.hit}%${e.same ? "" : " · mixed"}</b></div>` : ""}
+    ${(() => { const R = window.ratingRecord ? ratingRecord() : null; if (!R) return ""; const band = R[24].find(x => x.n) ? R[24] : R[4], h = R[24].find(x => x.n) ? 24 : 4;
+      return band.some(x => x.n) ? `<div class="kv"><span>Live record in this browser · smart side right after ${h}h, by rating</span><b>${band.map(x => `${x.lab}: ${x.hit == null ? "–" : Math.round(x.hit * 100) + "%"} <span style="color:var(--faint)">(${x.n})</span>`).join(" · ")}</b></div>` : `<div class="kv"><span>Live record</span><b style="font-weight:400;color:var(--faint)">grading starts 4 hours after you first open the page</b></div>`; })()}
     <div class="kv"><span>Smart bias ($ / count / blended)</span><b>${pct(r.sm.bd)} / ${pct(r.sm.bc)} / ${pct(r.sm.b)}</b></div>
     <div class="kv"><span>Fools bias ($ / count / blended)</span><b>${pct(r.fo.bd)} / ${pct(r.fo.bc)} / ${pct(r.fo.b)}</b></div>
     <div class="kv"><span>Weight</span><b>${Math.round(S.wD*100)}% $ · ${Math.round((1-S.wD)*100)}% count</b></div>
@@ -1775,7 +1787,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) { re
 <script src="prochart.js?v=11"></script>
 <script src="spotflow.js?v=1"></script>
 <script src="why.js?v=2"></script>
-<script src="stars.js?v=18"></script>
+<script src="stars.js?v=19"></script>
 <script>(function(){const r0=render;render=function(){const x=r0.apply(this,arguments);try{window.mcAttach&&mcAttach()}catch(e){}return x};try{window.mcAttach&&mcAttach()}catch(e){}})();</script>
 <script src="site.js?v=4"></script>
 </body>

@@ -661,6 +661,38 @@ body{padding-bottom:34px}
   }
   document.addEventListener("click", e => { const a = e.target.closest("#v-web [data-goto]"); if (a) { e.preventDefault(); gotoCoin(a.dataset.goto); } });
 
+  /* ---------- the rating learns from its own results ----------
+     Every 30 minutes: save the top 80 setups (side, price, rating, every factor). After 4h and 24h, grade them: did price
+     move the smart side's way? A factor that raised confidence in a setup that then worked, or cut it in one that failed,
+     gains trust; the opposite loses trust (×0.2 … ×2.5). index.html applies the trust to each factor's effect.
+     The same record gives the hit rate by rating band, so a high rating has to earn its meaning. */
+  window.FTRUST = lsG("cs_factor_trust", {});
+  let RLOG = lsG("cs_rating_log", []);
+  function rateLearn() {
+    if (!ROWS || !ROWS.length) return; const now = Date.now(), FT = window.FTRUST;
+    if (!RLOG.length || now - RLOG[RLOG.length - 1].t > 30 * 6e4) {
+      RLOG.push({ t: now, L: ROWS.filter(r => r.ctx && r.ctx.px).sort((a, b) => b.rating - a.rating).slice(0, 80).map(r => [r.coin, r.dir, r.ctx.px, r.rating, (r.factors || []).filter(f => !/backtested/.test(f.name)).map(f => [f.name, Math.round((f.raw || f.mult) * 1000) / 1000])]) }); }
+    let changed = false;
+    for (const e of RLOG) for (const [k, h, lr] of [["g4", 4, 0.04], ["g24", 24, 0.08]]) {
+      if (e[k] || now - e.t < h * 36e5) continue;
+      if (now - e.t > (h + 3) * 36e5) { e[k] = 1; continue; }
+      e[k] = 1; changed = true; e["o" + h] = [];
+      e.L.forEach(([coin, dir, px, rating, F]) => { const c = ctxOf(coin); if (!c || !c.px) return; const ret = dir * (c.px / px - 1); if (Math.abs(ret) < 0.002) return; const o = Math.sign(ret);
+        e["o" + h].push([rating, o]);
+        F.forEach(([nm, m]) => { const lean = Math.sign(m - 1); if (!lean) return; const t = FT[nm] = FT[nm] || { t: 1, n: 0, ok: 0 };
+          t.t = Math.max(0.2, Math.min(2.5, t.t * Math.exp(lr * lean * o * Math.min(1, Math.abs(m - 1) * 8)))); if (h === 24) { t.n++; if (lean === o) t.ok++; } }); }); }
+    RLOG = RLOG.filter(e => now - e.t < 21 * 864e5);
+    if (changed) lsS("cs_factor_trust", FT);
+    lsS("cs_rating_log", RLOG);
+  }
+  window.ratingRecord = () => { const B = [[60, 101, "60+"], [40, 60, "40–59"], [20, 40, "20–39"], [0, 20, "under 20"]], out = {};
+    for (const h of [4, 24]) out[h] = B.map(([lo, hi, lab]) => { const v = RLOG.flatMap(e => e["o" + h] || []).filter(([r]) => r >= lo && r < hi); return { lab, n: v.length, hit: v.length ? v.filter(([, o]) => o > 0).length / v.length : null }; });
+    return out; };
+  setInterval(() => { try { rateLearn(); } catch (e) { } }, 60000); setTimeout(() => { try { rateLearn(); } catch (e) { } }, 20000);
+  // spot flow for the rating (live Hyperliquid spot takers)
+  const sfLoad = async () => { try { if (window.SpotFlow) window.SFJ = await SpotFlow.load(); } catch (e) { } };
+  sfLoad(); setInterval(sfLoad, 2 * 6e4);
+
   /* ---------- hook into the page's render loop ---------- */
   const r0 = render;
   window.render = render = function () { const x = r0.apply(this, arguments); try { decorate(); if (VIEW === "starred") renderStarred(); tabLabels(); feedWeb(); } catch (e) { console.warn(e); } return x; };
