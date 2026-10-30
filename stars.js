@@ -241,12 +241,24 @@ body{padding-bottom:34px}
   /* ---------- big trades of the best and worst traders ---------- */
   const COHN = { EP: "Ext profitable", VP: "Very profitable", P: "Profitable", U: "Unprofitable", VU: "Very unprofitable", R: "Rekt" };
   const MAJOR = 5000;
+  /* Market makers: their positions are mostly inventory and hedges, not bets on direction, so they are left out of
+     the best / worst groups. Two tests: a known market-making firm in the Hyperdash label, or the behavior of one
+     (newest 2,000 fills inside 6 hours and 85%+ of the volume as maker orders). */
+  const MM_RE = /wintermute|cumberland|\bjump\b|\bgsr\b|flow ?traders|amber|b2c2|\bdwf\b|keyrock|galaxy|auros|selini|\bhlp\b|hyperliquidity|jane ?street|citadel|virtu|optiver|\bimc\b|\bdrw\b|susquehanna|\bsig\b|\bxtx\b|tower research|\bqcp\b|presto|kronos|market ?mak|\bmm\b/i;
+  const MMB = lsG("cs_mm", {});
+  const isMM = h => !!h && (MM_RE.test(h.lb || "") || !!MMB[h.a]);
+  window.isMM = isMM;
+  function mmCheck(a, f) { if (!Array.isArray(f) || f.length < 2000) return;
+    const t0 = Math.min(...f.map(x => x.time)), t1 = Math.max(...f.map(x => x.time)); let mk = 0, all = 0;
+    f.forEach(x => { const v = +x.sz * +x.px; all += v; if (x.crossed === false) mk += v; });
+    const was = !!MMB[a], is = t1 - t0 < 6 * 36e5 && all > 0 && mk / all >= 0.85;
+    if (is !== was) { if (is) MMB[a] = { t: Date.now(), mk: Math.round(mk / all * 100) }; else delete MMB[a]; lsS("cs_mm", MMB); } }
   const FILLS = {};          // wallet -> { t: fetched ms, f: fills }
   const SEEN = new Set(lsG("cs_bt_seen", []));
   let tradesBusy = false, tradesT = 0, HOLD = 0;   // HOLD = wait time after a Hyperliquid 429
   function walletsFor(coin) {
     const X = SPEC && SPEC.m && SPEC.m[coin]; if (!X || !X.holders) return null;
-    const hs = X.holders.filter(h => !h.miss);
+    const hs = X.holders.filter(h => !h.miss && !isMM(h));
     const GOODC = ["EP", "VP"], BADC = ["U", "VU", "R"];
     // cohort decides first; the coin record only adds traders whose cohort does not say the opposite
     const good = hs.filter(h => GOODC.includes(h.coh) || (h.q >= 0.25 && !BADC.includes(h.coh))).sort((a, b) => b.n - a.n).slice(0, 8);
@@ -269,7 +281,7 @@ body{padding-bottom:34px}
       if (F && Date.now() - F.t < (starWallets.has(a) ? 110000 : 600000)) continue;
       if (Date.now() < HOLD) break;
       try {
-        if (!F) { const f = await post({ type: "userFills", user: a, aggregateByTime: true }); FILLS[a] = { t: Date.now(), n: Array.isArray(f) ? f.length : 0, oldest: Array.isArray(f) && f.length ? Math.min(...f.map(x => x.time)) : null, f: Array.isArray(f) ? f.filter(x => x.time >= start) : [] }; pause = 12000; }   // a full read costs ~120 weight: at most ~5 per minute
+        if (!F) { const f = await post({ type: "userFills", user: a, aggregateByTime: true }); mmCheck(a, f); FILLS[a] = { t: Date.now(), n: Array.isArray(f) ? f.length : 0, oldest: Array.isArray(f) && f.length ? Math.min(...f.map(x => x.time)) : null, f: Array.isArray(f) ? f.filter(x => x.time >= start) : [] }; pause = 12000; }   // a full read costs ~120 weight: at most ~5 per minute
         else { const last = F.f.reduce((m, x) => Math.max(m, x.time), start); const f = await post({ type: "userFillsByTime", user: a, startTime: last + 1, aggregateByTime: true });
           const nf = Array.isArray(f) ? f : []; F.f = F.f.concat(nf).filter(x => x.time >= start); F.t = Date.now(); pause = 1500; }
       } catch (e) { if (/429/.test(e.message)) { HOLD = Date.now() + 60000; break; } }
@@ -334,7 +346,7 @@ body{padding-bottom:34px}
   function renderTrades(fresh) {
     const box = document.getElementById("stBt"); if (!box) return;
     const note = document.getElementById("stBtNote");
-    note.innerHTML = `Best = Extremely/Very profitable cohort, or a proven winner on this coin who is not in a losing cohort. Worst = Unprofitable/Very unprofitable/Rekt cohort, or a proven loser on this coin who is not in a winning cohort. From the top 30 holders of each market (top 30 setups only), largest 8 per group. "Major" = $5K or more. Trades come from two sources: their fills (exact price) and their position, read about every minute (a change of $5K+ between two reads counts as a trade; "position Δ"). Updates every 2 minutes on this sheet${tradesT ? ` · last ${ago(tradesT)} ago` : ""}${tradesBusy ? " · loading…" : ""}. Yellow = new since you last looked.`;
+    note.innerHTML = `Market makers are left out (known firms such as Wintermute and Cumberland, and wallets that trade like one: 85%+ maker volume, thousands of fills a day). Best = Extremely/Very profitable cohort, or a proven winner on this coin who is not in a losing cohort. Worst = Unprofitable/Very unprofitable/Rekt cohort, or a proven loser on this coin who is not in a winning cohort. From the top 30 holders of each market (top 30 setups only), largest 8 per group. "Major" = $5K or more. Trades come from two sources: their fills (exact price) and their position, read about every minute (a change of $5K+ between two reads counts as a trade; "position Δ"). Updates every 2 minutes on this sheet${tradesT ? ` · last ${ago(tradesT)} ago` : ""}${tradesBusy ? " · loading…" : ""}. Yellow = new since you last looked.`;
     const newOnes = [];
     box.innerHTML = STARS.map(c => {
       const W = walletsFor(c), sym = parse(c).sym;
@@ -371,7 +383,7 @@ body{padding-bottom:34px}
   // The overall best and worst traders across the top holders of the top 30 setups (same sets as the Traders tab), 20 of each by size.
   function globalWallets() {
     const T = {};
-    for (const X of Object.values(SPEC && SPEC.m || {})) (X.holders || []).forEach(h => { if (h.miss) return;
+    for (const X of Object.values(SPEC && SPEC.m || {})) (X.holders || []).forEach(h => { if (h.miss || isMM(h)) return;
       const t = T[h.a] = T[h.a] || { a: h.a, lb: h.lb, coh: h.coh, q: 0, n: 0 }; t.q += h.q || 0; t.n += h.n || 0; });
     const all = Object.values(T);
     const good = all.filter(t => GOODC.includes(t.coh) || (t.q >= 0.25 && !BADC.includes(t.coh))).sort((a, b) => b.n - a.n).slice(0, 12);
