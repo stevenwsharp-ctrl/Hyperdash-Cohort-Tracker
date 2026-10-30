@@ -2,7 +2,10 @@
 // History entry per market: [smartBias, foolBias, price, epNetK, vpNetK, smartGrossK, foolNetK]
 //   bias in -100..100, $ values in thousands. Older entries may have only the first 3 fields.
 
-export const WINDOWS = { "1h": 1, "4h": 4, "24h": 24, "7d": 168 };
+export const WINDOWS = { "30m": 0.5, "1h": 1, "4h": 4, "24h": 24, "7d": 168 };
+// How far from the exact window start a snapshot may be. 30m needs a close match (snapshots every 5 min);
+// 7d needs a full 7 days of history (a 5-day-old snapshot must not count as "7d").
+const tolOf = h => h < 1 ? 8 * 6e4 : h >= 168 ? 3 * 36e5 : Math.max(20 * 6e4, h * 36e5 * 0.2);
 
 const gapOf = v => (v[0] - v[1]) / 200;                 // -1..1
 const netOf = v => v.length > 4 ? (v[3] || 0) + (v[4] || 0) : null; // smart net $K (+ = long)
@@ -24,7 +27,7 @@ export function computeTrends(snaps) {
   const iNow = snaps.length - 1, now = snaps[iNow].d, tNow = T[iNow];
   const out = {};
   const idx = {};
-  for (const [k, h] of Object.entries(WINDOWS)) idx[k] = snapAt(snaps, T, tNow - h * 36e5, Math.max(20 * 6e4, h * 36e5 * 0.2));
+  for (const [k, h] of Object.entries(WINDOWS)) idx[k] = snapAt(snaps, T, tNow - h * 36e5, tolOf(h));
   for (const coin in now) {
     const v = now[coin], g = gapOf(v), dir = g >= 0 ? 1 : -1;
     const tr = {};

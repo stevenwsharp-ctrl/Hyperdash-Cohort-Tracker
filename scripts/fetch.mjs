@@ -73,7 +73,7 @@ function downsample(snaps, tNow) {
   const keep = [], seen = new Set();
   for (const s of snaps) {
     const t = Date.parse(s.t), age = tNow - t;
-    if (age > 7 * 864e5) continue;
+    if (age > 7 * 864e5 + 2 * 36e5) continue;   // 7 days plus 2 h, so the "7d" window always finds a snapshot
     if (age <= 2 * 36e5) { keep.push(s); continue; }
     const key = age <= 26 * 36e5 ? "q" + Math.floor(t / 9e5) : "h" + Math.floor(t / 36e5);
     if (!seen.has(key)) { seen.add(key); keep.push(s); }

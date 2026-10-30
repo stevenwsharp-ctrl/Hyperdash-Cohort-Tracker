@@ -30,7 +30,7 @@ Site: https://stevenwsharp-ctrl.github.io/Hyperdash-Cohort-Tracker/
 - **Funding**: Hyperliquid funding per year, and if the smart side earns or pays it.
 - **Track record** tab: what the price did 4h and 24h after each signal.
 - **CSV** button: export the table.
-- **Alignment trend**: gap change over 1h / 4h / 24h / 7d, a chart per market, and the **Changes** tab (expert exits, flips, fades, adds, new setups).
+- **Alignment trend**: gap change over 30m / 1h / 4h / 24h / 7d (7d shows only once there is a full 7 days of history), a chart per market, and the **Changes** tab (expert exits, flips, fades, adds, new setups).
 - **Trader count**: bias blends $ (60%) and trader count (40%), so a few whales cannot set the side alone; "Whale-driven" flag when they disagree.
 - **Rating** = disparity × context (liquidity, funding, trend/exits, momentum, earnings, macro regime from VIX/S&P/BTC, news sentiment).
 - **Listing filters**: S&P 500, NYSE, Nasdaq.

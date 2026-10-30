@@ -896,7 +896,7 @@ function spark(pts){
 }
 // Gap change per time frame. Green = alignment stronger on the setup side.
 function tfChips(r){
-  return `<div class="tf">${["1h","4h","24h","7d"].map(k => {
+  return `<div class="tf">${["30m","1h","4h","24h","7d"].filter(k => r.tr[k] || k !== "7d").map(k => {
     const v = r.tr[k]; if (!v) return `<span title="${k}: no history yet"><i>${k}</i>–</span>`;
     const s = r.dir * v[0], cls = s >= 5 ? "up" : s <= -5 ? "dn" : "";
     const net = v[3] != null ? ` · smart $ ${v[3] > 0 ? "+" : ""}${v[3]}%` : "";
@@ -938,7 +938,7 @@ function alignChart(r){
     <div class="legend"><span><i style="background:#7cc4ff"></i>Smart bias</span><span><i style="background:#f0b43c"></i>Fools bias</span><span><i style="background:#e6ebea"></i>Gap</span><span><i style="background:#6b7775"></i>Price</span><span><i style="background:#1fb58a"></i>Smart net $ (lower panel)</span><span><i style="background:#c58af0"></i>Extremely Profitable net $</span></div></div>`;
 }
 function windowTable(r){
-  const rows = ["1h","4h","24h","7d"].map(k => {
+  const rows = ["30m","1h","4h","24h","7d"].filter(k => r.tr[k] || k !== "7d").map(k => {
     const v = r.tr[k];
     if (!v) return `<tr><td>${k}</td><td colspan="5" style="text-align:left;color:var(--faint)">no history yet</td></tr>`;
     const s = r.dir * v[0];
