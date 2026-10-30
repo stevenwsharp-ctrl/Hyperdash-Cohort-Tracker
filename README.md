@@ -57,7 +57,7 @@ Open a market row: the detail starts with a live chart (TradingView Lightweight 
 
 ## Site tools
 
-Light and dark mode, page width (fit screen by default), a heartbeat for the live prices, a terms / disclaimer / privacy page, link-preview image (`og.png`) and tab icon. Contact: sniperdesk@proton.me.
+Light and dark mode, page width (fit screen by default), a heartbeat for the live prices, a terms / disclaimer / privacy page, link-preview image (`og.png`) and tab icon. Contact: sniperdesk.tribunal635@passmail.net.
 
 ## Backtest
 

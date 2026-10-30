@@ -39,7 +39,7 @@
     document.getElementById("hbxT").textContent = !t ? "starting" : a <= 25 ? `live ${Math.round(a)}s` : a <= 60 ? `slow ${Math.round(a)}s` : document.hidden ? "paused" : `stale ${Math.round(a / 60)}m`; }, 1000);
 
   // footer and terms
-  const MAIL = "sniperdesk@proton.me", wrap = document.querySelector(".wrap");
+  const MAIL = "sniperdesk.tribunal635@passmail.net", wrap = document.querySelector(".wrap");
   if (wrap) { const f = document.createElement("div"); f.className = "ftr";
     f.innerHTML = `Contact: <a href="mailto:${MAIL}">${MAIL}</a> · <a href="#" id="tmLink">Terms of use, disclaimer and privacy</a> · Sister sites: <a href="../SOXX-Sniper/">SOXX Sniper</a> · <a href="../LETF-Sniper/">LETF Sniper</a><br>
       Not investment advice. Leveraged and perpetual products are high risk. Data from Hyperdash and Hyperliquid can be late, wrong or stop. Wallets are public on-chain data; labels are statistics, not judgments of any person. Not affiliated with Hyperliquid, Hyperdash or any company shown.`;
