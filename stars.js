@@ -606,6 +606,12 @@ body{padding-bottom:34px}
       if (r.earn != null) Web.emit("cohort.funding", a, clip(r.dir * r.earn / 50), "Cohort · funding (smart side earns +)");
       if (r.ctx && r.ctx.ch != null) Web.emit("cohort.mom24", a, clip(r.ctx.ch / 8), "Cohort · 24h momentum");
       if (r.big && r.big.n) Web.emit("cohort.big", a, clip(r.big.b), "Cohort · apex + whale size cohorts");
+      if (t4 && t4[4] != null) Web.emit("cohort.smartflow4h", a, clip(r.dir * t4[4] / 500), "Cohort · smart $ added / cut in 4h");
+      if (r.evs && r.evs.length) { const ty = r.evs.map(e => e.type); Web.emit("cohort.expert-exit", a, ty.includes("flip") ? -r.dir : ty.includes("exit") ? -r.dir * 0.7 : ty.includes("fade") ? -r.dir * 0.4 : 0, "Cohort · experts exiting / flipping"); }
+      if (r.ht) Web.emit("cohort.heat", a, clip(((r.ht.bb || 0) - (r.ht.fr || 0)) / 100), "Cohort · froth (−) vs bloodbath (+)");
+      try { const T = typeof takerFlow === "function" ? takerFlow(r) : null; if (T && isFinite(T.i4)) Web.emit("cohort.taker4h", a, clip(T.i4 * 3), "Cohort · taker flow 4h (vs normal volume)"); } catch (e) { }
+      if (r.lv && r.lv.riskPct) Web.emit("cohort.smartnearliq", a, clip(-r.lv.dir * r.lv.riskPct / 30), "Cohort · smart side near liquidation");
+      const nb = (r.news || []).filter(n => n.b && n.s && Date.now() - n.t < 24 * 36e5); if (nb.length) Web.emit("cohort.news", a, clip(nb.reduce((s, n) => s + Math.sign(n.s), 0) / 3), "Cohort · big news tone 24h");
     });
     try { const B = window.Basket && DATA ? Basket.compute(DATA, { wD: S.wD }) : null; if (B && B.basket.gap != null) { Web.emit("basket.gap", "SEMIS", clip(B.basket.gap * 2), "Semis basket: smart vs fools gap"); if (B.basket.d4h != null) Web.emit("basket.trend4h", "SEMIS", clip(B.basket.d4h / 20), "Semis basket: gap change 4h"); } } catch (e) { }
   }
@@ -617,16 +623,22 @@ body{padding-bottom:34px}
     if (!window.Web || !HIST || !HIST.snapshots || HIST.snapshots.length < 60 || Date.now() - histFedT < 25 * 6e4) return; histFedT = Date.now();
     const S0 = HIST.snapshots, T = S0.map(s => Date.parse(s.t)), at = (t, tol) => { let lo = 0, hi = T.length - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (T[m] < t) lo = m + 1; else hi = m; }
       let b = lo; if (lo > 0 && Math.abs(T[lo - 1] - t) < Math.abs(T[lo] - t)) b = lo - 1; return Math.abs(T[b] - t) <= tol ? b : -1; };
-    const items = [], g = v => (v[0] - v[1]) / 200, B = 30 * 6e4, H4 = 4 * 36e5;
+    const items = [], g = v => (v[0] - v[1]) / 200, B = 30 * 6e4, H4 = 4 * 36e5, AV = {};
+    // each coin's average 4-hour move, for the volatility regime
+    for (let t = T[0] + H4; t <= T[T.length - 1]; t += 4 * H4) { const i = at(t, 6e5), j = at(t - H4, 9e5); if (i < 0 || j < 0) continue;
+      for (const [coin, v] of Object.entries(S0[i].d || {})) { const w = S0[j].d && S0[j].d[coin]; if (v && w && v[2] > 0 && w[2] > 0) { const o = AV[coin] = AV[coin] || [0, 0]; o[0] += Math.abs(v[2] / w[2] - 1); o[1]++; } } }
     for (let t = Math.ceil(T[0] / B) * B; t <= T[T.length - 1] - H4; t += B) {
-      const i = at(t, 6e5), j = at(t + H4, 9e5), i1 = at(t - 36e5, 9e5), i4 = at(t - H4, 9e5), i24 = at(t - 24 * 36e5, 18e5); if (i < 0 || j < 0) continue;
+      const i = at(t, 6e5), j = at(t + H4, 9e5), j1 = at(t + 36e5, 6e5), j24 = at(t + 24 * 36e5, 18e5), i1 = at(t - 36e5, 9e5), i4 = at(t - H4, 9e5), i24 = at(t - 24 * 36e5, 18e5); if (i < 0 || j < 0) continue;
       for (const [coin, v] of Object.entries(S0[i].d || {})) {
         const w = S0[j].d && S0[j].d[coin]; if (!v || !w || !(v[2] > 0) || !(w[2] > 0)) continue;
         const x = { "cohort.gapraw": (v[0] - v[1]) / 100, "cohort.smart": v[0] / 100, "cohort.fools": v[1] / 100 };
         const v1 = i1 >= 0 && S0[i1].d && S0[i1].d[coin], v4 = i4 >= 0 && S0[i4].d && S0[i4].d[coin], v24 = i24 >= 0 && S0[i24].d && S0[i24].d[coin];
         if (v1) x["cohort.trend1h"] = (g(v) - g(v1)) * 100 / 10; if (v4) x["cohort.trend4h"] = (g(v) - g(v4)) * 100 / 20; if (v24 && v24[2] > 0) x["cohort.mom24"] = (v[2] / v24[2] - 1) * 100 / 8;
         Object.keys(x).forEach(k => { if (!isFinite(x[k]) || !x[k]) delete x[k]; });
-        items.push({ t, a: parse(coin).sym, x, r: w[2] / v[2] - 1 });
+        if (v4 && v.length > 4 && v4.length > 4) { const fl = ((v[3] + v[4]) - (v4[3] + v4[4])) / 500; if (isFinite(fl) && fl) x["cohort.smartflow4h"] = fl; }
+        const av = AV[coin] && AV[coin][1] ? AV[coin][0] / AV[coin][1] : 0, reg = v4 && v4[2] > 0 && av > 0 ? Math.max(-1, Math.min(1, Math.abs(v[2] / v4[2] - 1) / av - 1)) : 0;
+        const fx = k => { const q = k >= 0 && S0[k].d && S0[k].d[coin]; return q && q[2] > 0 ? q[2] / v[2] - 1 : null; };
+        items.push({ t, a: parse(coin).sym, x, reg, rh: { 1: fx(j1), 4: w[2] / v[2] - 1, 24: fx(j24) } });
       }
     }
     const n = Web.ingest("cohort-history", items, "cohort 7-day history");
