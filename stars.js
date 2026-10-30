@@ -126,6 +126,7 @@ body{padding-bottom:34px}
   const sec = document.createElement("section"); sec.id = "v-starred"; sec.hidden = true;
   sec.innerHTML = `<div id="stMk"></div><div id="stSheet"></div><div id="stChart" style="margin-top:12px"></div><h3 style="margin:16px 0 0">Big trades on your starred markets · best vs worst traders</h3><div class="note" id="stBtNote" style="max-width:none"></div><div class="bt-grid" id="stBt"></div><h3 style="margin:18px 0 0">ETF lens · SOXX / SOXL / SOXS semis basket, smart vs fools on the holdings</h3><div id="stBk" class="card" style="padding:10px 12px;margin-top:8px"></div>
   <h3 style="margin:18px 0 0">Nightly rebalance · market makers · after-hours</h3><div id="stRb" class="card" style="padding:10px 12px;margin-top:8px"></div>
+  <h3 style="margin:18px 0 0">Spot flow · the biggest spot traders on Hyperliquid, live (5m · 15m · 1h · 4h · 24h)</h3><div id="stSf" class="card" style="padding:10px 12px;margin-top:8px"></div>
   <h3 style="margin:18px 0 0">Spot · what the best and worst traders buy, sell and hold</h3><div class="note" id="spNote" style="max-width:none"></div><div id="spBody"></div>`;
   document.getElementById("v-setups").after(sec);
   const sheet = document.createElement("div"); sheet.className = "sheetbar";
@@ -219,6 +220,7 @@ body{padding-bottom:34px}
     el.innerHTML = `<div class="xlbar"><i>fx</i><span id="xlSel">${SEL ? esc(SEL) : "Click a row to chart it · double-click to open the market"}</span></div><div class="xlwrap"><table class="xl"><thead><tr class="let"><th class="rn"></th>${COLS.map((_, j) => `<th>${L(j + 1)}</th>`).join("")}</tr><tr class="nm"><th class="rn">1</th>${COLS.map(c => `<th>${c}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
     tagTips(el);
     renderChart(); renderTrades(); renderLens();
+    if (window.SpotFlow) { const sf = document.getElementById("stSf"); if (sf && !sf._sf) SpotFlow.mount(sf, { tag: a => { for (const X of Object.values(SPEC && SPEC.m || {})) { const h = (X.holders || []).find(h => h.a === a); if (h) return { name: (h.lb ? h.lb + " · " : "") + (isMM(h) ? "MM" : (COHN[h.coh] || "")), kind: ["EP", "VP"].includes(h.coh) ? "best" : ["U", "VU", "R"].includes(h.coh) ? "worst" : "" }; } return null; } }); }
   }
   document.addEventListener("click", e => {
     const td = e.target.closest(".xl tbody td"); if (!td || e.target.closest("[data-star]")) return;
@@ -496,10 +498,14 @@ body{padding-bottom:34px}
     const totV = SPM ? Object.values(SPM).reduce((a, p) => a + (/^USD/.test(p.quote || "") ? p.vol : 0), 0) : 0;
     const up = top.filter(p => p.ch > 0).length;
     const nb = Object.values(T).reduce((a, r) => a + r.g7, 0), nf = Object.values(T).reduce((a, r) => a + r.b7, 0);
+    const act = { g: new Set(), b: new Set() }, cash = { g: 0, b: 0 }, nRead = { g: 0, b: 0 };
+    Object.values(T).forEach(r => ["g", "b"].forEach(q => { r[q + "B"].forEach(a => act[q].add(a)); r[q + "S"].forEach(a => act[q].add(a)); }));
+    for (const [a, Bl] of Object.entries(BAL)) { const q = grp[a]; if (q) Bl.b.forEach(b => { if (/^USD/.test(b.coin)) cash[q] += +b.total || 0; }); }
+    for (const a of Object.keys(FILLS)) if (grp[a]) nRead[grp[a]]++;
+    const gc = (lab, n, q) => `<div class="mk"><span class="src">7d</span>${lab}${act[q].size ? `<b class="${n >= 0 ? "L" : "S"}">${n >= 0 ? "+" : ""}${usd(n)}</b>${n >= 0 ? "buying" : "selling"} · ${act[q].size} of ${nRead[q]} trade spot` : `<b>no spot trades</b>${nRead[q]} read: perps only`}${cash[q] >= 1000 ? ` · ${usd(cash[q])} cash` : ""}</div>`;
     document.getElementById("spNote").innerHTML = `From the spot fills (last 7 days, newest 2,000 fills per wallet) and spot balances of the ${G.good.length} best and ${G.bad.length} worst traders among the top holders of the top 30 setups, plus the holders of your starred markets (${nW} wallets with fills loaded). Net = buys minus sells in $. ↑/↓ = number of traders who bought / sold. Hold = spot value held now (number of traders). Most Hyperliquid spot is crypto (U-tokens such as UBTC, UETH, USOL are bridged BTC, ETH, SOL); stocks trade only as perps here, so for a stock the useful spot signal is the general risk appetite below. Balances refresh every 4 minutes${spotT ? ` · last ${ago(spotT)} ago` : ""}${spotBusy ? " · loading…" : ""}.`;
     body.innerHTML = `<div class="mkts" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
-      <div class="mk"><span class="src">7d</span>Best traders, net spot<b class="${nb >= 0 ? "L" : "S"}">${nb >= 0 ? "+" : ""}${usd(nb)}</b>${nb >= 0 ? "buying" : "selling"} crypto spot</div>
-      <div class="mk"><span class="src">7d</span>Worst traders, net spot<b class="${nf >= 0 ? "L" : "S"}">${nf >= 0 ? "+" : ""}${usd(nf)}</b>${nf >= 0 ? "buying" : "selling"} crypto spot</div>
+      ${gc("Best traders, net spot", nb, "g")}${gc("Worst traders, net spot", nf, "b")}
       <div class="mk"><span class="src">24h</span>Spot volume (USD pairs)<b>${usd(totV)}</b>${up}/${top.length} top pairs up</div>
       ${top.slice(0, 5).map(p => `<div class="mk"><span class="src">spot</span>${esc(p.base)}<b>${price(p.px)}</b><span class="${p.ch >= 0 ? "L" : "S"}">${p.ch != null ? (p.ch >= 0 ? "+" : "") + p.ch.toFixed(2) + "%" : "–"}</span> · ${usd(p.vol)}</div>`).join("")}</div>
       ${list.length ? `<div class="xlwrap"><table class="xl"><thead><tr class="nm"><th>Token</th><th>Price</th><th>24h</th><th>Spot vol 24h</th><th>Best net 24h</th><th>Best net 7d</th><th>Worst net 24h</th><th>Worst net 7d</th><th>Best hold</th><th>Worst hold</th><th>Signal</th><th>Perp setup</th></tr></thead><tbody>${cells}</tbody></table></div>`

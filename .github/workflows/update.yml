@@ -40,13 +40,13 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Get the old data from the data branch
         run: |
           mkdir -p out
           if git fetch --depth=1 origin data 2>/dev/null; then
-            for f in latest.json history.json events.json news.json context.json specialists.json spcache.json tcache.json levels.json cycle.json heat.json heatstate.json flow.json instruments.json options.json alerts.json status.json; do
+            for f in latest.json history.json events.json news.json context.json specialists.json spcache.json tcache.json levels.json cycle.json heat.json heatstate.json flow.json spotflow.json instruments.json options.json alerts.json status.json; do
               git show origin/data:$f > out/$f 2>/dev/null || rm -f out/$f
             done
           fi
@@ -75,11 +75,14 @@ jobs:
           export SITE_URL="https://${OWNER,,}.github.io/${REPO}/"
           cd out
           git init -q -b data
+          printf '*.tmp\n' > .gitignore
           git config user.name "github-actions[bot]"
           git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
           REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           cd ..
           END=$((SECONDS + LOOP_MIN * 60))
+          # live spot trades (websocket) next to the loop; it writes out/spotflow.json every 20 s
+          node scripts/spotflow.mjs out $((LOOP_MIN * 60 - 40)) > spotflow.log 2>&1 &
           FIRST=1
           while :; do
             if [ -n "$FORCE_INSTRUMENTS_IN" ] && [ $FIRST = 1 ]; then export FORCE_INSTRUMENTS=1 FORCE_RUN=1; else unset FORCE_INSTRUMENTS FORCE_RUN; fi
