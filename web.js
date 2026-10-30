@@ -114,7 +114,7 @@
     const N = nodes(), E = edges().filter(e => e.n >= 5), st = stats();
     const cv = getComputedStyle(document.documentElement), col = k => cv.getPropertyValue(k).trim();
     const up = col("--bull") || col("--up") || "#19d38a", dn = col("--bear") || col("--down") || "#ff4d5e", line = col("--line") || "#333", ink = col("--text") || col("--ink") || "#ddd", dim = col("--dim") || "#888";
-    const L = Object.values(N).sort((a, b) => b.n - a.n).slice(0, 40), idx = new Map(L.map((n, i) => [n.id, i]));
+    const L = Object.values(N).sort((a, b) => b.n - a.n).slice(0, opts.compact ? 16 : 40), idx = new Map(L.map((n, i) => [n.id, i]));
     const W = el.clientWidth || 800, Ht = opts.h || 360;
     // layout: fixed-seed force simulation
     const P = L.map((n, i) => ({ x: W / 2 + Math.cos(i * 2.4) * (60 + i * 6), y: Ht / 2 + Math.sin(i * 2.4) * (40 + i * 4), vx: 0, vy: 0 }));
@@ -129,6 +129,9 @@
       return `<g><circle cx="${P[i].x.toFixed(1)}" cy="${P[i].y.toFixed(1)}" r="${r.toFixed(1)}" fill="${c}" fill-opacity="${n.n < 10 ? 0.35 : (0.35 + Math.min(0.6, Math.abs(n.hitR - 0.5) * 4)).toFixed(2)}" stroke="${c}"><title>${n.label}\nchecks ${n.n} · right ${Math.round(n.hitR * 100)}% · avg edge ${(n.edgeM * 100).toFixed(2)}% · learned weight ${n.w.toFixed(2)}</title></circle>
         <text x="${P[i].x.toFixed(1)}" y="${(P[i].y + r + 10).toFixed(1)}" fill="${ink}" font-size="10" text-anchor="middle" font-family="var(--mono)">${String(n.label).slice(0, 22)}</text></g>`; }).join("");
     const top = Object.values(N).filter(n => n.n >= 10).sort((a, b) => Math.abs(b.hitR - 0.5) * Math.sqrt(b.n) - Math.abs(a.hitR - 0.5) * Math.sqrt(a.n)).slice(0, 8);
+    if (opts.compact) { el.innerHTML = `<div style="font:11.5px var(--mono);color:${dim};margin-bottom:4px"><b style="color:${ink}">${D.n.toLocaleString()}</b> lessons · <b style="color:${ink}">${Object.keys(N).length}</b> signals · <b style="color:${ink}">${Object.keys(D.A.P).length}</b> links${st.hit != null ? ` · own calls right <b style="color:${st.hit >= 0.5 ? up : dn}">${Math.round(st.hit * 100)}%</b>` : ""}</div>
+      <svg viewBox="0 0 ${W} ${Ht}" width="100%" height="${Ht}" style="display:block;border-radius:10px">${svgL}${svgN}</svg>
+      ${top.length ? `<div style="font:11.5px var(--mono);margin-top:4px;line-height:1.5">${top.slice(0, 3).map(n => `<div><b style="color:${n.hitR >= 0.5 ? up : dn}">${Math.round(n.hitR * 100)}%</b> right · ${n.label} <span style="color:${dim}">(${n.n.toLocaleString()} checks)</span></div>`).join("")}</div>` : ""}`; return; }
     el.innerHTML = `<div style="font:12px var(--mono);color:${dim};margin-bottom:6px">${D.n.toLocaleString()} lessons learned${Object.values(st.hist).length ? ` (past data: ${Object.values(st.hist).map(h => `${h.label} ${h.n.toLocaleString()}`).join(", ")})` : ""} · ${st.snaps} live snapshots · ${st.scored} scored · ${st.open} waiting for their 4h result · ${Object.keys(N).length} signals · ${st.assets} assets live${st.hit != null ? ` · web's own calls right ${Math.round(st.hit * 100)}%` : ""}${D.n < 100 ? ` · learning: ${D.n}/100 scored before the forecast counts` : ""}</div>
       <svg viewBox="0 0 ${W} ${Ht}" width="100%" height="${Ht}" style="display:block;border:1px solid ${line};border-radius:12px">${svgL}${svgN}</svg>
       <div style="font:11.5px var(--mono);color:${dim};margin-top:6px">Node = a signal (size = how often it was scored; green = right more than half the time, red = wrong more often, grey = under 10 checks). Link = two signals live on the same asset at the same time (thicker = they agree more; green = right when they agree). Hover for numbers.</div>
