@@ -1,6 +1,6 @@
 name: Update Hyperdash data
 
-# Each run stays on for about 55 minutes and checks Hyperdash every 45 seconds, then starts the next run.
+# Each run stays on for about 55 minutes and checks Hyperdash every 20 seconds, then starts the next run.
 # Hyperdash makes a new cohort snapshot every 5 minutes; each new one is pushed to the data branch.
 # The schedule starts a new run every 20 minutes. Only one run works at a time; the next one
 # waits in the queue and starts when the current one ends, so there is no gap.
@@ -89,7 +89,7 @@ jobs:
             fi
             FIRST=0
             [ $SECONDS -ge $END ] && break
-            sleep 45
+            sleep 20
           done
 
       - name: Start the next run (keeps the data job on all the time; the schedule is only a backup)

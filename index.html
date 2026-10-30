@@ -1230,9 +1230,10 @@ function newsCard(r){
   return `<div class="card wide"><h4>News · ${esc(r.sym)}</h4>${items.length ? items.map(newsRow).join("") : `<div class="note">No matched headlines in the last 36 hours.</div>`}</div>`;
 }
 function ago(t){ const m = Math.max(1, Math.round((Date.now() - t) / 6e4)); return m < 60 ? m + "m" : m < 48 * 60 ? Math.round(m / 60) + "h" : Math.round(m / 1440) + "d"; }
+const newsUrl = n => n.url || "https://news.google.com/search?q=" + encodeURIComponent('"' + String(n.h || "").slice(0, 120) + '"');
 function newsRow(n){
   const sent = n.s === "bull" ? `<span class="L">bullish</span>` : n.s === "bear" ? `<span class="S">bearish</span>` : "";
-  return `<div class="nw${n.b ? " big" : ""}"><span class="tm">${ago(n.t)}</span><div>${n.b ? `<span class="et new" style="margin-right:6px">Big</span>` : ""}${n.url ? `<a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.h)}</a>` : esc(n.h)}
+  return `<div class="nw${n.b ? " big" : ""}"><span class="tm">${ago(n.t)}</span><div>${n.b ? `<span class="et new" style="margin-right:6px">Big</span>` : ""}<a href="${esc(newsUrl(n))}" target="_blank" rel="noopener" title="${n.url ? "Open the article" : "Search this headline (the source gave no link)"}">${esc(n.h)}</a>${n.url ? "" : ` <span class="nm">(search)</span>`}
     <div class="nm">${esc(n.src)}${sent ? " · " + sent : ""}${n.c && n.c.length ? " · " + n.c.slice(0, 5).map(c => `<a href="#" data-goto="${esc(c)}">${esc(c)}</a>`).join(" ") : ""}${n.m ? " · macro" : ""}</div></div></div>`;
 }
 
@@ -1418,7 +1419,7 @@ function popNew(){
   fresh.filter(n => n.b && (n.m || n.c.some(c => hot[c]))).slice(0, 4).forEach(n => {
     const rc = n.c.find(c => hot[c]), r = rc && hot[rc];
     const tag = r ? `<b class="${r.dir > 0 ? "L" : "S"}">${esc(r.sym)} · smart ${r.dir > 0 ? "long" : "short"} · ${r.rating}</b>` : `<b>Macro</b>`;
-    toast(`${tag}<div>${esc(n.h)}</div><small>${esc(n.src)}${n.s === "bull" ? " · bullish" : n.s === "bear" ? " · bearish" : ""} · ${ago(n.t)} ago${n.url ? ` · <a href="${esc(n.url)}" target="_blank" rel="noopener">read</a>` : ""}</small>`, r ? (r.dir > 0 ? "tl" : "ts") : "", rc ? () => gotoCoin(rc) : null);
+    toast(`${tag}<div>${esc(n.h)}</div><small>${esc(n.src)}${n.s === "bull" ? " · bullish" : n.s === "bear" ? " · bearish" : ""} · ${ago(n.t)} ago · <a href="${esc(newsUrl(n))}" target="_blank" rel="noopener">${n.url ? "read" : "search"}</a></small>`, r ? (r.dir > 0 ? "tl" : "ts") : "", rc ? () => gotoCoin(rc) : null);
     desktopNote(r ? `${r.sym}: news on a smart ${r.dir > 0 ? "long" : "short"}` : "Macro news", n.h, n.url);
   });
   // froth / bloodbath events
@@ -1538,8 +1539,14 @@ function repoInfo(){
   return m ? { owner: m[1], repo: m[2] } : null;
 }
 let shaFails = 0;
+let shaApiT = 0;
+const workerUrl = () => { try { return (localStorage.getItem("soxx_fred_proxy") || "").trim().replace(/\/+$/, ""); } catch (e) { return ""; } };
 async function newestSha(){
-  const ri = repoInfo(); if (!ri || shaFails > 3) return null;
+  const ri = repoInfo(); if (!ri) return null;
+  const w = workerUrl();
+  if (w) { try { const j = await (await fetch(`${w}/ghref?r=${ri.owner}/${ri.repo}&b=data`, { cache: "no-store" })).json(); if (j && j.sha) return j.sha; } catch (e) { } }
+  if (shaFails > 3 || Date.now() - shaApiT < 70000) return SHA || null;   // GitHub API: 60 calls per hour without the Worker
+  shaApiT = Date.now();
   try {
     const r = await fetch(`https://api.github.com/repos/${ri.owner}/${ri.repo}/git/ref/heads/data`, { cache: "no-store" });
     if (!r.ok) throw new Error(r.status);
@@ -1561,7 +1568,7 @@ async function refresh(force){
     if (sha && sha === SHA && !force) return;
     const now = Date.now(), need = (k, mins) => force || !LOADED[k] || now - LOADED[k] > mins * 6e4;
     const jobs = { d: getJson("latest.json", sha), s: getJson("status.json", sha).catch(() => null), e: getJson("events.json", sha).catch(() => null), o: getJson("options.json", sha).catch(() => null), n: getJson("news.json", sha).catch(() => null), c: getJson("context.json", sha).catch(() => null), sp: getJson("specialists.json", sha).catch(() => null), lv: getJson("levels.json", sha).catch(() => null), cy: getJson("cycle.json", sha).catch(() => null), ht: getJson("heat.json", sha).catch(() => null), fl: getJson("flow.json", sha).catch(() => null) };
-    if (need("h", 15)) jobs.h = getJson("history.json", sha).catch(() => null);
+    if (need("h", 5)) jobs.h = getJson("history.json", sha).catch(() => null);
     if (need("i", 60)) jobs.i = getJson("instruments.json", sha).catch(() => null);
     const keys = Object.keys(jobs), vals = await Promise.all(Object.values(jobs)), R = {};
     keys.forEach((k, i) => R[k] = vals[i]);
@@ -1593,7 +1600,6 @@ async function loadBT(){
 // Live prices and funding from Hyperliquid (the browser can call it directly).
 let DEXES = null;
 async function livePrices(){
-  if (document.hidden) return;
   const post = body => fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(r => r.json());
   try {
     if (!DEXES) DEXES = (await post({ type: "perpDexs" })).map(d => d ? d.name : "");
@@ -1685,15 +1691,15 @@ $("rnd").textContent = Math.random().toString(36).slice(2, 10);
 
 drawChips();
 refresh(true).then(livePrices);
-setInterval(() => refresh(false), 75 * 1000);   // new cohort snapshot check (GitHub allows 60 checks per hour)
-setInterval(livePrices, 20 * 1000);             // live prices and funding
+setInterval(() => refresh(false), 15 * 1000);   // new cohort snapshot check: every 15 s through the Worker (git refs), else every 75 s (GitHub API limit)
+let lpT = 0; setInterval(() => { if (Date.now() - lpT >= (document.hidden ? 30000 : 10000)) { lpT = Date.now(); livePrices(); } }, 1000);   // live prices and funding: every 10 s (30 s in a background tab; Hyperliquid allows about 1,200 request weight per minute)
 setInterval(renderStat, 30 * 1000);
 setInterval(() => { const t = mmss(nextFunding().ms); document.querySelectorAll(".fcd").forEach(e => e.textContent = t); }, 1000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { refresh(false); livePrices(); } });
 </script>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
-<script src="mchart.js?v=2"></script>
+<script src="mchart.js?v=3"></script>
 <script>(function(){const r0=render;render=function(){const x=r0.apply(this,arguments);try{window.mcAttach&&mcAttach()}catch(e){}return x};try{window.mcAttach&&mcAttach()}catch(e){}})();</script>
-<script src="site.js?v=1"></script>
+<script src="site.js?v=2"></script>
 </body>
 </html>

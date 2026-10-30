@@ -8,7 +8,7 @@ A GitHub Pages tracker. It finds Hyperliquid markets (crypto, stocks, indices, E
 
 ## How it works
 
-1. `.github/workflows/update.yml` stays on all the time: each run lasts about 55 minutes and checks Hyperdash every 45 seconds. Hyperdash makes a new snapshot every 5 minutes, and each new one is pushed. A new run starts every 20 minutes and waits in the queue, so there is no gap (cancelled queued runs are normal).
+1. `.github/workflows/update.yml` stays on all the time: each run lasts about 55 minutes and checks Hyperdash every 20 seconds. Hyperdash makes a new snapshot every 5 minutes, and each new one is pushed. A new run starts every 20 minutes and waits in the queue, so there is no gap (cancelled queued runs are normal).
 2. `scripts/fetch.mjs` gets the cohort data from the Hyperdash API (`api.hyperdash.com/graphql`).
 3. The workflow pushes `latest.json`, `history.json` and `status.json` to the `data` branch. It replaces that branch each time, so the repo stays small. History keeps 7 days.
 4. `index.html` (GitHub Pages, `main` branch) reads the data from `raw.githubusercontent.com/<owner>/<repo>/data/`.

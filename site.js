@@ -35,8 +35,8 @@
     document.getElementById("thBtn").onclick = () => setTheme(root.dataset.theme === "light" ? "dark" : "light"); setTheme(root.dataset.theme);
   }
   setInterval(() => { const el = document.getElementById("hbx"); if (!el) return; let t = 0; try { t = typeof LIVE_T !== "undefined" ? LIVE_T : 0; } catch (e) { }
-    const a = t ? (Date.now() - t) / 1000 : Infinity; el.classList.toggle("slow", a > 45 && a <= 120); el.classList.toggle("stale", a > 120);
-    document.getElementById("hbxT").textContent = !t ? "starting" : a <= 45 ? `live ${Math.round(a)}s` : a <= 120 ? `slow ${Math.round(a)}s` : document.hidden ? "paused" : `stale ${Math.round(a / 60)}m`; }, 1000);
+    const a = t ? (Date.now() - t) / 1000 : Infinity; el.classList.toggle("slow", a > 25 && a <= 60); el.classList.toggle("stale", a > 60);
+    document.getElementById("hbxT").textContent = !t ? "starting" : a <= 25 ? `live ${Math.round(a)}s` : a <= 60 ? `slow ${Math.round(a)}s` : document.hidden ? "paused" : `stale ${Math.round(a / 60)}m`; }, 1000);
 
   // footer and terms
   const MAIL = "sniperdesk@proton.me", wrap = document.querySelector(".wrap");

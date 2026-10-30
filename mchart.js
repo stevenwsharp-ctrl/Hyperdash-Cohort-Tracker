@@ -291,5 +291,5 @@
     if (wrap.parentNode !== m) m.appendChild(wrap);
     const c = m.dataset.coin; if (c && c !== coin) { coin = c; B = []; sel = -1; setTool(null); lastP = NaN; legend(null); load(true); } else { biasPane(); levels(); ovDirty = true; }
   };
-  setInterval(() => { if (coin && wrap.isConnected && !loading && Date.now() - lastLoad > 12000) load(false); }, 3000);
+  setInterval(() => { if (coin && wrap.isConnected && !loading && Date.now() - lastLoad > (document.hidden ? 15000 : 4000)) load(false); }, 1000);
 })();
