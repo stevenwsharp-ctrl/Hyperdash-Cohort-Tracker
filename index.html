@@ -508,10 +508,11 @@ function contextFactors(r, MAC){
       if (Math.abs(mult - 1) >= 0.005) add("Market-maker inventory", Math.round(mult * 1000) / 1000, `Market makers are net ${M.net < 0 ? "short" : "long"} ${usd(Math.abs(M.net))} (${Math.round(M.share * 100)}% of top-holder $): customers have been net ${M.net < 0 ? "buying" : "selling"}, which ${withSmart ? "goes with" : "goes against"} the smart side. ${R && R.n >= 40 ? `Our record: price moved against market-maker inventory within 4h in ${Math.round(R.hit * 100)}% of ${R.n} checks.` : "Small weight until our own record has 40 checks."}`);
     } }
   // Signal web (web.js): once it has 100 scored snapshots, its 4h forecast nudges the rating toward or away from the smart side
-  // The influence grows with the web's own measured accuracy (no influence at 50% right, the full ±12% at 58%+).
+  // Each horizon counts by its own measured edge (hit rate − 50%), so a horizon that is no better than a coin flip has no say.
   if (window.Web) { const F = Web.forecast(r.sym || parse(r.coin).sym), st = Web.stats().hz || {};
-    if (F && F.n >= 300) { const p = 0.4 * F.ph[4] + 0.6 * F.ph[24], hit = Math.max(st[4] && st[4].hit || 0.5, st[24] && st[24].hit || 0.5), cap = Math.max(0, Math.min(0.12, (hit - 0.5) * 1.5)), e = (p - 0.5) * 2 * r.dir;
-      if (cap > 0.005 && Math.abs(e) >= 0.08) add("Signal web", Math.round((1 + cap * Math.max(-1, Math.min(1, e * 2))) * 1000) / 1000, `The learned web of all signals (both sites, ${F.n.toLocaleString()} lessons, right ${Math.round(hit * 100)}%) gives P(up) ${Math.round(F.ph[4] * 100)}% in 4h and ${Math.round(F.ph[24] * 100)}% in 24h: ${e > 0 ? "agrees with" : "goes against"} the smart side. Drivers: ${F.contrib.slice(0, 3).map(c => c.label).join(", ")}.`); } }
+    if (F && F.n >= 300) { let eff = 0; const parts = [];
+      for (const h of [4, 24]) { const hit = st[h] && st[h].hit, edge = hit && st[h].n >= 300 ? Math.max(0, Math.min(0.08, hit - 0.5)) : 0, e = (F.ph[h] - 0.5) * 2 * r.dir; eff += edge * Math.max(-1, Math.min(1, e)); if (edge) parts.push(`${h}h P(up) ${Math.round(F.ph[h] * 100)}% (web right ${Math.round(hit * 100)}%)`); }
+      if (Math.abs(eff) >= 0.005) add("Signal web", Math.round((1 + eff) * 1000) / 1000, `The learned web of all signals (both sites, ${F.n.toLocaleString()} lessons): ${parts.join(", ")}: ${eff > 0 ? "agrees with" : "goes against"} the smart side. Each horizon counts only by how much better than a coin flip it has been. Drivers: ${F.contrib.slice(0, 3).map(c => c.label).join(", ")}.`); } }
   // Spot takers on the same coin (Hyperliquid spot, live): urgent buying or selling in the last hour, vs the smart side
   if (window.SFJ && SFJ.tokens) { const sym = r.sym || parse(r.coin).sym, T = SFJ.tokens[sym] || SFJ.tokens["U" + sym];
     if (T && T.W && T.W["1h"]) { const [b, sl] = T.W["1h"], tot = b + sl; if (tot >= 200000) { const sh = (b - sl) / tot * r.dir;
