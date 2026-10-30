@@ -16,7 +16,7 @@
   let D = lsG(KEY, null); if (!D || D.v !== 1) D = { v: 1, w: {}, b: 0, n: 0, S: [], at: Date.now() };   // w: weights, S: snapshots
   // A = what has been learned, kept compact so years of history fit: per node and per pair of nodes.
   // hist = how far each past-data source has been read (so nothing is learned twice).
-  if (!D.A) D.A = { N: {}, P: {} }; if (!D.hist) D.hist = {};
+  const fix = d => { if (!d.A) d.A = { N: {}, P: {} }; if (!d.hist) d.hist = {}; return d; }; fix(D);
   const LIVE = {};                // asset -> { sig -> { v, t, label } }
   const PRICE = [];               // price functions registered by the sites
   const LABEL = lsG("web_labels", {});
@@ -39,7 +39,7 @@
   // every minute: take snapshots, score the old ones, train
   function tick() {
     // both sites write the same store: start from the newest saved copy so neither site drops the other's lessons
-    const fresh = lsG(KEY, null); if (fresh && fresh.v === 1 && fresh.at >= D.at) D = fresh;
+    const fresh = lsG(KEY, null); if (fresh && fresh.v === 1 && fresh.at >= D.at) D = fix(fresh);
     const now = Date.now(), bk = Math.floor(now / BUCKET);
     // 1. snapshot each asset once per 30 minutes
     for (const a of Object.keys(LIVE)) {
@@ -76,7 +76,7 @@
   function ingest(src, items, label) {
     const last = D.hist[src] ? D.hist[src].t : 0, L = items.filter(it => it.t > last && isFinite(it.r) && Math.abs(it.r) >= 0.001 && Object.keys(it.x).length).sort((a, b) => a.t - b.t);
     if (!L.length) return 0;
-    const fresh = lsG(KEY, null); if (fresh && fresh.v === 1 && fresh.at >= D.at) { D = fresh; if (!D.A) D.A = { N: {}, P: {} }; if (!D.hist) D.hist = {}; }
+    const fresh = lsG(KEY, null); if (fresh && fresh.v === 1 && fresh.at >= D.at) D = fix(fresh);
     L.forEach(it => { for (const k in it.x) it.x[k] = Math.round(Math.max(-1, Math.min(1, it.x[k])) * 100) / 100; learn(it.x, it.r, null, LR * 0.5); });
     D.hist[src] = { t: L[L.length - 1].t, n: (D.hist[src] ? D.hist[src].n : 0) + L.length, label: label || src, at: Date.now() };
     save(); return L.length;
