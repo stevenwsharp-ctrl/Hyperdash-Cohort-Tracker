@@ -84,7 +84,7 @@
     const rowsB = [...new Set(S.map(o => o.b))].map(b => ({ b, best: get(b, "best"), worst: get(b, "worst"), all: get(b, "all") })).filter(x => x.all && x.all.n >= 3).sort((a, b) => b.all.n - a.all.n);
     const w = o => !o || !o.n ? `<td style="color:${dim}">–</td>` : `<td style="color:${o.win >= 0.55 ? up : o.win <= 0.45 ? dn : "inherit"}">${Math.round(o.win * 100)}% <span style="color:${dim}">of ${o.n}</span></td>`;
     const losing = rowsB.filter(x => x.worst && x.worst.n >= 4 && x.worst.win < 0.45 && x.worst.avg4 < 0).sort((a, b) => a.worst.win - b.worst.win);
-    const bestUse = rowsB.filter(x => x.best && x.best.n >= 4 && x.best.win >= 0.55).sort((a, b) => b.best.win - a.best.win);
+    const bestUse = rowsB.filter(x => x.best && x.best.n >= 4 && x.best.win >= 0.55 && x.best.avg4 > 0).sort((a, b) => b.best.win - a.best.win);
     const verdict = side => { if (!N) return ""; const B = N[side].filter(b => b !== "open"); const L = B.map(b => ({ b, o: get(b, "all"), be: get(b, "best"), wo: get(b, "worst") })).filter(x => x.o && x.o.n >= 3);
       if (!L.length) return `<li>${side === "long" ? "Going long" : "Going short"} now would be "${B.map(b => NAME[b]).join(" + ")}": not enough tracked trades of this kind yet.</li>`;
       const avg = L.reduce((a, x) => a + x.o.win, 0) / L.length;
