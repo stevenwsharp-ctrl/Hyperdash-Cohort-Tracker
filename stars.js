@@ -211,7 +211,7 @@ body{padding-bottom:34px}
   const MAJOR = 5000;
   const FILLS = {};          // wallet -> { t: fetched ms, f: fills }
   const SEEN = new Set(lsG("cs_bt_seen", []));
-  let tradesBusy = false, tradesT = 0;
+  let tradesBusy = false, tradesT = 0, HOLD = 0;   // HOLD = wait time after a Hyperliquid 429
   function walletsFor(coin) {
     const X = SPEC && SPEC.m && SPEC.m[coin]; if (!X || !X.holders) return null;
     const hs = X.holders.filter(h => !h.miss);
@@ -225,15 +225,23 @@ body{padding-bottom:34px}
     if (tradesBusy) return;
     if (!force && Date.now() - tradesT < 120000) { renderTrades(); return; }
     tradesBusy = true; tradesT = Date.now();
-    const ws = new Set();
-    STARS.forEach(c => { const W = walletsFor(c); if (W) [...W.good, ...W.bad].forEach(h => ws.add(h.a)); });
+    const ws = new Set(), starWallets = new Set();
+    STARS.forEach(c => { const W = walletsFor(c); if (W) [...W.good, ...W.bad].forEach(h => { ws.add(h.a); starWallets.add(h.a); }); });
     const G = globalWallets(); [...G.good, ...G.bad].forEach(t => ws.add(t.a));   // also the overall best and worst traders, for the spot flow
     const start = Date.now() - 14 * 864e5;
+    // Hyperliquid weight: userFills costs 20 plus 1 per 20 fills returned, so a full 2,000-fill read costs about 120.
+    // First read per wallet = the newest 2,000 fills; after that only the fills since the last one (cheap).
+    let pause = 0;
     for (const a of ws) {
-      if (FILLS[a] && Date.now() - FILLS[a].t < 110000) continue;
-      // userFills = the newest 2,000 fills (userFillsByTime would return the OLDEST 2,000 from the start time for a busy trader)
-      try { const f = await post({ type: "userFills", user: a, aggregateByTime: true }); FILLS[a] = { t: Date.now(), f: Array.isArray(f) ? f.filter(x => x.time >= start) : [] }; } catch (e) { }
-      await new Promise(r => setTimeout(r, 350));   // stay well under Hyperliquid's weight limit
+      const F = FILLS[a];
+      if (F && Date.now() - F.t < (starWallets.has(a) ? 110000 : 600000)) continue;
+      if (Date.now() < HOLD) break;
+      try {
+        if (!F) { const f = await post({ type: "userFills", user: a, aggregateByTime: true }); FILLS[a] = { t: Date.now(), f: Array.isArray(f) ? f.filter(x => x.time >= start) : [] }; pause = 1500; }
+        else { const last = F.f.reduce((m, x) => Math.max(m, x.time), start); const f = await post({ type: "userFillsByTime", user: a, startTime: last + 1, aggregateByTime: true });
+          const nf = Array.isArray(f) ? f : []; F.f = F.f.concat(nf).filter(x => x.time >= start); F.t = Date.now(); pause = 400; }
+      } catch (e) { if (/429/.test(e.message)) { HOLD = Date.now() + 60000; break; } }
+      await new Promise(r => setTimeout(r, pause));
     }
     tradesBusy = false; renderTrades(true);
     loadSpot();
@@ -287,8 +295,8 @@ body{padding-bottom:34px}
     for (const X of Object.values(SPEC && SPEC.m || {})) (X.holders || []).forEach(h => { if (h.miss) return;
       const t = T[h.a] = T[h.a] || { a: h.a, lb: h.lb, coh: h.coh, q: 0, n: 0 }; t.q += h.q || 0; t.n += h.n || 0; });
     const all = Object.values(T);
-    const good = all.filter(t => GOODC.includes(t.coh) || (t.q >= 0.25 && !BADC.includes(t.coh))).sort((a, b) => b.n - a.n).slice(0, 20);
-    const bad = all.filter(t => BADC.includes(t.coh) || (t.q <= -0.25 && !GOODC.includes(t.coh))).sort((a, b) => b.n - a.n).slice(0, 20);
+    const good = all.filter(t => GOODC.includes(t.coh) || (t.q >= 0.25 && !BADC.includes(t.coh))).sort((a, b) => b.n - a.n).slice(0, 12);
+    const bad = all.filter(t => BADC.includes(t.coh) || (t.q <= -0.25 && !GOODC.includes(t.coh))).sort((a, b) => b.n - a.n).slice(0, 12);
     return { good, bad };
   }
   let SPM = null, spmT = 0;              // spot pairs: "@107" -> { base, px, ch, vol }
@@ -300,7 +308,8 @@ body{padding-bottom:34px}
       const [meta, ctxs] = await post({ type: "spotMetaAndAssetCtxs" });
       const tok = {}; meta.tokens.forEach(t => tok[t.index] = t.name);
       const m = {};
-      meta.universe.forEach((u, i) => { const c = ctxs[i] || {}; const base = tok[u.tokens[0]], quote = tok[u.tokens[1]];
+      const byCoin = {}; ctxs.forEach(c => { if (c && c.coin) byCoin[c.coin] = c; });   // match by pair name; the two arrays are not in the same order
+      meta.universe.forEach(u => { const c = byCoin[u.name] || {}; const base = tok[u.tokens[0]], quote = tok[u.tokens[1]];
         const px = +c.markPx || +c.midPx || 0, prev = +c.prevDayPx || 0;
         m[u.name] = { base, quote, px, ch: prev ? (px / prev - 1) * 100 : null, vol: +c.dayNtlVlm || 0 }; });
       SPM = m; spmT = Date.now();
@@ -314,8 +323,9 @@ body{padding-bottom:34px}
     const G = globalWallets();
     for (const t of [...G.good, ...G.bad]) {
       if (BAL[t.a] && Date.now() - BAL[t.a].t < 230000) continue;
-      try { const j = await post({ type: "spotClearinghouseState", user: t.a }); BAL[t.a] = { t: Date.now(), b: j && j.balances || [] }; } catch (e) { }
-      await new Promise(r => setTimeout(r, 200));
+      if (Date.now() < HOLD) break;
+      try { const j = await post({ type: "spotClearinghouseState", user: t.a }); BAL[t.a] = { t: Date.now(), b: j && j.balances || [] }; } catch (e) { if (/429/.test(e.message)) { HOLD = Date.now() + 60000; break; } }
+      await new Promise(r => setTimeout(r, 300));
     }
     spotBusy = false; renderSpot();
   }
