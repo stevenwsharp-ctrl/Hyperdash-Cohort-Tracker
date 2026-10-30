@@ -13,6 +13,9 @@ on:
       max_minutes:
         description: "Time budget for loading trader fills (minutes)"
         default: "110"
+      panel:
+        description: "Also save the hourly research panel (panel.json.gz)"
+        default: "1"
 
 permissions:
   contents: write
@@ -38,6 +41,7 @@ jobs:
         env:
           BT_DAYS: ${{ inputs.days || '40' }}
           BT_MAX_MIN: ${{ inputs.max_minutes || '110' }}
+          BT_PANEL: ${{ inputs.panel || '1' }}
         run: node scripts/backtest.mjs bt bt/latest.json
       - name: Push results to the backtest branch
         env:

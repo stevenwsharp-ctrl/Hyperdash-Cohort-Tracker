@@ -9,6 +9,7 @@
 // Env: BT_DAYS (default 40), BT_MAX_MIN (fills phase time budget, default 110)
 import fs from "node:fs";
 import path from "node:path";
+import zlib from "node:zlib";
 import { http } from "./lib.mjs";
 
 const OUT = process.argv[2] || "bt";
@@ -100,13 +101,14 @@ async function traderHistory(t) {
 // ---------- 3. Market data ----------
 async function hourly(name) {
   const c = await hl({ type: "candleSnapshot", req: { coin: name, interval: "1h", startTime: T0 - 8 * 24 * H, endTime: NOW + H } }, 60);
+  const hi = new Float64Array(NH + 73).fill(NaN), lo = new Float64Array(NH + 73).fill(NaN);
   const px = new Float64Array(NH + 73).fill(NaN);   // px[i] = close at time T0 + i*H (i may go to NH+72 for forward returns; future stays NaN)
   const vn = new Float64Array(NH + 73 + 168).fill(0); // $ volume, offset by 168 so the 7 days before T0 are kept
   const pc = new Float64Array(NH + 73 + 168).fill(NaN);
   const pre = [];                                    // closes before T0 (for momentum at the start)
   for (const k of Array.isArray(c) ? c : []) {
     const iEnd = Math.round((k.T + 1 - T0) / H);     // candle closes at T0 + iEnd*H
-    if (iEnd >= 0 && iEnd < px.length) px[iEnd] = +k.c; else if (iEnd < 0) pre.push([iEnd, +k.c]);
+    if (iEnd >= 0 && iEnd < px.length) { px[iEnd] = +k.c; hi[iEnd] = +k.h; lo[iEnd] = +k.l; } else if (iEnd < 0) pre.push([iEnd, +k.c]);
     const j = iEnd + 168; if (j >= 0 && j < vn.length) { vn[j] = (+k.v || 0) * (+k.c || 0); pc[j] = +k.c; }
   }
   for (let i = 1; i < px.length; i++) if (isNaN(px[i]) && !isNaN(px[i - 1]) && T0 + i * H <= NOW) px[i] = px[i - 1];
@@ -124,7 +126,7 @@ async function hourly(name) {
     while (acc < tot * 0.7 && (a > 0 || z < B - 1)) { const up = z < B - 1 ? b[z + 1] : -1, dn = a > 0 ? b[a - 1] : -1; if (up >= dn) { z++; acc += b[z]; } else { a--; acc += b[a]; } }
     val[i] = lo + a * step; vah[i] = lo + (z + 1) * step;
   }
-  return { px, pre: new Map(pre), val, vah };
+  return { px, hi, lo, vn, pre: new Map(pre), val, vah };
 }
 async function daily(name) {
   const c = await hl({ type: "candleSnapshot", req: { coin: name, interval: "1d", startTime: T0 - 400 * 24 * H, endTime: NOW + H } }, 60);
@@ -245,6 +247,17 @@ async function main() {
         if (pos > 0) { ag[g].L[i] += n; ag[g].lc[i]++; } else { ag[g].S[i] += n; ag[g].sc[i]++; }
       }
     }
+  }
+
+  // 4b. Optional hourly panel for research (BT_PANEL=1): price, high, low, $ volume, funding and cohort positions
+  if (process.env.BT_PANEL) {
+    const q = (a, n) => Array.from(a.slice(0, n), v => isFinite(v) ? +v.toPrecision(6) : null);
+    const P = { t0: T0, h: H, nh: NH, cohorts: "0 = smart (EP, VP), 1 = fools (U, VU, R), 2 = neutral (P); L/S = $ long/short, lc/sc = trader counts", m: {} };
+    for (const k of coins) { const m = M[k], g = A[k];
+      P.m[k] = { px: q(m.px, NH + 1), hi: q(m.hi, NH + 1), lo: q(m.lo, NH + 1), v: q(m.vn.slice(168), NH + 1), fr: q(m.fr, NH + 1),
+        g: g.map(a => ({ L: q(a.L, NH + 1).map(Math.round), S: q(a.S, NH + 1).map(Math.round), lc: Array.from(a.lc.slice(0, NH + 1)), sc: Array.from(a.sc.slice(0, NH + 1)) })) }; }
+    fs.writeFileSync(path.join(OUT, "panel.json.gz"), zlib.gzipSync(JSON.stringify(P)));
+    log(`Panel written: ${coins.length} coins x ${NH + 1} hours`);
   }
 
   // 5. Features per coin-hour
