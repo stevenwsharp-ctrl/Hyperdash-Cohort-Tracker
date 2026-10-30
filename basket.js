@@ -50,7 +50,7 @@
   function rebalance(idxRet, aum) { aum = aum || AUM; if (idxRet == null || !isFinite(idxRet)) return null;
     return { usd: (aum.SOXL * 6 + aum.SOXS * 12) * idxRet, soxl: aum.SOXL * 6 * idxRet, soxs: aum.SOXS * 12 * idxRet }; }
 
-  const fmtB = n => { const a = Math.abs(n); return (n < 0 ? "-$" : "$") + (a >= 1e9 ? (a / 1e9).toFixed(2) + "B" : a >= 1e6 ? (a / 1e6).toFixed(1) + "M" : a >= 1e3 ? (a / 1e3).toFixed(0) + "K" : Math.round(a)); };
+  const fmtB = n => { const a = Math.abs(n); return (n < 0 ? "-$" : "$") + (a >= 1e9 ? (a / 1e9).toFixed(2) + "B" : a >= 1e6 ? (a / 1e6).toFixed(1) + "M" : a >= 1e3 ? (a / 1e3).toFixed(1) + "K" : Math.round(a)); };
   const b100 = b => b == null ? "–" : (Math.round(b * 100) > 0 ? "+" : "") + Math.round(b * 100);
   const cl = v => v == null ? "" : v > 0 ? "bk-L" : v < 0 ? "bk-S" : "";
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
