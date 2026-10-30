@@ -11,8 +11,9 @@
   const API = "https://api.hyperliquid.xyz/info";
   const TF = { "1m": { s: 60, d: 1 }, "5m": { s: 300, d: 4 }, "15m": { s: 900, d: 10 }, "1h": { s: 3600, d: 40 }, "4h": { s: 14400, d: 150 }, "1d": { s: 86400, d: 500 } };
   const lsG = k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, lsS = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } };
-  let O = { tf: "15m", ind: { vwap: 1, vwapb: 0, ema: 1, ema50: 0, bb: 0, vol: 1, vp: 1, liq: 1, lv: 1, ev: 1, bias: 1 }, draw: {} };
-  try { const x = JSON.parse(lsG("cs_mc") || "null"); if (x) O = { ...O, ...x, ind: { ...O.ind, ...(x.ind || {}) }, draw: x.draw || {} }; } catch (e) { }
+  let O = { tf: "15m", ind: { vwap: 1, vwapb: 1, ema: 1, ema50: 0, bb: 0, vol: 1, vp: 1, liq: 1, lv: 1, ev: 1, bias: 1, rsi: 1, sess: 1, keys: 1 }, draw: {} };
+  try { const x = JSON.parse(lsG("cs_mc") || "null"); if (x) { if (!x.v2 && x.ind) { x.ind.vwapb = 1; } O = { ...O, ...x, ind: { ...O.ind, ...(x.ind || {}) }, draw: x.draw || {} }; } } catch (e) { }
+  O.v2 = 1;   // v2 = SOXX Sniper look: session shading, VWAP bands, key levels, RSI pane
   const save = () => lsS("cs_mc", JSON.stringify(O));
   const css = `
 #mcWrap{display:flex;flex-direction:column;gap:6px;margin:6px 0 12px}
@@ -23,11 +24,12 @@
 .mcbar .grp button.on{background:var(--panel);border-color:var(--accent);color:var(--accent)}
 .mcbar>button{border-color:var(--line);background:var(--panel)}
 .mcsp{flex:1}
-.mcmain{position:relative;height:460px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg)}
-.mcpane{position:relative;height:140px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg)}
+.mcmain{position:relative;height:480px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel)}
+.mcpane{position:relative;height:130px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel)}
+.mcrsi{height:110px}
 .mcfs .mcmain{flex:1;height:auto}
 .mcov{position:absolute;left:0;top:0;pointer-events:none;z-index:3}
-.mcleg{position:absolute;left:10px;top:8px;z-index:4;font:12px var(--mono);line-height:1.55;pointer-events:none;text-shadow:0 0 3px var(--bg);max-width:calc(100% - 100px)}
+.mcleg{position:absolute;left:10px;top:8px;z-index:4;font:12px var(--mono);line-height:1.55;pointer-events:none;text-shadow:0 0 3px var(--panel);max-width:calc(100% - 100px)}
 .mcleg .s{font-weight:700;font-size:13px;margin-right:6px}.mcleg .k{color:var(--dim)}
 .mcpleg{position:absolute;left:10px;top:4px;z-index:4;font:11px var(--mono);color:var(--dim);pointer-events:none}
 .mcstat{font:11px var(--mono);color:var(--dim)}
@@ -37,7 +39,7 @@
 `;
   const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
   const col = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim() || "#888";
-  const T = () => ({ bg: col("--bg"), line: col("--line"), text: col("--text"), dim: col("--dim"), up: col("--bull"), dn: col("--bear"), acc: col("--accent"), warn: col("--warn") });
+  const T = () => ({ bg: col("--panel"), vi: "#9b6bff", line: col("--line"), text: col("--text"), dim: col("--dim"), up: col("--bull"), dn: col("--bear"), acc: col("--accent"), warn: col("--warn") });
   const alpha = (c, a) => { if (c.startsWith("#") && c.length === 7) return c + Math.round(a * 255).toString(16).padStart(2, "0"); return c; };
 
   // ---------- DOM ----------
@@ -51,13 +53,15 @@
     <button id="mcInd">Indicators ▾</button><button id="mcClr" title="Remove all drawings on this market">Clear</button><button id="mcShot" title="Save a picture">Snapshot</button><button id="mcFs" title="Full screen">⤢</button>
     <span class="mcsp"></span><span class="mcstat" id="mcStat"></span></div>
   <div class="mcmain" id="mcMain"><canvas class="mcov" id="mcOv"></canvas><div class="mcleg" id="mcLeg"></div></div>
+  <div class="mcpane mcrsi" id="mcRsi"><div class="mcpleg" id="mcRLeg">RSI 14</div></div>
   <div class="mcpane" id="mcPane"><div class="mcpleg" id="mcPLeg">Smart bias · fools bias · gap (−100 short … +100 long)</div></div>
   <div class="mcmenu" id="mcMenu" hidden></div>`;
   const $m = id => wrap.querySelector("#" + id);
   const opts = main => { const t = T(); return { autoSize: true, layout: { background: { color: t.bg }, textColor: t.dim, fontFamily: "IBM Plex Mono, ui-monospace, monospace", fontSize: 11 },
-    grid: { vertLines: { color: alpha(t.line, 0.5) }, horzLines: { color: alpha(t.line, 0.5) } }, rightPriceScale: { borderColor: t.line }, crosshair: { mode: LW.CrosshairMode.Normal },
+    rightPriceScale: { borderColor: t.line, minimumWidth: 72 },
+    grid: { vertLines: { color: alpha(t.line, 0.5) }, horzLines: { color: alpha(t.line, 0.5) } }, crosshair: { mode: LW.CrosshairMode.Normal },
     timeScale: { borderColor: t.line, timeVisible: true, secondsVisible: false, visible: main ? true : true }, handleScroll: true, handleScale: true }; };
-  const chart = LW.createChart($m("mcMain"), opts(true)), pane = LW.createChart($m("mcPane"), opts(false));
+  const chart = LW.createChart($m("mcMain"), opts(true)), pane = LW.createChart($m("mcPane"), opts(false)), rpane = LW.createChart($m("mcRsi"), opts(false));
   const S = {};
   function build() {
     const t = T();
@@ -65,19 +69,29 @@
     S.v = chart.addHistogramSeries({ priceScaleId: "vol", priceFormat: { type: "volume" }, lastValueVisible: false, priceLineVisible: false });
     chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     S.e9 = chart.addLineSeries({ color: t.acc, lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
-    S.e21 = chart.addLineSeries({ color: "#c58af0", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+    S.e21 = chart.addLineSeries({ color: t.vi, lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
     S.e50 = chart.addLineSeries({ color: "#22c3e6", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
     S.bu = chart.addLineSeries({ color: alpha(t.dim, 0.6), lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
     S.bl = chart.addLineSeries({ color: alpha(t.dim, 0.6), lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
     S.sm = pane.addLineSeries({ color: t.acc, lineWidth: 2, priceLineVisible: false, title: "smart" });
     S.fo = pane.addLineSeries({ color: t.warn, lineWidth: 2, priceLineVisible: false, title: "fools" });
     S.gp = pane.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false });
+    S.rsi = rpane.addLineSeries({ color: t.vi, lineWidth: 2, priceLineVisible: false });
+    S.rsi.createPriceLine({ price: 70, color: t.dn, lineStyle: 2, lineWidth: 1, axisLabelVisible: false });
+    S.rsi.createPriceLine({ price: 30, color: t.up, lineStyle: 2, lineWidth: 1, axisLabelVisible: false });
   }
   build();
   // keep the two time scales together
   let syncing = false;
-  chart.timeScale().subscribeVisibleTimeRangeChange(r => { if (syncing || !r) return; syncing = true; try { pane.timeScale().setVisibleRange(r); } catch (e) { } syncing = false; ovDirty = true; });
+  chart.timeScale().subscribeVisibleTimeRangeChange(r => { if (syncing || !r) return; syncing = true; try { pane.timeScale().setVisibleRange(r); } catch (e) { } try { const lr = chart.timeScale().getVisibleLogicalRange(); if (lr) rpane.timeScale().setVisibleLogicalRange(lr); } catch (e) { } syncing = false; ovDirty = true; });
   pane.timeScale().subscribeVisibleTimeRangeChange(r => { if (syncing || !r) return; syncing = true; try { chart.timeScale().setVisibleRange(r); } catch (e) { } syncing = false; });
+  rpane.timeScale().subscribeVisibleLogicalRangeChange(r => { if (syncing || !r) return; syncing = true; try { chart.timeScale().setVisibleLogicalRange(r); } catch (e) { } syncing = false; });
+  // US Eastern time (sessions of stock perps): date and minute of day, cached per hour
+  const etF = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", weekday: "short", hourCycle: "h23" }), etC = new Map();
+  function etInfo(ms) { const hk = Math.floor(ms / 36e5); let o = etC.get(hk);
+    if (!o) { const p = {}; etF.formatToParts(new Date(hk * 36e5)).forEach(x => p[x.type] = x.value); o = { d: `${p.year}-${p.month}-${p.day}`, h: +p.hour, wd: p.weekday }; etC.set(hk, o); if (etC.size > 5000) etC.clear(); }
+    const m = Math.floor((ms % 36e5) / 6e4); return { d: o.d, min: o.h * 60 + m, wk: o.wd === "Sat" || o.wd === "Sun" }; }
+  const isEq = () => { const r = rowOf(); return !!(coin && coin.includes(":") && (!r || ["Stock", "ETF", "Index"].includes(r.cls))); };
 
   // ---------- data ----------
   let coin = null, B = [], loading = false, lastLoad = 0, err = "", ovDirty = true, tool = null, pend = null, sel = -1, plines = [], lastP = NaN;
@@ -105,9 +119,13 @@
     IND.bm = c.map((_, i) => i >= 19 ? c.slice(i - 19, i + 1).reduce((a, x) => a + x, 0) / 20 : NaN);
     IND.bd = c.map((_, i) => { if (i < 19) return NaN; const s = c.slice(i - 19, i + 1), m = IND.bm[i]; return Math.sqrt(s.reduce((a, x) => a + (x - m) ** 2, 0) / 20); });
     // VWAP: resets each UTC day (Hyperliquid trades 24/7)
-    const vm = [], vs = []; let pv = 0, vv = 0, p2 = 0, day = -1;
-    B.forEach(b => { const d = Math.floor(b.t / 86400000); if (d !== day) { day = d; pv = vv = p2 = 0; } const tp = (b.h + b.l + b.c) / 3, v = Math.max(b.v, 1e-9); pv += tp * v; vv += v; p2 += tp * tp * v; const m = pv / vv; vm.push(m); vs.push(Math.sqrt(Math.max(0, p2 / vv - m * m))); });
-    IND.vm = vm; IND.vs = vs;
+    const vm = [], vs = [], vd = [], eq = isEq(); let pv = 0, vv = 0, p2 = 0, day = -1;
+    B.forEach(b => { const d = eq ? etInfo(b.t).d : Math.floor(b.t / 86400000); vd.push(d); if (d !== day) { day = d; pv = vv = p2 = 0; } const tp = (b.h + b.l + b.c) / 3, v = Math.max(b.v, 1e-9); pv += tp * v; vv += v; p2 += tp * tp * v; const m = pv / vv; vm.push(m); vs.push(Math.sqrt(Math.max(0, p2 / vv - m * m))); });
+    IND.vm = vm; IND.vs = vs; IND.vd = vd;
+    // RSI 14 (Wilder)
+    const rs = []; let up = 0, dn = 0; for (let i = 0; i < c.length; i++) { if (!i) { rs.push(NaN); continue; } const d = c[i] - c[i - 1];
+      if (i <= 14) { up += Math.max(d, 0) / 14; dn += Math.max(-d, 0) / 14; rs.push(i === 14 ? 100 - 100 / (1 + up / (dn || 1e-9)) : NaN); continue; }
+      up = (up * 13 + Math.max(d, 0)) / 14; dn = (dn * 13 + Math.max(-d, 0)) / 14; rs.push(100 - 100 / (1 + up / (dn || 1e-9))); } IND.rsi = rs;
   }
   const line = (arr) => B.map((b, i) => isFinite(arr[i]) ? { time: tsec(b.t), value: arr[i] } : { time: tsec(b.t) });
   function update(fit) {
@@ -116,6 +134,8 @@
     S.v.setData(O.ind.vol ? B.map(b => ({ time: tsec(b.t), value: b.v, color: b.c >= b.o ? alpha(t.up, 0.35) : alpha(t.dn, 0.35) })) : []);
     S.e9.setData(O.ind.ema ? line(IND.e9) : []); S.e21.setData(O.ind.ema ? line(IND.e21) : []); S.e50.setData(O.ind.ema50 ? line(IND.e50) : []);
     S.bu.setData(O.ind.bb ? line(IND.bm.map((m, i) => m + 2 * IND.bd[i])) : []); S.bl.setData(O.ind.bb ? line(IND.bm.map((m, i) => m - 2 * IND.bd[i])) : []);
+    $m("mcRsi").style.display = O.ind.rsi ? "" : "none"; S.rsi.setData(O.ind.rsi ? line(IND.rsi) : []);
+    if (O.ind.rsi) $m("mcRLeg").textContent = `RSI 14  ${isFinite(IND.rsi[IND.rsi.length - 1]) ? IND.rsi[IND.rsi.length - 1].toFixed(1) : "--"}`;
     biasPane(); markers(); levels();
     if (fit) { chart.timeScale().fitContent(); const n = B.length; if (n > 160) chart.timeScale().setVisibleLogicalRange({ from: n - 160, to: n + 6 }); }
     legend(null); ovDirty = true; checkAlerts();
@@ -154,6 +174,15 @@
       if (o && o.maxPain && o.price && px) add(px * o.maxPain / o.price, "#c58af0", `Opt. max pain (${o.s})`, 1);
     }
     if (O.ind.vwap && IND.vm && IND.vm.length) add(IND.vm[IND.vm.length - 1], t.warn, "VWAP", 0);
+    // SOXX Sniper key levels for stock perps: prior regular session high / low / close, today's pre-market high / low
+    if (O.ind.keys && isEq() && B.length && TF[O.tf].s <= 3600) {
+      const E = B.map(b => ({ b, e: etInfo(b.t) })), today = E[E.length - 1].e.d;
+      const reg = E.filter(x => !x.e.wk && x.e.min >= 570 && x.e.min < 960), days = [...new Set(reg.map(x => x.e.d))].filter(d => d < today || E[E.length - 1].e.min >= 960);
+      const pdD = days.filter(d => d < today).pop() || (E[E.length - 1].e.min >= 960 ? null : null);
+      if (pdD) { const pd = reg.filter(x => x.e.d === pdD).map(x => x.b); if (pd.length) { add(Math.max(...pd.map(x => x.h)), t.dim, "PDH", 2); add(Math.min(...pd.map(x => x.l)), t.dim, "PDL", 2); add(pd[pd.length - 1].c, alpha(t.dim, 0.8), "Prev close", 1); } }
+      const pm = E.filter(x => x.e.d === today && x.e.min >= 240 && x.e.min < 570).map(x => x.b);
+      if (pm.length) { add(Math.max(...pm.map(x => x.h)), t.warn, "PM high", 3); add(Math.min(...pm.map(x => x.l)), t.warn, "PM low", 3); }
+    }
     drawings().forEach(d => { if (d.type === "hline" || d.type === "alert") add(d.p1.p, d.type === "alert" ? t.warn : t.acc, d.type === "alert" ? "🔔" : "", 0, sel >= 0 && drawings()[sel] === d ? 3 : 1); });
   }
   const fp = v => !isFinite(v) ? "--" : typeof price === "function" ? price(v) : v.toFixed(v >= 100 ? 2 : 4);
@@ -236,10 +265,15 @@
     const g = ov.getContext("2d"), t = T(); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h); if (!B.length) return;
     const ts = chart.timeScale(), vr = ts.getVisibleLogicalRange(); if (!vr) return; const bs = ts.options().barSpacing || 6, i0 = Math.max(0, Math.floor(vr.from)), i1 = Math.min(B.length - 1, Math.ceil(vr.to));
     g.font = "10px IBM Plex Mono, monospace";
+    // session shading (stock perps): pre-market, after-hours and overnight in amber, weekends darker
+    if (O.ind.sess && isEq() && TF[O.tf].s <= 3600) {
+      for (let i = i0; i <= i1; i++) { const e = etInfo(B[i].t); if (e.wk || e.min < 570 || e.min >= 960) { const x = ts.logicalToCoordinate(i); if (x == null) continue;
+        g.fillStyle = alpha(t.warn, e.wk ? 0.1 : e.min < 240 || e.min >= 1200 ? 0.08 : 0.05); g.fillRect(x - bs / 2, 0, bs + 0.5, h); } }
+    }
     // VWAP and bands
     if (O.ind.vwap || O.ind.vwapb) { const L = []; if (O.ind.vwapb) [[2, 0.3], [1, 0.5], [-1, 0.5], [-2, 0.3]].forEach(([m, a]) => L.push({ m, a, w: 1, d: [4, 3] })); if (O.ind.vwap) L.push({ m: 0, a: 1, w: 2, d: [] });
       L.forEach(Ln => { g.strokeStyle = alpha(t.warn, Ln.a); g.lineWidth = Ln.w; g.setLineDash(Ln.d); g.beginPath(); let on = false, day = -1;
-        for (let i = Math.max(0, i0 - 1); i <= i1; i++) { const dd = Math.floor(B[i].t / 86400000), v = IND.vm[i] + Ln.m * IND.vs[i], x = ts.logicalToCoordinate(i), y = Y(v); if (x == null || y == null) { on = false; continue; } if (!on || dd !== day) { g.moveTo(x, y); on = true; day = dd; } else g.lineTo(x, y); }
+        for (let i = Math.max(0, i0 - 1); i <= i1; i++) { const dd = IND.vd ? IND.vd[i] : Math.floor(B[i].t / 86400000), v = IND.vm[i] + Ln.m * IND.vs[i], x = ts.logicalToCoordinate(i), y = Y(v); if (x == null || y == null) { on = false; continue; } if (!on || dd !== day) { g.moveTo(x, y); on = true; day = dd; } else g.lineTo(x, y); }
         g.stroke(); g.setLineDash([]); }); }
     // liquidation map: side bars at the left edge
     const r = rowOf(), L = r && r.fl && r.fl.liq, px = r && r.ctx && r.ctx.px;
@@ -281,7 +315,7 @@
   new ResizeObserver(() => { ovDirty = true; }).observe($m("mcMain"));
 
   // ---------- controls ----------
-  const IND_LIST = [["vwap", "VWAP"], ["vwapb", "VWAP ±1σ / ±2σ bands"], ["ema", "EMA 9 / 21"], ["ema50", "EMA 50"], ["bb", "Bollinger 20 / 2"], ["vol", "Volume"], ["vp", "Volume profile (visible range)"], ["liq", "Liquidation map (side bars)"], ["lv", "Max pain, POC / value area, options max pain"], ["ev", "Smart-money events (exit, flip, fade, add)"], ["bias", "Smart vs fools bias pane"]];
+  const IND_LIST = [["vwap", "VWAP"], ["vwapb", "VWAP ±1σ / ±2σ bands"], ["ema", "EMA 9 / 21"], ["ema50", "EMA 50"], ["bb", "Bollinger 20 / 2"], ["vol", "Volume"], ["vp", "Volume profile (visible range)"], ["liq", "Liquidation map (side bars)"], ["lv", "Max pain, POC / value area, options max pain"], ["ev", "Smart-money events (exit, flip, fade, add)"], ["bias", "Smart vs fools bias pane"], ["rsi", "RSI 14 pane"], ["sess", "Session shading (stock perps)"], ["keys", "Prev close, PDH / PDL, pre-market high / low"]];
   function syncUi() { wrap.querySelectorAll("#mcTf [data-tf]").forEach(b => b.classList.toggle("on", b.dataset.tf === O.tf)); $m("mcMenu").innerHTML = IND_LIST.map(([k, l]) => `<label><input type="checkbox" data-ind="${k}" ${O.ind[k] ? "checked" : ""}> ${l}</label>`).join(""); }
   syncUi();
   $m("mcTf").addEventListener("click", e => { const b = e.target.closest("[data-tf]"); if (!b) return; O.tf = b.dataset.tf; save(); syncUi(); B = []; load(true); });
@@ -297,11 +331,11 @@
   document.addEventListener("keydown", e => { if (!wrap.isConnected || e.target.closest && e.target.closest("input,select,textarea")) return;
     if (e.key === "Escape") { if (tool || pend) setTool(null); else if (wrap.classList.contains("mcfs")) $m("mcFs").click(); ovDirty = true; }
     if ((e.key === "Delete" || e.key === "Backspace") && sel >= 0) { drawings().splice(sel, 1); sel = -1; save(); levels(); ovDirty = true; e.preventDefault(); } });
-  new MutationObserver(() => { chart.applyOptions(opts(true)); pane.applyOptions(opts(false)); const t = T(); S.c.applyOptions({ upColor: t.up, downColor: t.dn, borderUpColor: t.up, borderDownColor: t.dn, wickUpColor: t.up, wickDownColor: t.dn }); update(false); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  new MutationObserver(() => { chart.applyOptions(opts(true)); pane.applyOptions(opts(false)); rpane.applyOptions(opts(false)); const t = T(); S.c.applyOptions({ upColor: t.up, downColor: t.dn, borderUpColor: t.up, borderDownColor: t.dn, wickUpColor: t.up, wickDownColor: t.dn }); update(false); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   // ---------- attach to the open market (the list re-renders often: move the same chart into the new mount) ----------
   window.mcAttach = function () {
-    const m = document.querySelector(".mcMount"); if (!m) { if (wrap.isConnected && !wrap.classList.contains("mcfs")) wrap.remove(); return; }
+    const m = [...document.querySelectorAll(".mcMount")].find(x => x.offsetParent !== null) || null; if (!m) { if (wrap.isConnected && !wrap.classList.contains("mcfs")) wrap.remove(); return; }
     if (wrap.parentNode !== m) m.appendChild(wrap);
     const c = m.dataset.coin; if (c && c !== coin) { coin = c; B = []; sel = -1; setTool(null); lastP = NaN; legend(null); load(true); } else { biasPane(); levels(); ovDirty = true; }
   };

@@ -124,7 +124,7 @@ body{padding-bottom:34px}
   const tb = document.createElement("button"); tb.className = "tab"; tb.dataset.tab = "starred";
   tabs.insertBefore(tb, tabs.children[1] || null);
   const sec = document.createElement("section"); sec.id = "v-starred"; sec.hidden = true;
-  sec.innerHTML = `<div id="stMk"></div><div id="stSheet"></div><h3 style="margin:16px 0 0">Big trades on your starred markets · best vs worst traders</h3><div class="note" id="stBtNote" style="max-width:none"></div><div class="bt-grid" id="stBt"></div><h3 style="margin:18px 0 0">ETF lens · SOXX / SOXL / SOXS semis basket, smart vs fools on the holdings</h3><div id="stBk" class="card" style="padding:10px 12px;margin-top:8px"></div>
+  sec.innerHTML = `<div id="stMk"></div><div id="stSheet"></div><div id="stChart" style="margin-top:12px"></div><h3 style="margin:16px 0 0">Big trades on your starred markets · best vs worst traders</h3><div class="note" id="stBtNote" style="max-width:none"></div><div class="bt-grid" id="stBt"></div><h3 style="margin:18px 0 0">ETF lens · SOXX / SOXL / SOXS semis basket, smart vs fools on the holdings</h3><div id="stBk" class="card" style="padding:10px 12px;margin-top:8px"></div>
   <h3 style="margin:18px 0 0">Nightly rebalance · market makers · after-hours</h3><div id="stRb" class="card" style="padding:10px 12px;margin-top:8px"></div>
   <h3 style="margin:18px 0 0">Spot · what the best and worst traders buy, sell and hold</h3><div class="note" id="spNote" style="max-width:none"></div><div id="spBody"></div>`;
   document.getElementById("v-setups").after(sec);
@@ -189,7 +189,19 @@ body{padding-bottom:34px}
       r.earn != null ? `<span class="${r.earn >= 0 ? "L" : "S"}">${sg(Math.round(r.earn))}%</span>` : "–", usd(r.sm.n), fl, tw,
       r.er ? new Date(r.er.d + "T12:00:00Z").toLocaleDateString([], { month: "short", day: "numeric" }) : "–", n24.length ? `${n24.length}${nb ? ` (${nb} big)` : ""}` : "–"];
   }
-  let SEL = null;
+  let SEL = null, CH = lsG("cs_star_chart", null);
+  // one live chart (the same pro chart as on Setups) for the chosen starred market; chips switch it
+  function renderChart() {
+    const el = document.getElementById("stChart"); if (!el) return;
+    if (!STARS.length) { el.innerHTML = ""; return; }
+    if (!STARS.includes(CH)) CH = STARS[0];
+    let chips = el.querySelector(".stchips");
+    if (!chips) { el.innerHTML = `<div class="stchips" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:4px"></div><div class="stmount"></div>`; chips = el.querySelector(".stchips"); }
+    chips.innerHTML = `<b style="font:600 12px var(--sans);margin-right:6px">Chart</b>` + STARS.map(c => `<button class="wbtn ${c === CH ? "on" : ""}" data-chart="${esc(c)}">${esc(parse(c).sym)}</button>`).join("");
+    const mt = el.querySelector(".stmount"); if (!mt.firstElementChild || mt.firstElementChild.dataset.coin !== CH) mt.innerHTML = `<div class="mcMount" data-coin="${esc(CH)}"></div>`;
+    try { window.mcAttach && mcAttach(); } catch (e) { }
+  }
+  document.addEventListener("click", e => { const b = e.target.closest("[data-chart]"); if (!b) return; CH = b.dataset.chart; lsS("cs_star_chart", CH); renderChart(); });
   function renderStarred() {
     if (VIEW !== "starred") return;
     try { if (typeof computeRanks === "function") computeRanks(filtered()); } catch (e) { }   // ranks in the Setups filter
@@ -197,14 +209,15 @@ body{padding-bottom:34px}
     const el = document.getElementById("stSheet");
     if (!STARS.length) { el.innerHTML = `<div class="empty">No starred markets yet. Click ☆ next to a market on the Setups sheet to add it here.</div>`; document.getElementById("stBt").innerHTML = ""; document.getElementById("stBtNote").textContent = ""; return; }
     const body = STARS.map((c, i) => `<tr data-go="${esc(c)}"><td class="rn">${i + 2}</td>${cells(c).map((v, j) => `<td class="${j <= 1 || j >= 15 ? "tl" : ""}" data-c="${L(j + 1)}${i + 2}">${v}</td>`).join("")}</tr>`).join("");
-    el.innerHTML = `<div class="xlbar"><i>fx</i><span id="xlSel">${SEL ? esc(SEL) : "Click a cell · double-click a row to open the market"}</span></div><div class="xlwrap"><table class="xl"><thead><tr class="let"><th class="rn"></th>${COLS.map((_, j) => `<th>${L(j + 1)}</th>`).join("")}</tr><tr class="nm"><th class="rn">1</th>${COLS.map(c => `<th>${c}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
+    el.innerHTML = `<div class="xlbar"><i>fx</i><span id="xlSel">${SEL ? esc(SEL) : "Click a row to chart it · double-click to open the market"}</span></div><div class="xlwrap"><table class="xl"><thead><tr class="let"><th class="rn"></th>${COLS.map((_, j) => `<th>${L(j + 1)}</th>`).join("")}</tr><tr class="nm"><th class="rn">1</th>${COLS.map(c => `<th>${c}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
     tagTips(el);
-    renderTrades(); renderLens();
+    renderChart(); renderTrades(); renderLens();
   }
   document.addEventListener("click", e => {
     const td = e.target.closest(".xl tbody td"); if (!td || e.target.closest("[data-star]")) return;
     document.querySelectorAll(".xl td.cell-sel").forEach(x => x.classList.remove("cell-sel")); td.classList.add("cell-sel");
     SEL = `${td.dataset.c || ""}  ${td.textContent.trim()}`; const s = document.getElementById("xlSel"); if (s) s.textContent = SEL;
+    const tr = td.closest("tr[data-go]"); if (tr && tr.dataset.go !== CH) { CH = tr.dataset.go; lsS("cs_star_chart", CH); renderChart(); }
   });
   document.addEventListener("dblclick", e => { const tr = e.target.closest(".xl tbody tr[data-go]"); if (tr) gotoCoin(tr.dataset.go); });
 
