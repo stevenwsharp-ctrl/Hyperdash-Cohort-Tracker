@@ -690,6 +690,14 @@ body{padding-bottom:34px}
     return out; };
   setInterval(() => { try { rateLearn(); } catch (e) { } }, 60000); setTimeout(() => { try { rateLearn(); } catch (e) { } }, 20000);
   // spot flow for the rating (live Hyperliquid spot takers)
+  // for crowd.js (coordination study): fills of the best and worst holders of each starred market, one item per order
+  window.csTrades = () => { const out = [];
+    STARS.forEach(c => { const W = walletsFor(c); if (!W) return; const want = hlName(c).toLowerCase();
+      [["best", W.good], ["worst", W.bad]].forEach(([g, hs]) => hs.forEach(h => { const F = FILLS[h.a]; if (!F) return; const by = {};
+        F.f.forEach(x => { if (String(x.coin).toLowerCase() !== want) return; const k = x.oid + "|" + x.dir, o = by[k] = by[k] || { t: 0, usd: 0, dir: x.dir || "" }; o.t = Math.max(o.t, x.time); o.usd += +x.sz * +x.px; });
+        Object.values(by).forEach(o => { const entry = /Open|>/.test(o.dir), side = /Long > Short/.test(o.dir) ? -1 : /Short > Long/.test(o.dir) ? 1 : /Long/.test(o.dir) ? 1 : -1;
+          if (/Long|Short/.test(o.dir)) out.push({ t: o.t, a: h.a, g, d: entry ? side : -side, usd: o.usd, c, mm: isMM(h) }); }); })); });
+    return out; };
   const sfLoad = async () => { try { if (window.SpotFlow) window.SFJ = await SpotFlow.load(); } catch (e) { } };
   sfLoad(); setInterval(sfLoad, 2 * 6e4);
 
