@@ -45,6 +45,26 @@ for (const [a] of LIST) {
   const o = S.open[a]; if (o && Date.now() - o[6] > GAP) { S.moves.push(o.slice(0, 6)); delete S.open[a]; added++; }
   await sleep(300);
 }
+// Hyperdash records per market (all-time, every market incl. SOXL) and the overall win rate: the "Win (all)" numbers.
+// Reuse the specialists cache (spcache.json) when fresh; else ask Hyperdash for up to 4 wallets per run (it limits these calls).
+const gql = (query, variables) => http("https://api.hyperdash.com/graphql", { method: "POST", tries: 2, timeoutMs: 20000,
+  headers: { "content-type": "application/json", origin: "https://hyperdash.com", referer: "https://hyperdash.com/" }, body: JSON.stringify({ query, variables }) })
+  .then(j => { if (j.errors) throw new Error(j.errors[0].message); return j.data; });
+S.st = S.st || {};
+try { const SPC = io.read("spcache.json", {}); let calls = 0;
+  for (const [a] of LIST) { const c = SPC[a], mine = S.st[a];
+    if (c && c.s && Date.now() - c.t < 24 * 36e5 && (!mine || c.t > mine.t)) { S.st[a] = { t: c.t, s: c.s }; ovChanged = true; continue; }
+    if (mine && Date.now() - mine.t < 24 * 36e5) continue; if (calls >= 4) continue; calls++;
+    try { const st = (await gql(`query($a:String!){getTraderStatsPerAsset(address:$a){coin netPnl numberOfTrades winningTrades losingTrades volume}}`, { a })).getTraderStatsPerAsset || [];
+      const o = {}; for (const x of st) o[x.coin] = [x.winningTrades || 0, x.losingTrades || 0, Math.round(+x.netPnl || 0), Math.round(+x.volume || 0)];
+      S.st[a] = { t: Date.now(), s: o }; ovChanged = true; } catch (e) { console.log("whalelog stats", a.slice(0, 8), e.message); if (/too many/i.test(e.message)) break; }
+    await sleep(500); }
+  const tr = (await gql(`query($a:[String!]!){getTraders(addresses:$a){address pnl pnlCohort winrate totalTrades}}`, { a: LIST.map(x => x[0]) })).getTraders || [];
+  tr.forEach(t => { const ov = S.ov[t.address]; if (ov && t.winrate != null) { const hd = { wr: Math.round(+t.winrate * 10) / 10, tt: +t.totalTrades || 0, coh: t.pnlCohort || "" }; if (JSON.stringify(ov.hd) !== JSON.stringify(hd)) { ov.hd = hd; ovChanged = true; } } });
+} catch (e) { console.log("whalelog hyperdash", e.message); }
+// the all-markets record from the per-market stats (SOXL included)
+for (const [a] of LIST) { const x = S.st[a], ov = S.ov[a]; if (!x || !ov) continue; let w = 0, l = 0, p = 0; Object.values(x.s).forEach(v => { w += v[0]; l += v[1]; p += v[2]; });
+  const soxl = x.s[COIN] || [0, 0, 0]; ov.all = { w, l, n: w + l, wr: w + l ? Math.round(w / (w + l) * 1000) / 10 : null, pnl: p, mk: Object.keys(x.s).length, soxl: [soxl[0], soxl[1]], t: x.t }; }
 S.moves = S.moves.filter(m => Date.now() - m[0] < KEEP).sort((p, q) => p[0] - q[0]).map(m => [m[0], m[1], m[2], m[3], +(+m[4]).toPrecision(6), Math.round(m[5])]);
 if (S.moves.length > 40000) S.moves = S.moves.slice(-40000);
 S.at = Date.now(); io.write("whalelog.json", S);
