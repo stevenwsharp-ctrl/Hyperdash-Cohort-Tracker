@@ -1693,7 +1693,7 @@ async function livePrices(){
       const name0 = u.name.includes(":") ? u.name.split(":")[0].toUpperCase() + ":" + u.name.split(":").slice(1).join(":") : u.name;
       const name = name0.toUpperCase() === name0 ? name0 : name0.toUpperCase(); // Hyperdash uses KBONK, Hyperliquid kBONK
       const px = +c.markPx || +c.oraclePx || 0, prev = +c.prevDayPx || 0;
-      out[name] = { px, ch: prev ? Math.round((px / prev - 1) * 10000) / 100 : null, f: +c.funding || 0, oi: Math.round((+c.openInterest || 0) * px), v: Math.round(+c.dayNtlVlm || 0) };
+      out[name] = { px, o: +c.oraclePx || 0, ch: prev ? Math.round((px / prev - 1) * 10000) / 100 : null, f: +c.funding || 0, oi: Math.round((+c.openInterest || 0) * px), v: Math.round(+c.dayNtlVlm || 0) };
     }); });
     if (Object.keys(out).length) { LIVE = out; LIVE_T = Date.now(); if (VIEW === "setups") render(); renderStat(); }
   } catch {}
@@ -1793,7 +1793,8 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) { re
 <script src="tax.js?v=1"></script>
 <script src="link.js?v=3"></script>
 <script src="rhythm.js?v=2"></script>
-<script src="crowd.js?v=3"></script>
+<script src="venues.js?v=1"></script>
+<script src="crowd.js?v=4"></script>
 <script>(function(){const r0=render;render=function(){const x=r0.apply(this,arguments);try{window.mcAttach&&mcAttach()}catch(e){}return x};try{window.mcAttach&&mcAttach()}catch(e){}})();</script>
 <script src="site.js?v=4"></script>
 </body>
