@@ -70,6 +70,19 @@
     const med = v[v.length >> 1], up = v.filter(x => x >= 5).length / v.length, dn = v.filter(x => x <= -5).length / v.length;
     return { ch, med, up, dn, n: v.length };
   }
+  // ---- rhythm (rhythm.js): hourly bars, 60 days, for the starred markets and the 12 top setups; 2 markets per minute ----
+  const RHY = {}; let rhyBusy = false;
+  async function rhyLoad() {
+    if (rhyBusy || !window.Rhythm || document.hidden) return; rhyBusy = true;
+    try { let st = []; try { st = JSON.parse(localStorage.getItem("cs_stars") || "[]"); } catch (e) { }
+      const want = [...new Set(st.concat(ROWS.slice().sort((a, b) => b.rating - a.rating).slice(0, 12).map(r => r.coin)))];
+      const due = want.filter(c => !RHY[c] || Date.now() - RHY[c].t > 30 * 6e4).sort((a, b) => ((RHY[a] || {}).t || 0) - ((RHY[b] || {}).t || 0)).slice(0, 2);
+      for (const c of due) { try { const r = await fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: hlName(c), interval: "1h", startTime: Date.now() - 60 * 864e5, endTime: Date.now() } }) });
+          if (r.status === 429) break; const k = r.ok ? await r.json() : null; if (Array.isArray(k) && k.length >= 80) RHY[c] = { t: Date.now(), R: Rhythm.analyze(k.map(b => [b.t, +b.o, +b.h, +b.l, +b.c]), { win: 400 }) }; else RHY[c] = { t: Date.now(), R: null }; } catch (e) { }
+        await new Promise(r => setTimeout(r, 1500)); }
+    } catch (e) { } rhyBusy = false;
+  }
+  window.csRhythm = () => RHY;
   let lastT = 0;
   function feed() {
     if (!window.Web || !ROWS || !ROWS.length || Date.now() - lastT < 60000) return; lastT = Date.now();
@@ -108,6 +121,8 @@
         const id = SW.ch[r.coin] - SW.med; if (Math.abs(id) >= 8) L.push(["sync.idio", c1(id / 25), "Coordination · smart cohort moves in this market alone"]); }
       const lv = Y && Sync.live(Y, r.coin, 2 * 36e5);
       if (lv) { if (lv.best) L.push(["sync.best", lv.best, "Coordination · best holders moved together"]); if (lv.worst) L.push(["sync.worst", lv.worst, "Coordination · worst holders moved together"]); if (lv.leader) L.push(["sync.leader", lv.leader, "Coordination · a leader wallet moved first"]); }
+      // rhythm
+      const RH = RHY[r.coin] && RHY[r.coin].R; if (RH) [["trend", "Rhythm · path memory (trend or snap-back)"], ["hour", "Rhythm · this hour of the day, history"], ["cycle", "Rhythm · repeating cycle"], ["fib", "Rhythm · Fibonacci level (back-tested)"], ["home", "Rhythm · pull back home (vs chance)"], ["flow", "Rhythm · poetry in motion (smooth trend)"]].forEach(([k, lab]) => { const v = RH.sig[k]; if (v) L.push(["rhy." + k, v, lab]); });
       L.forEach(([id, v, lab]) => { if (isFinite(v) && v) Web.emit(id, a, c1(v), lab); });
       const ps = L.filter(x => /^psy\./.test(x[0]) && Math.abs(x[1]) >= 0.2); if (ps.length) out.push({ r, ps });
       const ls = L.filter(x => /^(ent|sync)\./.test(x[0]) && Math.abs(x[1]) >= 0.2); if (ls.length) lnk.push({ r, ps: ls, why: [].concat(s ? s.why : [], lv ? lv.why : []) });
@@ -134,8 +149,13 @@
       <div class="wl2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px"><div class="card" style="padding:6px 10px;overflow-x:auto"><b>Coupling map ("entanglement")</b>${Ent.html(C.E, sym)}</div>
       <div class="card" style="padding:6px 10px;overflow-x:auto"><b>Coordination · best and worst holders of your starred markets</b>${Sync.html(C.Y, { showC: true, usd: v => "$" + (v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : (v / 1e3).toFixed(1) + "K") })}${!C.Y ? `<div class="note">Star a few markets: the study uses their holders' fills.</div>` : ""}</div></div>
       <div class="card" style="padding:6px 10px;overflow-x:auto;margin-top:8px"><b>Markets, sectors, industries, size and age · what moves together and what does not</b>${Ent.groupHtml(C.E, sym)}</div>
+      ${(() => { const E = Object.entries(RHY).filter(([, v]) => v.R).map(([c, v]) => ({ c, R: v.R })); if (!E.length) return `<h3 style="margin-top:14px">Rhythm · randomness, regularity, Fibonacci, music and flow</h3><div class="note">Loading hourly bars for your starred markets and the top setups (2 markets a minute).</div>`;
+        const sum = R => Object.values(R.sig).reduce((a, v) => a + (v || 0), 0), pick = (localStorage.getItem("cs_rhy_pick") && E.find(x => x.c === localStorage.getItem("cs_rhy_pick"))) || E[0];
+        return `<h3 style="margin-top:14px">Rhythm · randomness, regularity, Fibonacci, music and flow</h3><div class="card" style="padding:6px 10px;overflow-x:auto"><table class="tr"><thead><tr><th style="text-align:left">Market</th><th style="text-align:left">Randomness</th><th style="text-align:left">Flow</th><th style="text-align:left">Fibonacci</th><th style="text-align:left">Music</th><th>Lean</th></tr></thead><tbody>${E.map(({ c, R }) => `<tr data-rhy="${esc(c)}" style="cursor:pointer${c === pick.c ? ";background:var(--hover,rgba(127,127,127,.08))" : ""}"><td style="text-align:left">${esc(sym(c))}</td><td style="text-align:left">${esc(R.rand.label.split(":")[0])}</td><td style="text-align:left">${esc(R.flow.label.split(":")[0])}${R.flow.dir ? (R.flow.dir > 0 ? " ▲" : " ▼") : ""}</td><td style="text-align:left">${R.fib ? `${R.fib.x != null ? Math.round(R.fib.x * 100) + "%" : "–"}${R.fib.near ? " at " + (R.fib.near.L * 100).toFixed(1) : ""}${R.fib.edge != null ? (R.fib.edge >= 0.08 ? " · works here" : " · no edge") : ""}` : "–"}</td><td style="text-align:left">${R.music ? (R.music.tension ? "squeeze · " : "") + (R.music.zHome != null ? R.music.zHome.toFixed(1) + "σ from home" : "") : "–"}</td><td class="${sum(R) >= 0 ? "L" : "S"}">${sum(R) ? (sum(R) > 0 ? "▲ " : "▼ ") + Math.abs(sum(R)).toFixed(2) : "–"}</td></tr>`).join("")}</tbody></table></div>
+          <div class="card" style="padding:6px 10px;overflow-x:auto;margin-top:8px"><b>${esc(sym(pick.c))}</b> (select a row)${Rhythm.html(pick.R, { px: v => price(v) })}</div>`; })()}
       <div class="note" style="max-width:none;margin-top:6px">"Entanglement" is a metaphor: in physics, measuring one entangled particle tells you the other's state. Coupled markets share drivers (rates, the dollar, AI spend, crypto risk appetite), so a move in one says something about the other — a statistical link that can break. When a tight link breaks, that is news too: the name now trades on its own story.</div>`;
   }
-  document.addEventListener("click", e => { if (e.target.closest(".tab[data-tab='web']")) setTimeout(renderPsy, 50); });
+  document.addEventListener("click", e => { if (e.target.closest(".tab[data-tab='web']")) setTimeout(renderPsy, 50); const rr = e.target.closest("[data-rhy]"); if (rr) { try { localStorage.setItem("cs_rhy_pick", rr.dataset.rhy); } catch (x) { } renderPsy(); } });
   setTimeout(feed, 25000); setInterval(feed, 60000);
+  setTimeout(rhyLoad, 40000); setInterval(rhyLoad, 60000);
 })();
