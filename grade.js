@@ -42,6 +42,9 @@
   function grade(T, o) {
     o = o || {}; const L = T.trips.filter(x => x.mfe != null);
     const R = { n: L.length, keep: null, rt: 0, rtOf: 0, held: 0, heldOf: 0, bottom: 0, openGive: null, upnl: o.upnl, acct: o.acct, Q: 0, parts: [] };
+    // holding time: from the position's first entry to each sale, $-weighted mean and median
+    const HL = T.trips.filter(x => x.t1 > x.t0 && x.cost > 0);
+    if (HL.length) { const cw = HL.reduce((a, x) => a + x.cost, 0); R.holdAvg = HL.reduce((a, x) => a + (x.t1 - x.t0) * x.cost, 0) / cw; R.holdMed = HL.map(x => x.t1 - x.t0).sort((x, y) => x - y)[HL.length >> 1]; R.holdN = HL.length; }
     if (L.length) {
       let num = 0, den = 0; L.forEach(x => { if (x.mfe > 0.002) { num += Math.max(-x.mfe, Math.min(x.real / x.cost, x.mfe)) * x.cost; den += x.mfe * x.cost; } }); R.keep = den > 0 ? num / den : null;
       // counts by dollar-weighted legs, so many tiny fills do not swamp one big trade (one "trade" = the median leg size)
@@ -125,10 +128,14 @@
     const cl = G.score >= 60 ? "up" : G.score <= 40 ? "down" : "";
     return `<span class="grt ${cl}" title="Grit ${G.score}/100 (high = steady, disciplined, not impulsive unless it pays): ${G.parts.map(p => `${p[0]}: ${p[2]}`).join(" · ")}">${G.score}</span>`;
   }
+  const dur = ms => !(ms > 0) ? "–" : ms >= 864e5 ? (ms / 864e5).toFixed(1) + "d" : ms >= 36e5 ? (ms / 36e5).toFixed(1) + "h" : Math.max(1, Math.round(ms / 6e4)) + "m";
+  function holdHtml(R) { return R && R.holdAvg ? `<span title="Average time in a trade (from the first entry to each sale, weighted by $ size): ${dur(R.holdAvg)}; median ${dur(R.holdMed)}; ${R.holdN} sales">${dur(R.holdAvg)}</span>` : '<span class="sub">–</span>'; }
+  // group average: the median of the traders' $-weighted holding times
+  function groupHold(Rs) { const v = Rs.filter(r => r && r.holdAvg).map(r => r.holdAvg).sort((a, b) => a - b); return v.length ? { med: v[v.length >> 1], n: v.length } : null; }
   function badge(R) {
     if (!R || (!R.parts.length)) return "";
     const cl = R.Q >= 0.2 ? "up" : R.Q <= -0.2 ? "down" : "", lab = R.Q >= 0.4 ? "A" : R.Q >= 0.15 ? "B" : R.Q > -0.15 ? "C" : R.Q > -0.4 ? "D" : "F";
     return `<span class="grd ${cl}" title="Trade grade ${lab} (${R.Q >= 0 ? "+" : ""}${R.Q.toFixed(2)}): ${R.parts.map(p => `${p[0]}: ${p[2]}`).join(" · ")}">${lab}</span>`;
   }
-  window.Grade = { trips, grade, badge, grit, gritBadge };
+  window.Grade = { trips, grade, badge, grit, gritBadge, dur, holdHtml, groupHold };
 })();
