@@ -89,17 +89,18 @@
       if (k) out.peer[n] = { grp: grp.g, r: c.r, z: s / (sd * Math.sqrt(k)), n: grp.ms.length - 1 }; });
     return out;
   }
+  const sn = n => String(n).split(":").pop();
   // signals for one asset: catch-up (stretch closes) and lead (a leader already moved)
   function signals(E, t) {
     if (!E || !E.R[t]) return null; const out = { catchup: 0, lead: 0, why: [] }; let wc = 0, wl = 0;
     E.pairs.forEach(p => { if (p.a !== t && p.b !== t) return; const other = p.a === t ? p.b : p.a, st = p.a === t ? p.sA : p.sB;
       if (st && Math.abs(p.r) >= 0.5 && Math.abs(st.z) >= 1.5) { const v = -Math.sign(st.z) * Math.min(1, Math.abs(st.z) / 3), w = Math.abs(p.r); out.catchup += v * w; wc += w;
-        out.why.push(`${t} is ${st.z > 0 ? "ahead of" : "behind"} ${other} by ${Math.abs(st.z).toFixed(1)}σ (coupling ${p.r.toFixed(2)})`); }
+        out.why.push(`${sn(t)} is ${st.z > 0 ? "ahead of" : "behind"} ${sn(other)} by ${Math.abs(st.z).toFixed(1)}σ (coupling ${p.r.toFixed(2)})`); }
       if (p.lead && p.lead.to === t) { const r = E.R[p.lead.from].r, sd = E.R[p.lead.from].sd; let s = 0; for (let i = E.B - p.lead.lag; i < E.B; i++) s += r[i] || 0;
         const z = s / (sd * Math.sqrt(p.lead.lag) || 1e-9); if (Math.abs(z) >= 1) { out.lead += c1(z / 3) * Math.sign(p.lead.r) * Math.min(1, Math.abs(p.lead.r) * 3); wl += 1;
-          out.why.push(`${p.lead.from} leads ${t} by ${p.lead.lag} bar${p.lead.lag > 1 ? "s" : ""} and just moved ${z > 0 ? "up" : "down"} ${Math.abs(z).toFixed(1)}σ`); } } });
+          out.why.push(`${sn(p.lead.from)} leads ${sn(t)} by ${p.lead.lag} bar${p.lead.lag > 1 ? "s" : ""} and just moved ${z > 0 ? "up" : "down"} ${Math.abs(z).toFixed(1)}σ`); } } });
     out.catchup = wc ? c1(out.catchup / wc) : 0; out.lead = wl ? c1(out.lead / wl) : 0; out.peer = 0;
-    const P = E.G && E.G.peer[t]; if (P && Math.abs(P.z) >= 1.5) { out.peer = -Math.sign(P.z) * Math.min(1, Math.abs(P.z) / 3) * Math.min(1, P.r * 1.5); out.why.push(`${t} is ${P.z > 0 ? "ahead of" : "behind"} its ${P.n} peers (${P.grp}) by ${Math.abs(P.z).toFixed(1)}σ`); }
+    const P = E.G && E.G.peer[t]; if (P && Math.abs(P.z) >= 1.5) { out.peer = -Math.sign(P.z) * Math.min(1, Math.abs(P.z) / 3) * Math.min(1, P.r * 1.5); out.why.push(`${sn(t)} is ${P.z > 0 ? "ahead of" : "behind"} its ${P.n} peers (${P.grp}) by ${Math.abs(P.z).toFixed(1)}σ`); }
     return out;
   }
   // ======================= Sync =======================
@@ -158,7 +159,8 @@
     Y.linked.filter(p => p.leader).forEach(p => { const L = p.leader, F = L === p.a ? p.b : p.a;
       const lm = Y.T.filter(x => x.a === L && (c == null || x.c === c) && now - x.t < 60 * 6e4).pop(); if (!lm) return;
       const fm = Y.T.some(x => x.a === F && (c == null || x.c === c) && x.t > lm.t && x.d === lm.d); if (fm) return;
-      out.leader += lm.d * 0.5; out.why.push(`a leader wallet ${lm.d > 0 ? "bought" : "sold"}; its follower has not yet (${p.n} joint moves before)`); });
+      out.leader += lm.d; out.nl = (out.nl || 0) + 1; out.why.push(`a leader wallet ${lm.d > 0 ? "bought" : "sold"}; its follower has not yet (${p.n} joint moves before)`); });
+    if (out.nl) out.leader = out.leader / out.nl * Math.min(1, 0.4 + 0.15 * out.nl);   // average of the leaders, more weight when several agree
     ["burst", "best", "worst", "leader"].forEach(k => out[k] = c1(out[k])); return out;
   }
   // ======================= HTML =======================
