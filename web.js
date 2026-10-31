@@ -13,19 +13,39 @@
      (signal A × signal B), so the web learns "these two together" and not only each alone.
    - Weights are the influence. Node size = how often a signal was scored, color = hit rate, and the learned weight is in
      the hover text; the links drawn are the learned pair features and the strongest co-firing pairs.
+   The hunters (v3 additions, same store):
+   - Owl (sees every way, wise): a third, MEDIUM learner; the three are blended by exp(−12 × recent loss) (a hedge over the
+     learners), and the result is calibrated: 10 bins of forecast vs what happened, so "60%" means about 60%.
+   - Black widow (waits, then strikes): each horizon keeps the hit rate by confidence band. A forecast is a STRIKE only in a
+     band that paid (hit ≥ 56% and 2+ points above the average call, over 30+ calls); below that the web says "wait".
+   - Daddy long legs (feels faint, far vibrations): "~d" features = how much each signal changed since the last snapshot,
+     so a signal that is turning counts, not only its level.
+   - Jumping spider (fast pounce): a 30-minute horizon, learned live.
+   - Mongoose (fast reflexes, shrugs off venom): if the last 30 calls hit under 42% the market changed: shock mode doubles
+     the fast learner's rate and leans on it; very large moves count less (outliers do not poison the weights).
+   - Cat (nine lives): after 4 strike losses in a row while the last 20 strikes hit under 50%, the strike bar rises one band;
+     after 10 strike wins in a row (or 60%+ over the last 20) it relaxes one band.
+   Weather (live nodes on every asset, learned like any signal):
+   - wx.jet: the jet stream — the average 4h drift of every asset the web watches; the current that steers them all.
+   - wx.storm: a hurricane — volatility above normal AND the asset's signals lined up one way (organized energy).
+   - wx.eye: the eye — a sudden calm after wild trading; the far eyewall often comes next, in the storm's direction.
+   - wx.twister: a tornado — a sudden, violent 30-minute move in one asset (3σ+ vs its own normal move).
    API: Web.emit(id, asset, value −1..1, label) · Web.ingest(src, [{t,a,x,rh:{1,4,24}|r, reg}], label) ·
         Web.forecast(asset[, h]) · Web.render(el, opts) · Web.addPrice(fn) */
 (function () {
   "use strict";
   if (window.Web) return;
-  const KEY = "web_v3", HZ = [1, 4, 24], BUCKET = 30 * 6e4, H = 36e5;
-  const LRF = 0.25, LRS = 0.04, DEC = 0.995, L2 = 0.0005, MAXP = 24;
+  const KEY = "web_v3", HZ = [0.5, 1, 4, 24], BUCKET = 30 * 6e4, H = 36e5;
+  const LRF = 0.25, LRM = 0.1, LRS = 0.04, BANDS = [0, 0.03, 0.06, 0.1, 0.15], DEC = 0.995, L2 = 0.0005, MAXP = 24;
   const lsG = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
   const lsS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } };
-  const newM = () => ({ f: { w: {}, g: {}, b: 0 }, s: { w: {}, g: {}, b: 0 }, Lf: 0.693, Ls: 0.693, n: 0, calls: 0, right: 0 });
-  function fresh() { const d = { v: 2, M: {}, A: { N: {}, P: {} }, hist: {}, S: [], vol: {}, pairs: [], n: 0, at: Date.now() }; HZ.forEach(h => d.M[h] = newM());
+  const newL = () => ({ w: {}, g: {}, b: 0 });
+  const newM = () => ({ f: newL(), m: newL(), s: newL(), Lf: 0.693, Lm: 0.693, Ls: 0.693, n: 0, calls: 0, right: 0 });
+  const hunt = M => { if (!M.m) { M.m = JSON.parse(JSON.stringify(M.s)); M.Lm = M.Ls; } M.cal = M.cal || Array.from({ length: 10 }, () => [0, 0]); M.band = M.band || BANDS.map(() => [0, 0]);
+    M.rec = M.rec || []; M.lvl = M.lvl || 0; M.ls = M.ls || 0; M.ws = M.ws || 0; return M; };
+  function fresh() { const d = { v: 2, M: {}, A: { N: {}, P: {} }, hist: {}, S: [], vol: {}, pairs: [], n: 0, at: Date.now() }; HZ.forEach(h => d.M[h] = hunt(newM()));
     try { localStorage.removeItem("web_v1"); localStorage.removeItem("web_v2"); } catch (e) { } return d; }   // v1 is replaced: history is learned again into the richer model
-  const fix = d => { if (!d || d.v !== 2) return fresh(); HZ.forEach(h => { if (!d.M[h]) d.M[h] = newM(); }); d.A = d.A || { N: {}, P: {} }; d.hist = d.hist || {}; d.S = d.S || []; d.vol = d.vol || {}; d.pairs = d.pairs || []; return d; };
+  const fix = d => { if (!d || d.v !== 2) return fresh(); HZ.forEach(h => { if (!d.M[h]) d.M[h] = newM(); hunt(d.M[h]); }); d.A = d.A || { N: {}, P: {} }; d.hist = d.hist || {}; d.S = d.S || []; d.vol = d.vol || {}; d.pairs = d.pairs || []; return d; };
   let D = fix(lsG(KEY, null));
   const LIVE = {}, PRICE = [], LABEL = lsG("web_labels", {}), PX = {};   // PX: recent prices per asset (for the live volatility regime)
   const SEMIS = { SOXL: 1, SOXX: 1, SOXS: -1 };
@@ -44,16 +64,25 @@
   const price = a => { for (const f of PRICE) { try { const p = f(a); if (p > 0) return p; } catch (e) { } } if (a === "SEMIS") return price("SOXX") || price("SOXL"); return null; };
   const feats = a => { const L = LIVE[a] || {}, now = Date.now(), x = {}; for (const [k, o] of Object.entries(L)) if (now - o.t < 2 * BUCKET) x[k] = o.v; return x; };
   // volatility regime of an asset: recent 30-minute moves vs its own long-run average (−1 calm … +1 wild)
-  function regime(a) { const P = PX[a]; if (!P || P.length < 8) return 0;
+  function regime(a, ro) { const P = PX[a]; if (!P || P.length < 8) return 0;
     const r = P.slice(-16).map((p, i, A) => i ? Math.abs(Math.log(p / A[i - 1])) : NaN).filter(isFinite), v = r.reduce((s, x) => s + x, 0) / r.length;
-    const e = D.vol[a] = D.vol[a] ? D.vol[a] * 0.98 + v * 0.02 : v; return e > 0 ? c1(v / e - 1) : 0; }
+    const e = ro ? (D.vol[a] || v) : (D.vol[a] = D.vol[a] ? D.vol[a] * 0.98 + v * 0.02 : v); return e > 0 ? c1(v / e - 1) : 0; }
   // full feature vector: signals, × regime copies, chosen link pairs
   function expand(x, reg) {
-    const z = {}; for (const k in x) { z[k] = x[k]; if (reg) z[k + "~vol"] = Math.round(x[k] * reg * 100) / 100; }
+    const z = {}; for (const k in x) { z[k] = x[k]; if (reg && !k.endsWith("~d")) z[k + "~vol"] = Math.round(x[k] * reg * 100) / 100; }
     for (const p of D.pairs) { const [a, b] = p.split("&"); if (x[a] && x[b]) z[p] = Math.round(x[a] * x[b] * 100) / 100; }
     return z; }
   const dot = (L, z) => { let s = L.b; for (const k in z) s += (L.w[k] || 0) * z[k]; return s; };
-  function prob(h, z) { const M = D.M[h], pf = sig(dot(M.f, z)), ps = sig(dot(M.s, z)), a = sig((M.Ls - M.Lf) * 12); return { p: a * pf + (1 - a) * ps, pf, ps, a }; }
+  // owl: hedge over the three learners, then calibration
+  function calib(M, p) { const C = M.cal, i = Math.min(9, Math.floor(p * 10)), c = C[i]; if (!c || c[0] < 20) return p;
+    const f = c[1] / c[0], w = Math.min(1, c[0] / 100); return Math.max(0.02, Math.min(0.98, (1 - w) * p + w * f)); }
+  function prob(h, z) { const M = D.M[h], pf = sig(dot(M.f, z)), pm = sig(dot(M.m, z)), ps = sig(dot(M.s, z));
+    const sh = M.shock ? 0.5 : 0, ef = Math.exp(-12 * (M.Lf - sh)), em = Math.exp(-12 * M.Lm), es = Math.exp(-12 * M.Ls), t = ef + em + es;
+    const raw = (ef * pf + em * pm + es * ps) / t; return { p: calib(M, raw), raw, pf, pm, ps, a: ef / t, am: em / t }; }
+  const bandOf = q => { const d = Math.abs(q - 0.5); let i = 0; BANDS.forEach((b, j) => { if (d >= b) i = j; }); return i; };
+  // black widow + cat: is this forecast a strike?
+  const bar = M => Math.max(0.56, (M.calls ? M.right / M.calls : 0.5) + 0.02);   // a strike must beat this horizon's average call
+  function strike(M, q) { const i = bandOf(q), b = M.band[i]; const hit = b[0] ? b[1] / b[0] : null; return { i, hit, n: b[0], on: i >= M.lvl && i > 0 && b[0] >= 30 && hit >= bar(M) }; }
   function step(L, z, y, lr) { const p = sig(dot(L, z)), g = y - p;
     L.b += lr * 0.3 * g;
     for (const k in z) { const gk = g * z[k]; L.g[k] = (L.g[k] || 0) * DEC + gk * gk; L.w[k] = (L.w[k] || 0) * (1 - L2) + lr * gk / Math.sqrt(1e-3 + L.g[k]); }
@@ -62,11 +91,21 @@
   // one lesson for one horizon
   function learnH(h, x, reg, r, p0) {
     if (!isFinite(r) || Math.abs(r) < 0.0005 * Math.sqrt(h)) return;
-    const z = expand(x, reg), y = r > 0 ? 1 : 0, M = D.M[h], q = p0 != null ? p0 : prob(h, z).p;
-    M.calls++; if ((q > 0.5) === (y === 1)) M.right++;
-    const pf = step(M.f, z, y, LRF), ps = step(M.s, z, y, LRS);
-    M.Lf = M.Lf * 0.97 + ll(pf, y) * 0.03; M.Ls = M.Ls * 0.995 + ll(ps, y) * 0.005; M.n++; D.n++;
-    if (h === 4) { const k = Object.keys(x).filter(q => x[q]), A = D.A;
+    const z = expand(x, reg), y = r > 0 ? 1 : 0, M = hunt(D.M[h]), P0 = prob(h, z), q = p0 != null ? p0 : P0.p, ok = (q > 0.5) === (y === 1);
+    M.calls++; if (ok) M.right++;
+    // black widow / cat: record by confidence band; strike losses raise the bar, strike wins lower it
+    const sk = strike(M, q), bd = M.band[sk.i]; bd[0]++; if (ok) bd[1]++;
+    if (sk.on) { M.sr = M.sr || []; M.sr.push(ok ? 1 : 0); if (M.sr.length > 20) M.sr.shift(); const h20 = M.sr.length >= 10 ? M.sr.reduce((a, v) => a + v, 0) / M.sr.length : 0.55;
+      if (ok) { M.ls = 0; if ((++M.ws >= 10 || (h20 >= 0.6 && M.sr.length >= 20)) && M.lvl > 0) { M.lvl--; M.ws = 0; M.sr = []; } }
+      else { M.ws = 0; if (++M.ls >= 4 && h20 < 0.5) { M.lvl = Math.min(BANDS.length - 1, M.lvl + 1); M.ls = 0; M.sr = []; } } }
+    // owl: calibration bins on the raw blend
+    const cb = M.cal[Math.min(9, Math.floor(P0.raw * 10))]; cb[0] = cb[0] * 0.998 + 1; cb[1] = cb[1] * 0.998 + y;
+    // mongoose: shock when the last 30 calls hit under 42%; huge moves count less
+    M.rec.push(ok ? 1 : 0); if (M.rec.length > 30) M.rec.shift(); M.shock = M.rec.length >= 30 && M.rec.reduce((a, v) => a + v, 0) / M.rec.length < 0.42 ? 1 : 0;
+    const big = Math.abs(r) / (0.01 * Math.sqrt(h)), dmp = big > 4 ? 4 / big : 1;
+    const pf = step(M.f, z, y, LRF * (M.shock ? 2 : 1) * dmp), pm = step(M.m, z, y, LRM * dmp), ps = step(M.s, z, y, LRS * dmp);
+    M.Lf = M.Lf * 0.97 + ll(pf, y) * 0.03; M.Lm = M.Lm * 0.985 + ll(pm, y) * 0.015; M.Ls = M.Ls * 0.995 + ll(ps, y) * 0.005; M.n++; D.n++;
+    if (h === 4) { const k = Object.keys(x).filter(q => x[q] && !q.endsWith("~d")), A = D.A;
       for (const q of k) { const o = A.N[q] = A.N[q] || [0, 0, 0, 0, 0]; o[0]++; if (Math.sign(x[q]) === Math.sign(r)) o[1]++; o[2] += Math.sign(x[q]) * c1(r * 5) / 5;
         if (reg > 0.2) { o[3]++; if (Math.sign(x[q]) === Math.sign(r)) o[4]++; } }      // record in wild markets
       for (let i = 0; i < k.length; i++) for (let j = i + 1; j < k.length; j++) { const a = k[i] < k[j] ? k[i] : k[j], b = k[i] < k[j] ? k[j] : k[i], e = A.P[a + "&" + b] = A.P[a + "&" + b] || [0, 0, 0];
@@ -78,14 +117,32 @@
     D.pairs = P.filter(p => p.s >= 1.5).map(p => p.k);
   }
 
+  // the same derived inputs for learning and for live forecasts: weather (jet stream, hurricane, eye, tornado) and
+  // daddy-long-legs changes since this asset's last snapshot
+  const WXL = { "wx.jet": "Weather · jet stream (all assets' 4h drift)", "wx.storm": "Weather · hurricane (wild and organized)", "wx.eye": "Weather · eye of the storm (calm inside a storm)", "wx.twister": "Weather · tornado (sudden violent move)" };
+  function jetNow() { const dr = Object.keys(PX).map(a => { const P = PX[a]; return P && P.length >= 9 ? Math.log(P[P.length - 1] / P[P.length - 9]) : null; }).filter(v => v != null && isFinite(v));
+    return dr.length >= 3 ? c1(dr.reduce((s, v) => s + v, 0) / dr.length / 0.01) : 0; }
+  function derive(a, x, bk) {
+    if (!Object.keys(x).length) return x; x = Object.assign({}, x); const jet = jetNow();
+    for (const k in WXL) if (LABEL[k] !== WXL[k]) { LABEL[k] = WXL[k]; lsS("web_labels", LABEL); }
+    const P = PX[a], rg = regime(a, true), sv = Object.values(x), cons = sv.length >= 3 ? sv.reduce((s, v) => s + v, 0) / sv.length : 0;
+    if (Math.abs(jet) >= 0.15) x["wx.jet"] = Math.round(jet * 100) / 100;
+    if (rg >= 0.3 && Math.abs(cons) >= 0.25) x["wx.storm"] = Math.round(c1(Math.sign(cons) * rg * Math.abs(cons) * 3) * 100) / 100;
+    if (P && P.length >= 12) { const m = P.slice(-11).map((p, i, A) => i ? Math.log(p / A[i - 1]) : null).slice(1), ab = m.map(Math.abs), prior = ab.slice(0, 8).reduce((s, v) => s + v, 0) / 8, recent = (ab[8] + ab[9]) / 2, avg = D.vol[a] || prior;
+      if (avg > 0 && prior > 1.8 * avg && recent < 0.5 * prior) { const dir = Math.sign(m.slice(0, 8).reduce((s, v) => s + v, 0)); if (dir) x["wx.eye"] = Math.round(dir * c1(1 - recent / prior) * 100) / 100; }
+      const z = avg > 0 ? m[9] / avg : 0; if (Math.abs(z) >= 3) x["wx.twister"] = Math.round(Math.sign(z) * c1((Math.abs(z) - 2) / 3) * 100) / 100; }
+    const b = bk == null ? Math.floor(Date.now() / BUCKET) : bk, pv = D.S.find(s => s.a === a && s.bk === b - 1);
+    if (pv) for (const k of Object.keys(x)) { if (k.endsWith("~d") || k.startsWith("wx.")) continue; const d = Math.round(c1(x[k] - (pv.x[k] || 0)) * 100) / 100; if (Math.abs(d) >= 0.2) x[k + "~d"] = d; }
+    return x;
+  }
   function tick() {
     reload();
     const now = Date.now(), bk = Math.floor(now / BUCKET);
     for (const a of Object.keys(LIVE)) { const px = price(a); if (px) { const P = PX[a] = PX[a] || []; if (!P.length || now - (P.lastT || 0) >= BUCKET - 6e4) { P.push(px); P.lastT = now; if (P.length > 60) P.shift(); } } }
     for (const a of Object.keys(LIVE)) {
-      const x = feats(a); if (!Object.keys(x).length) continue;
+      const x = derive(a, feats(a), bk); if (!Object.keys(x).length) continue;
       const ex = D.S.find(s => s.a === a && s.bk === bk);
-      if (ex) { if (!ex.done) Object.assign(ex.x, x); continue; }
+      if (ex) { if (!ex.done && now - ex.t < 6e4 * 5) Object.assign(ex.x, x); continue; }
       const px = price(a); if (!px) continue; const reg = regime(a), z = expand(x, reg);
       D.S.push({ a, bk, t: now, px, x, reg, p: Object.fromEntries(HZ.map(h => [h, Math.round(prob(h, z).p * 1000) / 1000])), r: {} });
     }
@@ -138,14 +195,17 @@
     return Object.values(E).map(e => ({ ...e, agreeR: e.n ? e.agree / e.n : 0, bothR: e.both ? e.bothHit / e.both : null }));
   }
   function forecast(asset, h) {
-    const a = norm(asset), x = feats(a); if (!Object.keys(x).length) return null;
+    const a = norm(asset), x = derive(a, feats(a)); if (!Object.keys(x).length) return null;
     const reg = regime(a), z = expand(x, reg), hh = h || 4, P = prob(hh, z), M = D.M[hh], al = P.a;
     const contrib = Object.entries(z).map(([k, v]) => ({ id: k, label: k.includes("&") ? k.split("&").map(q => LABEL[q] || q).join(" + ") : k.endsWith("~vol") ? (LABEL[k.slice(0, -4)] || k) + " (in this volatility)" : LABEL[k] || k, v, c: (al * (M.f.w[k] || 0) + (1 - al) * (M.s.w[k] || 0)) * v })).sort((m, n) => Math.abs(n.c) - Math.abs(m.c));
     const ph = Object.fromEntries(HZ.map(q => [q, prob(q, z).p]));
-    return { p: P.p, ph, n: M.n, ready: M.n >= 100, reg, fast: al, contrib };
+    const sk = strike(hunt(M), P.p);
+    return { p: P.p, raw: P.raw, ph, n: M.n, ready: M.n >= 100, reg, fast: al, med: P.am, contrib, strike: sk.on, band: sk, shock: !!M.shock, lvl: M.lvl,
+      sense: { owl: Math.abs(P.p - P.raw) >= 0.01 ? "calibrated " + Math.round(P.raw * 100) + "% → " + Math.round(P.p * 100) + "%" : "calibrated", widow: sk.on ? "strike" : "wait", mongoose: M.shock ? "shock: relearning fast" : "steady", cat: "strike bar band " + M.lvl } };
   }
   const stats = () => ({ snaps: D.S.length, open: D.S.filter(s => !s.done).length, trained: D.n, assets: Object.keys(LIVE).length, hist: D.hist, pairs: D.pairs.length,
-    hz: Object.fromEntries(HZ.map(h => [h, { n: D.M[h].n, hit: D.M[h].calls ? D.M[h].right / D.M[h].calls : null, fast: sig((D.M[h].Ls - D.M[h].Lf) * 12) }])) });
+    hz: Object.fromEntries(HZ.map(h => { const M = hunt(D.M[h]); return [h, { n: M.n, hit: M.calls ? M.right / M.calls : null, fast: prob(h, {}).a, shock: !!M.shock, lvl: M.lvl,
+      bands: M.band.map((b, i) => ({ from: BANDS[i], n: b[0], hit: b[0] ? b[1] / b[0] : null })), strikeHit: (() => { const B = M.band.filter((b, i) => i >= Math.max(1, M.lvl) && b[0] >= 30 && b[1] / b[0] >= bar(M)); const n = B.reduce((a, b) => a + b[0], 0); return n ? { n, hit: B.reduce((a, b) => a + b[1], 0) / n } : null; })() }]; })) });
 
   // ---------- picture ----------
   function render(el, opts) {
@@ -179,7 +239,7 @@
     const F = forecast(asset); if (!F) return "";
     const cv = getComputedStyle(document.documentElement), up = cv.getPropertyValue("--bull").trim() || cv.getPropertyValue("--up").trim(), dn = cv.getPropertyValue("--bear").trim() || cv.getPropertyValue("--down").trim();
     const pp = p => `<b style="color:${p >= 0.5 ? up : dn}">${Math.round(p * 100)}%</b>`;
-    return `<span style="font:12px var(--mono)">Signal web P(up): 1h ${pp(F.ph[1])} · 4h ${pp(F.ph[4])} · 24h ${pp(F.ph[24])}${F.ready ? "" : ` <span style="opacity:.6">(learning, ${F.n}/100)</span>`} · drivers: ${F.contrib.slice(0, 3).map(c => `${c.label} ${c.c >= 0 ? "+" : ""}${c.c.toFixed(2)}`).join(", ")}</span>`;
+    return `<span style="font:12px var(--mono)">Signal web P(up): 30m ${pp(F.ph[0.5])} · 1h ${pp(F.ph[1])} · 4h ${pp(F.ph[4])} · 24h ${pp(F.ph[24])}${F.ready ? "" : ` <span style="opacity:.6">(learning, ${F.n}/100)</span>`} · <b title="Black widow: strike only in confidence bands that paid (56%+ over 30+ calls)">${F.strike ? "🕷 STRIKE" : "wait"}</b>${F.shock ? ` · <span title="Mongoose: the last 30 calls missed often; relearning fast">⚡ shock</span>` : ""} · drivers: ${F.contrib.slice(0, 3).map(c => `${c.label} ${c.c >= 0 ? "+" : ""}${c.c.toFixed(2)}`).join(", ")}</span>`;
   }
   window.Web = { emit, tick, ingest, forecast, forecastHtml, render, nodes, edges, stats, addPrice: f => PRICE.push(f), data: () => D };
   setInterval(tick, 60000); setTimeout(tick, 15000);
