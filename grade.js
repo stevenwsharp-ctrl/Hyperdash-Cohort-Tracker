@@ -66,7 +66,7 @@
     return R;
   }
   /* Grit: discipline vs impulse. High grit = steady, rule-based, not impulsive — or impulsive only when it pays;
-     patient when patience pays, quick when speed pays.
+     patient when patience pays, quick when speed pays; survives drawdowns and profits; lets small open gains grow into large ones.
      A trader can trade a lot and still have high grit (consistent size, small losses, steady weeks); a trader who chases,
      revenge-trades and panics, and keeps losing, has low grit.
        Impulse acts (each judged by price 24h later in the trade's direction — impulse that pays is forgiven):
@@ -107,9 +107,16 @@
       G.timing = { gq, gp, ip, st, n: TL.length, hold: hm };
       const hh = hm >= 864e5 ? (hm / 864e5).toFixed(1) + " days" : hm >= 36e5 ? (hm / 36e5).toFixed(1) + "h" : Math.round(hm / 6e4) + " min";
       P.push(["Timing", c1((gq + gp - ip - 1.3 * st) / TL.length * 2.5) * sh(TL.length, 12), `typical hold ${hh}; patience that paid ${gp}, quick exits before a drop ${gq}; sold too early ${ip}, held a loser too long ${st}`]); }
+    // conviction that pays: survives drawdowns and profits; lets a small open gain grow into a large one (does not cut winners early)
+    const WR = legs.filter(l => l.real > 0 && l.mfe != null && l.mfe >= 0.03 && l.cost > 0);
+    if (WR.length >= 4) { const run = WR.filter(l => l.real / l.cost >= 0.03 && l.real / l.cost >= 0.5 * l.mfe).length, cut = WR.filter(l => l.real / l.cost < 0.25 * l.mfe).length;
+      P.push(["Lets winners run", c1((run - cut) / WR.length * 2) * sh(WR.length, 6), `${run} of ${WR.length} winners that moved 3%+ were held for most of the move; ${cut} were cut early`]); }
+    const DD = legs.filter(l => l.mae != null && l.mae <= -0.03);
+    if (DD.length >= 4) { const sv = DD.filter(l => l.real > 0).length;
+      P.push(["Survives drawdowns", c1((sv / DD.length - 0.3) * 2.5) * sh(DD.length, 6), `${sv} of ${DD.length} positions that were down 3%+ ended in profit`]); }
     const wk = {}; legs.forEach(l => { const k = Math.floor(l.t1 / (7 * 864e5)); wk[k] = (wk[k] || 0) + l.real; }); const wv = Object.values(wk);
     if (wv.length >= 4) { const pos = wv.filter(v => v > 0).length / wv.length; P.push(["Steady weeks", c1((pos - 0.5) * 3) * sh(wv.length, 6), `${Math.round(pos * 100)}% of ${wv.length} active weeks positive`]); }
-    const w = { Impulse: 1.2, "Panic sales": 0.8, "Steady size": 0.5, "Cuts losses": 1, Timing: 1.3, "Steady weeks": 1 };
+    const w = { Impulse: 1.2, "Panic sales": 0.8, "Steady size": 0.5, "Cuts losses": 1, Timing: 1.3, "Lets winners run": 1.2, "Survives drawdowns": 1.1, "Steady weeks": 1 };
     let s = 0, sw = 0; P.forEach(([k, v]) => { s += v * w[k]; sw += w[k]; }); G.G = sw ? c1(s / sw) : 0; G.score = Math.round(50 + 50 * G.G);
     return G;
   }
