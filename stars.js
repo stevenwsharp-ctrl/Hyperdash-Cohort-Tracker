@@ -262,14 +262,39 @@ body{padding-bottom:34px}
   const FILLS = {};          // wallet -> { t: fetched ms, f: fills }
   const SEEN = new Set(lsG("cs_bt_seen", []));
   let tradesBusy = false, tradesT = 0, HOLD = 0;   // HOLD = wait time after a Hyperliquid 429
+  /* Skill weight (grade.js): trade grade (keeps gains, avoids round trips, holds through drawdowns that turn positive),
+     grit (discipline: patient when it pays, quick when it pays, not impulsive unless it pays) and open P&L across all holdings.
+     Holdings: every market where the wallet is a top-30 holder (SPEC). Grade and grit: the wallet's fills on this market
+     (loaded for the starred markets) against hourly prices from history.json. */
+  let HALL = null, hallT = 0; const GRC = {};
+  function holdAll() { if (HALL && Date.now() - hallT < 5 * 6e4) return HALL; HALL = {};
+    Object.values((SPEC && SPEC.m) || {}).forEach(X => (X.holders || []).forEach(h => { if (h.miss) return; const o = HALL[h.a] = HALL[h.a] || { u: 0, n: 0, ntl: 0 }; o.u += h.u || 0; o.n++; o.ntl += h.n || 0; }));
+    hallT = Date.now(); return HALL; }
+  function barsOf(coin) { const S = (HIST && HIST.snapshots) || [], B = []; let cur = null;
+    S.forEach(x => { const v = x.d && x.d[coin]; if (!v || !(v[2] > 0)) return; const t = Date.parse(x.t), k = Math.floor(t / 36e5) * 36e5;
+      if (!cur || cur[0] !== k) { cur = [k, v[2], v[2], v[2]]; B.push(cur); } else { cur[1] = Math.max(cur[1], v[2]); cur[2] = Math.min(cur[2], v[2]); cur[3] = v[2]; } }); return B; }
+  function skill(h, coin) {
+    if (!window.Grade) return null; const k = h.a + "|" + coin, F = FILLS[h.a], c = GRC[k], ha = holdAll()[h.a];
+    if (c && Date.now() - c.t < 10 * 6e4 && (!F || c.ft === F.t)) return c;
+    const want = hlName(coin).toLowerCase(), M = [];
+    if (F) F.f.filter(x => String(x.coin).toLowerCase() === want).sort((x, y) => x.time - y.time).forEach(x => { const d = x.dir || ""; if (!/Long|Short/.test(d)) return;
+      M.push({ t: x.time, entry: /Open|>/.test(d), side: /Long > Short/.test(d) ? -1 : /Short > Long/.test(d) ? 1 : /Long/.test(d) ? 1 : -1, px: +x.px, usd: +x.sz * +x.px }); });
+    const B = barsOf(coin), T = Grade.trips(M, B), px = (ctxOf(coin) || {}).px;
+    const R = Grade.grade(T, { bars: B, px, upnl: ha ? ha.u : null, acct: ha ? ha.ntl : 0 }); R.grit = Grade.grit(M, B, T); R.hold = ha;
+    R.mult = 1 + 0.5 * (0.55 * R.Q + 0.45 * (R.grit.n >= 5 ? R.grit.G : 0)); R.t = Date.now(); R.ft = F ? F.t : 0;
+    return GRC[k] = R;
+  }
+  const skW = (h, coin) => { const r = skill(h, coin); return r ? r.mult : 1; };
+  window.csSkill = skill;
   function walletsFor(coin) {
     const X = SPEC && SPEC.m && SPEC.m[coin]; if (!X || !X.holders) return null;
     const hs = X.holders.filter(h => !h.miss);
     const GOODC = ["EP", "VP"], BADC = ["U", "VU", "R"];
     // cohort decides first; the coin record only adds traders whose cohort does not say the opposite
     // ranked by weighted size: a market maker's $ counts at 25%
-    const good = hs.filter(h => GOODC.includes(h.coh) || (h.q >= 0.25 && !BADC.includes(h.coh))).sort((a, b) => b.n * wOf(b) - a.n * wOf(a)).slice(0, 8);
-    const bad = hs.filter(h => BADC.includes(h.coh) || (h.q <= -0.25 && !GOODC.includes(h.coh))).sort((a, b) => b.n * wOf(b) - a.n * wOf(a)).slice(0, 8);
+    // best: size × skill weight (strong habits first); worst: size ÷ skill weight (the weakest habits first)
+    const good = hs.filter(h => GOODC.includes(h.coh) || (h.q >= 0.25 && !BADC.includes(h.coh))).sort((a, b) => b.n * wOf(b) * skW(b, coin) - a.n * wOf(a) * skW(a, coin)).slice(0, 8);
+    const bad = hs.filter(h => BADC.includes(h.coh) || (h.q <= -0.25 && !GOODC.includes(h.coh))).sort((a, b) => b.n * wOf(b) / skW(b, coin) - a.n * wOf(a) / skW(a, coin)).slice(0, 8);
     return { good, bad, mm: hs.filter(isMM).sort((a, b) => b.n - a.n) };
   }
   async function loadTrades(force) {
@@ -351,7 +376,8 @@ body{padding-bottom:34px}
     let net = 0, netMM = 0; hs.forEach(h => { const P = POS[h.a + "|" + dexOf(c)], x = P && P.m[key], px = (ctxOf(c) || {}).px || (x && x[1]) || 0, v = x ? x[0] * px : h.sd * h.n; net += v * wOf(h); if (isMM(h)) netMM += v; });
     const netTxt = `<b class="${net >= 0 ? "L" : "S"}">group net ${net >= 0 ? "long" : "short"} ${usd(Math.abs(net))}</b>${netMM ? ` <span style="color:var(--faint)">(MMs at 25%)</span>` : ""} · `;
     return rows.length ? `<div style="font:11px var(--mono);color:var(--dim);margin:2px 0 4px">${netTxt}Holds now: ${rows.map(({ h, x }) => { const sz = x ? x[0] : h.sd * h.n, v = x ? Math.abs(x[0]) * (ctxOf(c) || {}).px || Math.abs(x[0] * x[1]) : h.n;
-      return `<span class="${sz > 0 ? "L" : "S"}">${esc(h.lb || h.a.slice(0, 6) + "…")}${isMM(h) ? ` <span class="flag f-thin" title="Market maker: counts at 25%">MM</span>` : ""} ${usd(v)} ${sz > 0 ? "long" : "short"}${x && x[1] ? " @ " + price(x[1]) : ""}</span>${x && x[2] ? ` <span class="${x[2] >= 0 ? "L" : "S"}">(${x[2] >= 0 ? "+" : ""}${usd(x[2])})</span>` : ""}`; }).join(" · ")}</div>` : ""; };
+      const sk = skill(h, c);
+      return `<span class="${sz > 0 ? "L" : "S"}">${esc(h.lb || h.a.slice(0, 6) + "…")}${isMM(h) ? ` <span class="flag f-thin" title="Market maker: counts at 25%">MM</span>` : ""}${sk && sk.parts.length ? " " + Grade.badge(sk) : ""}${sk && sk.grit && sk.grit.n >= 5 ? " " + Grade.gritBadge(sk.grit) : ""}${sk && sk.hold && sk.hold.n > 1 ? ` <span title="Open P&L across the ${sk.hold.n} markets where this wallet is a top holder" class="${sk.hold.u >= 0 ? "L" : "S"}">all ${sk.hold.u >= 0 ? "+" : "-"}${usd(Math.abs(sk.hold.u))}</span>` : ""} ${usd(v)} ${sz > 0 ? "long" : "short"}${x && x[1] ? " @ " + price(x[1]) : ""}</span>${x && x[2] ? ` <span class="${x[2] >= 0 ? "L" : "S"}">(${x[2] >= 0 ? "+" : ""}${usd(x[2])})</span>` : ""}`; }).join(" · ")}</div>` : ""; };
 
   /* Market-maker record: every 10 minutes, log each coin's market-maker net inventory and price; 4 hours later check
      whether price moved against the inventory (MMs short → price up). The hit rate tunes the rating factor in index.html. */
