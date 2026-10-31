@@ -12,16 +12,27 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const S = io.read("whalelog.json", null) || { v: 1, at: 0, wallets: LIST.map(x => [x[0], x[1]]), cur: {}, open: {}, moves: [] };
 if (Date.now() - S.at < 10 * 6e4 && !process.env.FORCE_RUN) process.exit(3);
 const idx = Object.fromEntries(LIST.map((x, i) => [x[0], i])); S.wallets = LIST.map(x => [x[0], x[1]]);
-let added = 0;
+let added = 0, ovChanged = false;
+// overall record across ALL markets (not just SOXL): closed orders won / lost, from the fills (up to 120 days back, then kept up to date),
+// plus Hyperdash's own overall win rate and trade count when the wallet is a top holder somewhere (specialists.json)
+S.ov = S.ov || {};
+const HD = {}; try { const SP = io.read("specialists.json", { m: {} }); Object.values(SP.m || {}).forEach(X => (X.holders || []).forEach(h => { if (h.wr != null) HD[h.a] = { wr: h.wr, tt: h.tt, coh: h.coh }; })); } catch (e) { }
 for (const [a] of LIST) {
-  const i = idx[a]; let from = S.cur[a] ? S.cur[a] + 1 : Date.now() - 120 * 864e5, fills = [];
+  const i = idx[a], ov = S.ov[a] = S.ov[a] || { w: 0, l: 0, pnl: 0, from: Date.now() - 120 * 864e5, cur: 0, coins: {} };
+  if (HD[a] && JSON.stringify(ov.hd) !== JSON.stringify(HD[a])) { ov.hd = HD[a]; ovChanged = true; }
+  let from = Math.min(S.cur[a] ? S.cur[a] + 1 : Date.now() - 120 * 864e5, ov.cur ? ov.cur + 1 : Date.now() - 120 * 864e5), fills = [], all = [];
   for (let page = 0; page < 6; page++) {      // userFillsByTime returns up to 2,000 fills from 'from', oldest first
     let f; try { f = await hl({ type: "userFillsByTime", user: a, startTime: from, aggregateByTime: true }); } catch (e) { console.log("whalelog", a.slice(0, 8), e.message); break; }
     if (!Array.isArray(f) || !f.length) break;
-    fills.push(...f.filter(x => x.coin === COIN)); from = f[f.length - 1].time + 1;
+    all.push(...f); fills.push(...f.filter(x => x.coin === COIN && x.time > (S.cur[a] || 0))); from = f[f.length - 1].time + 1;
     await sleep(700); if (f.length < 2000) break;
   }
   if (fills.length) S.cur[a] = Math.max(S.cur[a] || 0, ...fills.map(x => x.time));
+  // overall tally: one closed order = one trade (its fills summed); won if its closed P&L after fees is above zero
+  { const by = {}; all.filter(x => x.time > ov.cur && x.closedPnl != null && /Close|>/.test(x.dir || "")).forEach(x => { const k = x.oid; const o = by[k] = by[k] || { p: 0, c: x.coin }; o.p += (+x.closedPnl || 0) - (+x.fee || 0); });
+    Object.values(by).forEach(o => { if (Math.abs(o.p) < 1) return; if (o.p > 0) ov.w++; else ov.l++; ov.pnl += o.p; const c = ov.coins[o.c] = ov.coins[o.c] || [0, 0]; c[o.p > 0 ? 0 : 1]++; });
+    if (all.length) { ov.cur = Math.max(ov.cur, ...all.map(x => x.time)); if (Object.keys(by).length) ovChanged = true; }
+    ov.pnl = Math.round(ov.pnl); ov.n = ov.w + ov.l; ov.wr = ov.n ? Math.round(ov.w / ov.n * 1000) / 10 : null; ov.mk = Object.keys(ov.coins).length; }
   fills.sort((p, q) => p.time - q.time);
   for (const x of fills) {
     const d = x.dir || "", entry = /Open|>/.test(d) ? 1 : 0;
@@ -38,4 +49,4 @@ S.moves = S.moves.filter(m => Date.now() - m[0] < KEEP).sort((p, q) => p[0] - q[
 if (S.moves.length > 40000) S.moves = S.moves.slice(-40000);
 S.at = Date.now(); io.write("whalelog.json", S);
 console.log("whalelog: +" + added + " moves, " + S.moves.length + " kept");
-process.exit(added ? 0 : 3);
+process.exit(added || ovChanged ? 0 : 3);
