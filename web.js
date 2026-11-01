@@ -43,6 +43,8 @@
    Edison (trial and error): up to 6 signal pairs run as experiments at a time (70% aimed at the pairs whose product
    already looks strongest, 30% random); after 400 lessons a pair is kept only if its product (A × B)
    beats chance (|z| ≥ 2.5) and it earned its own weight; the rest are dropped and new ones are tried (a dropped pair is not retried for 3,000 lessons).
+   The lab (always on, every 2 minutes): 40 new ideas — pairs, triples, conditionals and flips — tested on half of the
+   memory of 4,000 lessons, then confirmed on the other half; confirmed ideas join the forecast and are re-checked.
    Discovery: after every scoring round the web tests each signal: its hit rate vs what the base rate of up moves gives a
    signal pointing that way (so an always-'+' calendar signal is not mistaken for skill). Proven signals (z ≥ 3) are
    drawn as stars; signals that are pure noise after 300+ checks (|z| < 0.7) are muted: their weights decay 20× faster.
@@ -87,8 +89,11 @@
   // full feature vector: signals, × regime copies, chosen link pairs
   function expand(x, reg) {
     const z = {}; for (const k in x) { z[k] = x[k]; if (reg && !k.endsWith("~d")) z[k + "~vol"] = Math.round(x[k] * reg * 100) / 100; }
-    for (const p of D.pairs) { const [a, b] = p.split("&"); if (x[a] && x[b]) z[p] = Math.round(x[a] * x[b] * 100) / 100; }
+    for (const p of D.pairs) { const v = linkVal(p, x); if (v) z[p] = Math.round(v * 100) / 100; }
     return z; }
+  // a link's value: "a&b(&c)" = product; "a|b+" = a only while b is up; "a|b-" = a only while b is down; "-a" = a flipped
+  function linkVal(k, x) { if (k.includes("|")) { const [a, c] = k.split("|"), b = c.slice(0, -1), sg = c.slice(-1) === "+" ? 1 : -1; return x[a] && x[b] && Math.sign(x[b]) === sg ? x[a] : 0; }
+    if (k.includes("&")) { let v = 1; for (const q of k.split("&")) { if (!x[q]) return 0; v *= x[q]; } return v; } return 0; }
   const dot = (L, z) => { let s = L.b; for (const k in z) s += (L.w[k] || 0) * z[k]; return s; };
   // owl: hedge over the three learners, then calibration
   function calib(M, p) { const C = M.cal, i = Math.min(9, Math.floor(p * 10)), c = C[i]; if (!c || c[0] < 20) return p;
@@ -124,6 +129,7 @@
     const pf = step(M.f, z, y, LRF * (M.shock ? 2 : 1) * dmp), pm = step(M.m, z, y, LRM * dmp), ps = step(M.s, z, y, LRS * dmp);
     M.Lf = M.Lf * 0.97 + ll(pf, y) * 0.03; M.Lm = M.Lm * 0.985 + ll(pm, y) * 0.015; M.Ls = M.Ls * 0.995 + ll(ps, y) * 0.005; M.n++; D.n++;
     if (h === 4) { const k = Object.keys(x).filter(q => x[q] && !q.endsWith("~d")), A = D.A;
+      const LB = D.lab = D.lab || []; const xs = {}; k.forEach(q => { xs[q] = Math.round(x[q] * 10) / 10 || (x[q] > 0 ? 0.1 : -0.1); }); LB.push([xs, r > 0 ? 1 : 0]); if (LB.length > 4000) LB.splice(0, LB.length - 4000);
       A.U = A.U || [0, 0]; A.U[0]++; if (r > 0) A.U[1]++;   // the base rate of up moves
       for (const q of k) { const o = A.N[q] = A.N[q] || [0, 0, 0, 0, 0, 0]; o[0]++; if (Math.sign(x[q]) === Math.sign(r)) o[1]++; o[2] += Math.sign(x[q]) * c1(r * 5) / 5; if (x[q] > 0) o[5] = (o[5] || 0) + 1;
         if (reg > 0.2) { o[3]++; if (Math.sign(x[q]) === Math.sign(r)) o[4]++; } }      // record in wild markets
@@ -135,6 +141,40 @@
   // (a signal that is always "+" — weekend, season — is right exactly as often as prices rise; that is not skill)
   function zNode(o) { const n = o[0]; if (!n) return 0; const U = D.A.U && D.A.U[0] >= 100 ? D.A.U[1] / D.A.U[0] : 0.5, np = o[5] != null ? o[5] : n / 2;
     const e = np * U + (n - np) * (1 - U), v = n * U * (1 - U) || n / 4; return (o[1] - e) / Math.sqrt(v); }
+  /* ---------- the lab: always on ----------
+     Every 2 minutes it invents 40 new ideas from the signals in its memory of the last 4,000 scored 4-hour lessons —
+     pairs (A×B), triples (A×B×C), conditionals (A only while B is up / down) and flipped single signals — including
+     ideas that make no obvious sense. Each idea is tested on one half of the memory; only if it beats chance there
+     (|z| ≥ 2.5) is it tested on the other half; it is confirmed only if it holds there too (|z| ≥ 2, same direction) AND it beats its best single part on the
+     same lessons (it must add something, not restate a known signal).
+     Confirmed ideas join the forecast as link features (up to 20) and are re-checked every run; one that stops working
+     is dropped. Many ideas are tested, so the bar is two independent passes, not one. */
+  function labTest(v, LB, half) { let n = 0, hit = 0, np = 0, up = 0; for (let i = half; i < LB.length; i += 2) { const [x, y] = LB[i], val = v(x); if (!val) continue; n++; if (y) up++; if (val > 0) np++; if ((val > 0) === (y === 1)) hit++; }
+    if (n < 40) return null; const U = D.A.U && D.A.U[0] >= 100 ? D.A.U[1] / D.A.U[0] : 0.5, e = np * U + (n - np) * (1 - U), vr = n * U * (1 - U) || n / 4; return { n, z: (hit - e) / Math.sqrt(vr), hit: hit / n }; }
+  // added value: the idea's edge (z per √n, on the lessons where it is active) must beat each single part's edge (on
+  // the lessons where that part is active)
+  // by 0.04 (≈ 2 points of hit rate) in both halves
+  function adds(k, v, LB) { if (k[0] === "-") return true; const parts = k.includes("|") ? [k.split("|")[0], k.split("|")[1].slice(0, -1)] : k.split("&");
+    for (const h of [0, 1]) { const ri = labTest(v, LB, h); if (!ri) return false; const e = q => { const r = labTest(q, LB, h); return r ? Math.abs(r.z) / Math.sqrt(r.n) : 0; };   // each over its own active lessons
+      const ei = Math.abs(ri.z) / Math.sqrt(ri.n), best = Math.max(...parts.map(p => e(x => x[p] || 0))); if (ei < best + Math.max(0.04, 2 / Math.sqrt(ri.n))) return false; }   // a small subset must gain more
+    return true; }
+  function labRun() {
+    const LB = D.lab || []; if (LB.length < 300) return; const S = D.labS = D.labS || { tested: 0, ok: [], seen: {} };
+    const F = {}; LB.slice(-1500).forEach(([x]) => { for (const k in x) F[k] = (F[k] || 0) + 1; }); const keys = Object.keys(F).filter(k => F[k] >= 60); if (keys.length < 3) return;
+    const pick = () => keys[Math.floor(Math.random() * keys.length)], fn = k => x => linkVal(k, x) || (k[0] === "-" ? -(x[k.slice(1)] || 0) : 0);
+    for (let t = 0; t < 40; t++) { const r = Math.random(), a = pick(), b = pick(), c = pick(); if (a === b) continue; let k;
+      if (r < 0.35) k = [a, b].sort().join("&"); else if (r < 0.55 && c !== a && c !== b) k = [a, b, c].sort().join("&"); else if (r < 0.9) k = a + "|" + b + (Math.random() < 0.5 ? "+" : "-"); else k = "-" + a;
+      if (S.seen[k] && D.n - S.seen[k] < 2000) continue; S.seen[k] = D.n; S.tested++;
+      if (S.ok.some(o => o.k === k)) continue; const z1 = labTest(fn(k), LB, 0); if (!z1 || Math.abs(z1.z) < 2.5) continue; const z2 = labTest(fn(k), LB, 1); if (!z2 || Math.abs(z2.z) < 2 || Math.sign(z2.z) !== Math.sign(z1.z)) continue;
+      if (!adds(k, fn(k), LB)) continue;   // it must add something beyond its best single part (not a known signal in disguise)
+      if (k[0] === "-") continue;   // a flipped single signal is already learned by its own (negative) weight: keep it as a finding only
+      S.ok.push({ k, z1: z1.z, z2: z2.z, hit: (z1.hit + z2.hit) / 2, n: z1.n + z2.n, at: Date.now() }); }
+    // re-check what was confirmed; keep the 20 strongest
+    S.ok = S.ok.map(o => { const a = labTest(fn(o.k), LB, 0), b = labTest(fn(o.k), LB, 1); return a && b ? { ...o, z1: a.z, z2: b.z, hit: (a.hit + b.hit) / 2, n: a.n + b.n } : o; })
+      .filter(o => Math.abs(o.z1) >= 2 && Math.abs(o.z2) >= 1.5 && Math.sign(o.z1) === Math.sign(o.z2) && adds(o.k, fn(o.k), LB)).sort((x, y) => Math.abs(y.z1 + y.z2) - Math.abs(x.z1 + x.z2)).slice(0, 20);
+    const sk = Object.keys(S.seen); if (sk.length > 5000) sk.sort((a, b) => S.seen[a] - S.seen[b]).slice(0, sk.length - 5000).forEach(k => delete S.seen[k]);
+    D.pairs = [...new Set(D.pairs.concat(S.ok.map(o => o.k)))]; save();
+  }
   // choose the link features: pairs that agree often enough and whose agreement has an outcome bias
   function choosePairs() {
     const P = Object.entries(D.A.P).filter(([, e]) => e[1] >= 150).map(([k, e]) => ({ k, s: Math.abs(e[2] / e[1] - 0.5) * Math.sqrt(e[1]) })).sort((a, b) => b.s - a.s).slice(0, MAXP);
@@ -143,16 +183,16 @@
     // experiment that earned a real weight (|w| ≥ 0.05) is kept for good; the rest are dropped and new ones are tried.
     const E0 = D.ed = D.ed || { exp: [], kept: [], tried: 0, keptN: 0, dropped: {} }, W4 = D.M[4], al = sig((W4.Ls - W4.Lf) * 12), wOf = k => al * (W4.f.w[k] || 0) + (1 - al) * (W4.s.w[k] || 0);
     const zP = k => { const e = D.A.P[k]; return e && e[3] != null ? zNode([e[0], e[3], 0, 0, 0, e[4] || 0]) : 0; };   // the product's hit rate vs chance
-    E0.exp = E0.exp.filter(x => { if (D.n - x.at < 400) return true; E0.tried++; if (Math.abs(wOf(x.k)) >= 0.05 && Math.abs(zP(x.k)) >= 2.5) { if (!E0.kept.includes(x.k)) { E0.kept.push(x.k); E0.keptN++; } } else E0.dropped[x.k] = D.n; return false; });
+    E0.exp = E0.exp.filter(x => { if (D.n - x.at < 250) return true; E0.tried++; if (Math.abs(wOf(x.k)) >= 0.05 && Math.abs(zP(x.k)) >= 2.5) { if (!E0.kept.includes(x.k)) { E0.kept.push(x.k); E0.keptN++; } } else E0.dropped[x.k] = D.n; return false; });
     E0.kept = E0.kept.filter(k => Math.abs(wOf(k)) >= 0.02).slice(-24);   // a kept link that fades away is let go
     const busy = new Set(base.concat(E0.kept, E0.exp.map(x => x.k)));
-    if (E0.exp.length < 6) { const cand = Object.entries(D.A.P).filter(([k, e]) => e[0] >= 60 && !busy.has(k) && !(E0.dropped[k] && D.n - E0.dropped[k] < 3000)).map(([k]) => k);
+    if (E0.exp.length < 12) { const cand = Object.entries(D.A.P).filter(([k, e]) => e[0] >= 60 && !busy.has(k) && !(E0.dropped[k] && D.n - E0.dropped[k] < 3000)).map(([k]) => k);
       // seek: most new experiments go to the pairs whose product already looks strongest; some stay random (exploration)
-      const ranked = cand.map(k => ({ k, z: Math.abs(zP(k)) })).sort((a, b) => b.z - a.z), need = 6 - E0.exp.length, nBest = Math.ceil(need * 0.7), pick = ranked.slice(0, nBest).map(o => o.k), rest = ranked.slice(nBest).map(o => o.k);
+      const ranked = cand.map(k => ({ k, z: Math.abs(zP(k)) })).sort((a, b) => b.z - a.z), need = 12 - E0.exp.length, nBest = Math.ceil(need * 0.7), pick = ranked.slice(0, nBest).map(o => o.k), rest = ranked.slice(nBest).map(o => o.k);
       for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
       pick.concat(rest.slice(0, need - pick.length)).forEach(k => E0.exp.push({ k, at: D.n })); }
     const dk = Object.keys(E0.dropped); if (dk.length > 400) dk.sort((a, b) => E0.dropped[a] - E0.dropped[b]).slice(0, dk.length - 400).forEach(k => delete E0.dropped[k]);
-    D.pairs = [...new Set(base.concat(E0.kept, E0.exp.map(x => x.k)))];
+    D.pairs = [...new Set(base.concat(E0.kept, E0.exp.map(x => x.k), ((D.labS && D.labS.ok) || []).map(o => o.k)))];
     // discovery: test every signal; proven = strong evidence either way, muted = noise after many checks
     const pr = [], mu = []; for (const [k, o] of Object.entries(D.A.N)) { if (o[0] < 50) continue; const z = zNode(o); if (Math.abs(z) >= 3) pr.push(k); else if (o[0] >= 300 && Math.abs(z) < 0.7) mu.push(k); }   // z ≥ 3: many signals are tested at once
     D.proven = pr; D.mute = mu; MUTE = new Set(mu);
@@ -290,7 +330,7 @@
   function forecast(asset, h) {
     const a = norm(asset), x = derive(a, feats(a)); if (!Object.keys(x).length) return null;
     const reg = regime(a), z = expand(x, reg), hh = h || 4, P = prob(hh, z), M = D.M[hh], al = P.a;
-    const contrib = Object.entries(z).map(([k, v]) => ({ id: k, label: k.includes("&") ? k.split("&").map(q => LABEL[q] || q).join(" + ") : k.endsWith("~vol") ? (LABEL[k.slice(0, -4)] || k) + " (in this volatility)" : LABEL[k] || k, v, c: (al * (M.f.w[k] || 0) + (1 - al) * (M.s.w[k] || 0)) * v })).sort((m, n) => Math.abs(n.c) - Math.abs(m.c));
+    const contrib = Object.entries(z).map(([k, v]) => ({ id: k, label: k.includes("|") ? (LABEL[k.split("|")[0]] || k.split("|")[0]) + " — only while " + (LABEL[k.split("|")[1].slice(0, -1)] || k.split("|")[1].slice(0, -1)) + (k.slice(-1) === "+" ? " is up" : " is down") : k.includes("&") ? k.split("&").map(q => LABEL[q] || q).join(" + ") : k.endsWith("~vol") ? (LABEL[k.slice(0, -4)] || k) + " (in this volatility)" : LABEL[k] || k, v, c: (al * (M.f.w[k] || 0) + (1 - al) * (M.s.w[k] || 0)) * v })).sort((m, n) => Math.abs(n.c) - Math.abs(m.c));
     const ph = Object.fromEntries(HZ.map(q => [q, prob(q, z).p]));
     const sk = strike(hunt(M), P.p);
     return { p: P.p, raw: P.raw, ph, n: M.n, ready: M.n >= 100, reg, fast: al, med: P.am, contrib, strike: sk.on, band: sk, shock: !!M.shock, lvl: M.lvl,
@@ -370,6 +410,8 @@
       <div style="display:flex;flex-wrap:wrap;gap:8px">${tb("Working — right more often than chance (z ≥ 2.5)", X.working.slice(0, lim).map(n => row(n, up)), "No signal has strong evidence yet (it needs 50+ checks and z ≥ 2.5 vs chance).")}
       ${tb("Works in reverse — the web fades these (z ≤ −2.5)", X.reverse.slice(0, lim).map(n => row(n, dn)), "None yet.")}</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"><div style="flex:1 1 320px;min-width:0;border:1px solid ${line};border-radius:10px;padding:8px 10px"><div style="font:600 12px var(--sans,system-ui);color:${ink};margin-bottom:4px">Learned links — two signals together <span style="font:11px var(--mono);color:${dim};font-weight:400">· 💡 Edison: ${(D.ed && D.ed.tried) || 0} experiments tried, ${(D.ed && D.ed.keptN) || 0} kept, ${(D.ed && D.ed.exp.length) || 0} running</span></div>${X.links.filter(e => Math.abs(e.w) >= 0.05).length ? X.links.filter(e => Math.abs(e.w) >= 0.05).slice(0, lim).map(e => `<div style="font:11.5px var(--mono);padding:2px 0"><b style="color:${e.w >= 0 ? up : dn}">━■━</b> ${LABEL[e.a] || e.a} <span style="color:${dim}">+</span> ${LABEL[e.b] || e.b} <span style="color:${dim}">· right when they agree ${e.bothR == null ? "–" : Math.round(e.bothR * 100) + "%"} · weight ${e.w >= 0 ? "+" : ""}${e.w.toFixed(2)}</span></div>`).join("") : `<div style="font:11.5px var(--mono);color:${dim}">None with a real weight yet: a link is tried when two signals agree 150+ times with an outcome bias, and it counts once the web gives it its own weight (|w| ≥ 0.05).</div>`}</div>
+      <div style="flex:1 1 320px;min-width:0;border:1px solid ${line};border-radius:10px;padding:8px 10px"><div style="font:600 12px var(--sans,system-ui);color:${ink};margin-bottom:4px">🧪 The lab — always testing <span style="font:11px var(--mono);color:${dim};font-weight:400">· ${((D.labS && D.labS.tested) || 0).toLocaleString()} ideas tested on ${((D.lab || []).length).toLocaleString()} lessons · ${((D.labS && D.labS.ok) || []).length} confirmed</span></div>${(D.labS && D.labS.ok.length) ? D.labS.ok.slice(0, lim).map(o => { const nm = o.k.includes("|") ? (LABEL[o.k.split("|")[0]] || o.k.split("|")[0]) + " <span style='color:" + dim + "'>only while</span> " + (LABEL[o.k.split("|")[1].slice(0, -1)] || o.k.split("|")[1].slice(0, -1)) + (o.k.slice(-1) === "+" ? " ↑" : " ↓") : o.k.split("&").map(q => LABEL[q] || q).join(" <span style='color:" + dim + "'>×</span> ");
+        return `<div style="font:11.5px var(--mono);padding:2px 0"><b style="color:${o.z1 > 0 ? up : dn}">${o.z1 > 0 ? "▲" : "▼"}</b> ${nm} <span style="color:${dim}">· right ${Math.round(o.hit * 100)}% of ${o.n} · z ${o.z1.toFixed(1)} / ${o.z2.toFixed(1)} (both halves)</span></div>`; }).join("") : `<div style="font:11.5px var(--mono);color:${dim}">Nothing has passed both halves yet. Every 2 minutes 40 new ideas are tried — pairs, triples, conditionals and flips, including ones that make no obvious sense.</div>`}</div>
       <div style="flex:1 1 320px;min-width:0;border:1px solid ${line};border-radius:10px;padding:8px 10px"><div style="font:600 12px var(--sans,system-ui);color:${ink};margin-bottom:4px">${icon("mute", dim)} Muted — noise after 300+ checks</div><div style="font:11.5px var(--mono);color:${dim};line-height:1.5">${X.muted.length ? X.muted.slice(0, 14).map(n => n.label.replace(/^[^·]+· /, "")).join(" · ") : "Nothing muted yet."}</div><div style="font:11px var(--mono);color:${dim};margin-top:4px">Muted weights fade 20× faster, so noise stops moving the forecast. A muted signal comes back if it starts to work.</div></div></div></div>`;
   }
   function forecastHtml(asset) {
@@ -378,6 +420,7 @@
     const pp = p => `<b style="color:${p >= 0.5 ? up : dn}">${Math.round(p * 100)}%</b>`;
     return `<span style="font:12px var(--mono)">Signal web P(up): 30m ${pp(F.ph[0.5])} · 1h ${pp(F.ph[1])} · 4h ${pp(F.ph[4])} · 24h ${pp(F.ph[24])}${F.ready ? "" : ` <span style="opacity:.6">(learning, ${F.n}/100)</span>`} · <b title="Black widow: strike only in confidence bands that paid (56%+ over 30+ calls)">${F.strike ? "🕷 STRIKE" : "wait"}</b>${F.shock ? ` · <span title="Mongoose: the last 30 calls missed often; relearning fast">⚡ shock</span>` : ""} · drivers: ${F.contrib.slice(0, 3).map(c => `${c.label} ${c.c >= 0 ? "+" : ""}${c.c.toFixed(2)}`).join(", ")}</span>`;
   }
-  window.Web = { emit, tick, ingest, forecast, forecastHtml, render, nodes, edges, stats, discover, workingHtml, cycles, addPrice: f => PRICE.push(f), data: () => D };
+  setInterval(() => { try { reload(); labRun(); } catch (e) { } }, 120000); setTimeout(() => { try { labRun(); } catch (e) { } }, 40000);
+  window.Web = { emit, tick, ingest, forecast, forecastHtml, render, nodes, edges, stats, discover, workingHtml, cycles, lab: () => labRun(), addPrice: f => PRICE.push(f), data: () => D };
   setInterval(tick, 60000); setTimeout(tick, 15000);
 })();
