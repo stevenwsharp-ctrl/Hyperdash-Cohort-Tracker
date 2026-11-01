@@ -119,6 +119,10 @@
       // coordination: cohort sweep and wallets
       if (SW && SW.ch[r.coin] != null) { if (Math.max(SW.up, SW.dn) >= 0.35) L.push(["sync.sweep", c1(SW.med / 15), "Coordination · smart cohorts shift together in most markets"]);
         const id = SW.ch[r.coin] - SW.med; if (Math.abs(id) >= 8) L.push(["sync.idio", c1(id / 25), "Coordination · smart cohort moves in this market alone"]); }
+      // a holder flagged "early" (right before past big moves more often than luck) traded this market in the last 2 hours
+      try { if (window.csTrades && window.csSkill && SPEC && SPEC.m && SPEC.m[r.coin]) { const hs = SPEC.m[r.coin].holders || []; let v = 0, n = 0;
+        csTrades().filter(x => x.c === r.coin && now - x.t < 2 * 36e5).forEach(x => { const h = hs.find(q => q.a === x.a); const sk = h && csSkill(h, r.coin); if (sk && sk.early && sk.early.flag) { v += x.d; n++; } });
+        if (n) L.push(["sync.early", c1(v / n), "Coordination · a trader who was often early before big moves just traded"]); } } catch (e) { }
       const lv = Y && Sync.live(Y, r.coin, 2 * 36e5);
       if (lv) { if (lv.best) L.push(["sync.best", lv.best, "Coordination · best holders moved together"]); if (lv.worst) L.push(["sync.worst", lv.worst, "Coordination · worst holders moved together"]); if (lv.leader) L.push(["sync.leader", lv.leader, "Coordination · a leader wallet moved first"]); }
       // rhythm

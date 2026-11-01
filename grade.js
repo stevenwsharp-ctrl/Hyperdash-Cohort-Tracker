@@ -132,10 +132,36 @@
   function holdHtml(R) { return R && R.holdAvg ? `<span title="Average time in a trade (from the first entry to each sale, weighted by $ size): ${dur(R.holdAvg)}; median ${dur(R.holdMed)}; ${R.holdN} sales">${dur(R.holdAvg)}</span>` : '<span class="sub">–</span>'; }
   // group average: the median of the traders' $-weighted holding times
   function groupHold(Rs) { const v = Rs.filter(r => r && r.holdAvg).map(r => r.holdAvg).sort((a, b) => a - b); return v.length ? { med: v[v.length >> 1], n: v.length } : null; }
+  /* Early before big moves: does a trader keep positioning just before the market's big shocks (a sudden move of 3σ+
+     in an hour, or 4σ+ over 4 hours, usually news, earnings or data), on the right side?
+     For each shock: the trader's net buying (+) or selling (−) in the 24 hours before it (ending 30 minutes before).
+     Right = net in the direction of the shock. The chance of k or more right out of n by luck is the binomial tail
+     at 50%. Flag "early" only with 3+ shocks traded, 75%+ right and a chance under 5%. It can be skill (reading the tape,
+     knowing the sector), luck, or information; the flag says only that the pattern is unlikely to be chance. */
+  function shocks(B) {
+    if (!B || B.length < 50) return []; const r = []; for (let i = 1; i < B.length; i++) r.push(Math.log(B[i][3] / B[i - 1][3]));
+    const sd = Math.sqrt(r.reduce((s, v) => s + v * v, 0) / r.length) || 1e-9, ev = [];
+    for (let i = 4; i < r.length; i++) { const h1 = r[i] / sd, h4 = (r[i] + r[i - 1] + r[i - 2] + r[i - 3]) / (sd * 2);
+      const big = Math.abs(h1) >= 3 ? h1 : Math.abs(h4) >= 4 ? h4 : 0; if (!big) continue; const t = Math.abs(h1) >= 3 ? B[i][0] : B[i - 3][0];
+      const last = ev[ev.length - 1]; if (last && t - last.t < 6 * 36e5) { if (Math.abs(big) > Math.abs(last.z)) Object.assign(last, { t, z: big, d: Math.sign(big) }); continue; } ev.push({ t, z: big, d: Math.sign(big) }); }
+    return ev;
+  }
+  function binTail(k, n) { let s = 0; for (let i = k; i <= n; i++) { let c = 1; for (let j = 0; j < i; j++) c = c * (n - j) / (j + 1); s += c; } return s / Math.pow(2, n); }
+  function early(M, B, ev) {
+    ev = ev || shocks(B); const out = { n: 0, k: 0, ev: [], p: 1, flag: false }; if (!ev.length || !M.length) return out;
+    const sz = M.map(m => m.usd).sort((a, b) => a - b), medS = sz[sz.length >> 1] || 0;
+    ev.forEach(e => { let net = 0, gross = 0; M.forEach(m => { if (m.t >= e.t - 24 * 36e5 && m.t <= e.t - 18e5) { const d = m.entry ? m.side : -m.side; net += d * m.usd; gross += m.usd; } });
+      if (gross < Math.max(5000, medS * 0.5) || Math.abs(net) < gross * 0.3) return; const right = Math.sign(net) === e.d; out.n++; if (right) out.k++; out.ev.push({ t: e.t, d: e.d, z: e.z, net, right }); });
+    out.p = out.n ? binTail(out.k, out.n) : 1; out.flag = out.n >= 3 && out.k / out.n >= 0.75 && out.p <= 0.05; out.shocks = ev.length;
+    return out;
+  }
+  function earlyBadge(X) { if (!X || !X.n) return '<span class="sub">–</span>';
+    const t = `Before ${X.shocks} big moves (3σ+ in 1h or 4σ+ in 4h): traded the right way before ${X.k} of ${X.n} it traded around; chance by luck ${X.p < 0.001 ? "<0.1" : (X.p * 100).toFixed(1)}%.${X.flag ? " Unlikely to be chance: skill, an edge in reading the sector, or information." : ""} ${X.ev.slice(-4).map(e => new Date(e.t).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + (e.d > 0 ? "▲" : "▼") + (e.right ? " ✓" : " ✗")).join(", ")}`;
+    return `<span title="${t}" class="${X.flag ? "up" : ""}">${X.flag ? "🔍 " : ""}${X.k}/${X.n}</span>`; }
   function badge(R) {
     if (!R || (!R.parts.length)) return "";
     const cl = R.Q >= 0.2 ? "up" : R.Q <= -0.2 ? "down" : "", lab = R.Q >= 0.4 ? "A" : R.Q >= 0.15 ? "B" : R.Q > -0.15 ? "C" : R.Q > -0.4 ? "D" : "F";
     return `<span class="grd ${cl}" title="Trade grade ${lab} (${R.Q >= 0 ? "+" : ""}${R.Q.toFixed(2)}): ${R.parts.map(p => `${p[0]}: ${p[2]}`).join(" · ")}">${lab}</span>`;
   }
-  window.Grade = { trips, grade, badge, grit, gritBadge, dur, holdHtml, groupHold };
+  window.Grade = { trips, grade, badge, grit, gritBadge, dur, holdHtml, groupHold, shocks, early, earlyBadge, binTail };
 })();

@@ -280,7 +280,7 @@ body{padding-bottom:34px}
     if (F) F.f.filter(x => String(x.coin).toLowerCase() === want).sort((x, y) => x.time - y.time).forEach(x => { const d = x.dir || ""; if (!/Long|Short/.test(d)) return;
       M.push({ t: x.time, entry: /Open|>/.test(d), side: /Long > Short/.test(d) ? -1 : /Short > Long/.test(d) ? 1 : /Long/.test(d) ? 1 : -1, px: +x.px, usd: +x.sz * +x.px }); });
     const B = barsOf(coin), T = Grade.trips(M, B), px = (ctxOf(coin) || {}).px;
-    const R = Grade.grade(T, { bars: B, px, upnl: ha ? ha.u : null, acct: ha ? ha.ntl : 0 }); R.grit = Grade.grit(M, B, T); R.hold = ha;
+    const R = Grade.grade(T, { bars: B, px, upnl: ha ? ha.u : null, acct: ha ? ha.ntl : 0 }); R.grit = Grade.grit(M, B, T); R.hold = ha; R.early = Grade.early ? Grade.early(M, B) : null;
     R.mult = 1 + 0.5 * (0.55 * R.Q + 0.45 * (R.grit.n >= 5 ? R.grit.G : 0)); R.t = Date.now(); R.ft = F ? F.t : 0;
     return GRC[k] = R;
   }
@@ -378,7 +378,7 @@ body{padding-bottom:34px}
     const netTxt = `<b class="${net >= 0 ? "L" : "S"}">group net ${net >= 0 ? "long" : "short"} ${usd(Math.abs(net))}</b>${netMM ? ` <span style="color:var(--faint)">(MMs at 25%)</span>` : ""}${gh ? ` · <span title="Average time in a trade on this market (median of ${gh.n} traders with fills)">avg hold ${Grade.dur(gh.med)}</span>` : ""} · `;
     return rows.length ? `<div style="font:11px var(--mono);color:var(--dim);margin:2px 0 4px">${netTxt}Holds now: ${rows.map(({ h, x }) => { const sz = x ? x[0] : h.sd * h.n, v = x ? Math.abs(x[0]) * (ctxOf(c) || {}).px || Math.abs(x[0] * x[1]) : h.n;
       const sk = skill(h, c);
-      return `<span class="${sz > 0 ? "L" : "S"}">${esc(h.lb || h.a.slice(0, 6) + "…")}${isMM(h) ? ` <span class="flag f-thin" title="Market maker: counts at 25%">MM</span>` : ""}${sk && sk.parts.length ? " " + Grade.badge(sk) : ""}${sk && sk.grit && sk.grit.n >= 5 ? " " + Grade.gritBadge(sk.grit) : ""}${h.wr != null ? ` <span title="Overall win rate across all markets (Hyperdash): ${h.wr}% of ${h.tt} trades" class="${h.wr >= 55 ? "L" : h.wr < 45 ? "S" : ""}">WR ${Math.round(h.wr)}%${h.tt ? "/" + h.tt : ""}</span>` : ""}${sk && sk.holdAvg ? " ⏱" + Grade.holdHtml(sk) : ""}${sk && sk.hold && sk.hold.n > 1 ? ` <span title="Open P&L across the ${sk.hold.n} markets where this wallet is a top holder" class="${sk.hold.u >= 0 ? "L" : "S"}">all ${sk.hold.u >= 0 ? "+" : "-"}${usd(Math.abs(sk.hold.u))}</span>` : ""} ${usd(v)} ${sz > 0 ? "long" : "short"}${x && x[1] ? " @ " + price(x[1]) : ""}</span>${x && x[2] ? ` <span class="${x[2] >= 0 ? "L" : "S"}">(${x[2] >= 0 ? "+" : ""}${usd(x[2])})</span>` : ""}`; }).join(" · ")}</div>` : ""; };
+      return `<span class="${sz > 0 ? "L" : "S"}">${esc(h.lb || h.a.slice(0, 6) + "…")}${isMM(h) ? ` <span class="flag f-thin" title="Market maker: counts at 25%">MM</span>` : ""}${sk && sk.parts.length ? " " + Grade.badge(sk) : ""}${sk && sk.grit && sk.grit.n >= 5 ? " " + Grade.gritBadge(sk.grit) : ""}${h.wr != null ? ` <span title="Overall win rate across all markets (Hyperdash): ${h.wr}% of ${h.tt} trades" class="${h.wr >= 55 ? "L" : h.wr < 45 ? "S" : ""}">WR ${Math.round(h.wr)}%${h.tt ? "/" + h.tt : ""}</span>` : ""}${sk && sk.holdAvg ? " ⏱" + Grade.holdHtml(sk) : ""}${sk && sk.early && sk.early.n ? " · early " + Grade.earlyBadge(sk.early) : ""}${sk && sk.hold && sk.hold.n > 1 ? ` <span title="Open P&L across the ${sk.hold.n} markets where this wallet is a top holder" class="${sk.hold.u >= 0 ? "L" : "S"}">all ${sk.hold.u >= 0 ? "+" : "-"}${usd(Math.abs(sk.hold.u))}</span>` : ""} ${usd(v)} ${sz > 0 ? "long" : "short"}${x && x[1] ? " @ " + price(x[1]) : ""}</span>${x && x[2] ? ` <span class="${x[2] >= 0 ? "L" : "S"}">(${x[2] >= 0 ? "+" : ""}${usd(x[2])})</span>` : ""}`; }).join(" · ")}</div>` : ""; };
 
   /* Market-maker record: every 10 minutes, log each coin's market-maker net inventory and price; 4 hours later check
      whether price moved against the inventory (MMs short → price up). The hit rate tunes the rating factor in index.html. */
@@ -682,7 +682,7 @@ body{padding-bottom:34px}
   wtb.onclick = () => { VIEW = "web"; document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === wtb)); document.querySelectorAll("section[id^='v-']").forEach(s => s.hidden = s.id !== "v-web"); render(); renderWeb(); };
   function renderWeb() {
     if (VIEW !== "web" || !window.Web) return;
-    Web.render(document.getElementById("webBody"), { h: 460 });
+    Web.render(document.getElementById("webBody"), { h: 480, working: true });
     const rows = (typeof filtered === "function" ? filtered() : ROWS).slice(0, 25);
     document.getElementById("webFc").innerHTML = `<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="tr"><thead><tr><th style="text-align:left">Market</th><th>Setup</th><th>Rating</th><th style="text-align:left">Signal web</th></tr></thead><tbody>${rows.map(r => `<tr><td style="text-align:left"><a href="#" data-goto="${esc(r.coin)}">${esc(r.sym)}</a></td><td class="${r.dir > 0 ? "L" : "S"}">SMART ${r.dir > 0 ? "LONG" : "SHORT"}</td><td>${r.rating}</td><td style="text-align:left">${Web.forecastHtml(r.sym) || "–"}</td></tr>`).join("")}</tbody></table></div>`;
   }
