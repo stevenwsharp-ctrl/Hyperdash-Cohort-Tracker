@@ -78,7 +78,7 @@
       const want = [...new Set(st.concat(ROWS.slice().sort((a, b) => b.rating - a.rating).slice(0, 12).map(r => r.coin)))];
       const due = want.filter(c => !RHY[c] || Date.now() - RHY[c].t > 30 * 6e4).sort((a, b) => ((RHY[a] || {}).t || 0) - ((RHY[b] || {}).t || 0)).slice(0, 2);
       for (const c of due) { try { const r = await fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: hlName(c), interval: "1h", startTime: Date.now() - 60 * 864e5, endTime: Date.now() } }) });
-          if (r.status === 429) break; const k = r.ok ? await r.json() : null; if (Array.isArray(k) && k.length >= 80) RHY[c] = { t: Date.now(), R: Rhythm.analyze(k.map(b => [b.t, +b.o, +b.h, +b.l, +b.c]), { win: 400 }), V: window.VFlow ? VFlow.analyze(k.slice(-500).map(b => [b.t, +b.o, +b.h, +b.l, +b.c, +b.v])) : null }; else RHY[c] = { t: Date.now(), R: null }; } catch (e) { }
+          if (r.status === 429) break; const k = r.ok ? await r.json() : null; if (Array.isArray(k) && k.length >= 80) RHY[c] = { t: Date.now(), B: k.slice(-72).map(b => [b.t, +b.o, +b.h, +b.l, +b.c, +b.v]), R: Rhythm.analyze(k.map(b => [b.t, +b.o, +b.h, +b.l, +b.c]), { win: 400 }), V: window.VFlow ? VFlow.analyze(k.slice(-500).map(b => [b.t, +b.o, +b.h, +b.l, +b.c, +b.v])) : null }; else RHY[c] = { t: Date.now(), R: null }; } catch (e) { }
         await new Promise(r => setTimeout(r, 1500)); }
     } catch (e) { } rhyBusy = false;
   }
@@ -128,12 +128,16 @@
       // rhythm
       const RH = RHY[r.coin] && RHY[r.coin].R; if (RH) [["trend", "Rhythm · path memory (trend or snap-back)"], ["hour", "Rhythm · this hour of the day, history"], ["cycle", "Rhythm · repeating cycle"], ["fib", "Rhythm · Fibonacci level (back-tested)"], ["home", "Rhythm · pull back home (vs chance)"], ["flow", "Rhythm · poetry in motion (smooth trend)"], ["wave", "Frequency · projected wave (back-tested)"], ["resonance", "Frequency · resonance (all waves turn together)"]].forEach(([k, lab]) => { const v = RH.sig[k]; if (v) L.push(["rhy." + k, v, lab]); });
       const VV = RHY[r.coin] && RHY[r.coin].V; if (VV) VV.I.forEach(([id, v, lab]) => L.push([id, v, lab]));   // volume flow (vflow.js), hourly bars
+      // liquidity (liquid.js): this market's order book, its share of its industry's money, and the tide of all leverage
+      const LA = LQ[r.coin]; if (LA && Date.now() - LA.at < 20 * 6e4) Liquid.signals(LA, a).forEach(([id, , v, lab]) => L.push([id, v, lab]));
+      const ro = ROT[r.coin]; if (ro && Math.abs(ro.ch) >= 0.15) L.push(["liq.rotation", c1(ro.ch * 2), "Liquidity · its share of its industry's money (rising = money arriving)"]);
+      if (TIDE && Math.abs(TIDE.oiCh) >= 0.01) L.push(["liq.tide", c1(TIDE.oiCh * 15), "Liquidity · the tide: leverage flowing into (+) or out of (−) all markets"]);
       L.forEach(([id, v, lab]) => { if (isFinite(v) && v) Web.emit(id, a, c1(v), lab); });
       const ps = L.filter(x => /^psy\./.test(x[0]) && Math.abs(x[1]) >= 0.2); if (ps.length) out.push({ r, ps });
       const ls = L.filter(x => /^(ent|sync)\./.test(x[0]) && Math.abs(x[1]) >= 0.2); if (ls.length) lnk.push({ r, ps: ls, why: [].concat(s ? s.why : [], lv ? lv.why : []) });
     });
     window.CROWD = { R, out, lnk, E, Y, SW };
-    if (VIEW === "web") { const el = document.getElementById("webRhyme"), keep = el && el.innerHTML ? { k: el._key, at: el._at } : null; renderPsy(); const e2 = document.getElementById("webRhyme"); if (e2 && keep) { e2._key = keep.k; e2._at = keep.at; } drawRhyme(); }
+    if (VIEW === "web") { const el = document.getElementById("webRhyme"), keep = el && el.innerHTML ? { k: el._key, at: el._at } : null; renderPsy(); const e2 = document.getElementById("webRhyme"); if (e2 && keep) { e2._key = keep.k; e2._at = keep.at; } drawRhyme(); drawLiq(); }
   }
   const sym = c => { try { return parse(c).sym; } catch (e) { return c; } };
   try { const st = document.createElement("style"); st.textContent = `#webPsy a.nhl,#webPsy a.nhl:visited{color:var(--text,inherit);text-decoration:none;font:500 13.5px/1.35 var(--sans,system-ui)}#webPsy a.nhl:hover{color:var(--accent,#4da3ff);text-decoration:underline;text-underline-offset:3px}#webPsy td{vertical-align:top}`; document.head.appendChild(st); } catch (e) { }
@@ -160,12 +164,31 @@
         return `<h3 style="margin-top:14px">Rhythm · randomness, regularity, Fibonacci, music and flow</h3><div class="card" style="padding:6px 10px;overflow-x:auto"><table class="tr"><thead><tr><th style="text-align:left">Market</th><th style="text-align:left">Randomness</th><th style="text-align:left">Flow</th><th style="text-align:left">Fibonacci</th><th style="text-align:left">Music</th><th style="text-align:left">Volume</th><th>Lean</th></tr></thead><tbody>${E.map(({ c, R }) => `<tr data-rhy="${esc(c)}" style="cursor:pointer${c === pick.c ? ";background:var(--hover,rgba(127,127,127,.08))" : ""}"><td style="text-align:left">${esc(sym(c))}</td><td style="text-align:left">${esc(R.rand.label.split(":")[0])}</td><td style="text-align:left">${esc(R.flow.label.split(":")[0])}${R.flow.dir ? (R.flow.dir > 0 ? " ▲" : " ▼") : ""}</td><td style="text-align:left">${R.fib ? `${R.fib.x != null ? Math.round(R.fib.x * 100) + "%" : "–"}${R.fib.near ? " at " + (R.fib.near.L * 100).toFixed(1) : ""}${R.fib.edge != null ? (R.fib.edge >= 0.08 ? " · works here" : R.fib.edge >= 0.04 ? " · small edge" : " · no edge") : ""}` : "–"}</td><td style="text-align:left">${R.music ? (R.music.tension ? "squeeze · " : "") + (R.music.zHome != null ? R.music.zHome.toFixed(1) + "σ from home" : "") : "–"}</td><td style="text-align:left">${(() => { const VV = RHY[c] && RHY[c].V; if (!VV) return "–"; const nv = VV.I.reduce((s2, x) => s2 + x[1], 0); return `<span class="${nv > 0.15 ? "L" : nv < -0.15 ? "S" : ""}">${nv > 0.15 ? "buyers" : nv < -0.15 ? "sellers" : "balanced"}</span>${VV.clx ? " · climax" : ""}${VV.inLvn ? " · thin pocket" : ""}`; })()}</td><td class="${sum(R) >= 0 ? "L" : "S"}">${sum(R) ? (sum(R) > 0 ? "▲ " : "▼ ") + Math.abs(sum(R)).toFixed(2) : "–"}</td></tr>`).join("")}</tbody></table></div>
           <div class="card" style="padding:6px 10px;overflow-x:auto;margin-top:8px"><b>${esc(sym(pick.c))}</b> (select a row)${Rhythm.html(pick.R, { px: v => price(v) })}${pick.V && window.VFlow ? `<div style="margin-top:8px">${VFlow.html(pick.V, "hourly bars, Hyperliquid")}</div>` : ""}</div>`; })()}
       <h3 style="margin-top:14px">Crowd memory · how the crowd acts at every hour, and the past moments that rhyme with now</h3><div class="card" style="padding:8px 10px" id="webRhyme"></div>
+      <h3 style="margin-top:14px">Liquidity · where the money waits, and where it is going</h3><div class="card" style="padding:6px 10px;overflow-x:auto" id="webLiq"><div class="note">Order books load 2 markets a minute.</div></div>
       <h3 style="margin-top:14px">Venues · price gaps between outlets and currencies</h3><div class="card" style="padding:6px 10px;overflow-x:auto" id="webVen">${window.Venues ? Venues.html({ px: price, n: 15 }) : ""}</div>
       <div class="note" style="max-width:none;margin-top:6px">"Entanglement" is a metaphor: in physics, measuring one entangled particle tells you the other's state. Coupled markets share drivers (rates, the dollar, AI spend, crypto risk appetite), so a move in one says something about the other — a statistical link that can break. When a tight link breaks, that is news too: the name now trades on its own story.</div>`;
   }
-  document.addEventListener("click", e => { if (e.target.closest(".tab[data-tab='web']")) setTimeout(() => { renderPsy(); drawRhyme(); }, 50); const rr = e.target.closest("[data-rhy]"); if (rr) { try { localStorage.setItem("cs_rhy_pick", rr.dataset.rhy); } catch (x) { } renderPsy(); } });
+  document.addEventListener("click", e => { if (e.target.closest(".tab[data-tab='web']")) setTimeout(() => { renderPsy(); drawRhyme(); drawLiq(); }, 50); const rr = e.target.closest("[data-rhy]"); if (rr) { try { localStorage.setItem("cs_rhy_pick", rr.dataset.rhy); } catch (x) { } renderPsy(); drawLiq(); } });
   setTimeout(feed, 25000); setInterval(feed, 60000);
   setTimeout(rhyLoad, 40000); setInterval(rhyLoad, 60000);
+  // liquidity hound (liquid.js): 2 order books a minute (starred markets and the top setups, in turn), rotation and the tide every minute
+  const LQ = {}, ROT = {}; let TIDE = null;
+  async function liqTick() {
+    if (!window.Liquid || document.hidden) return;
+    try { const L = typeof LIVE === "object" ? LIVE : {}; if (Object.keys(L).length) { TIDE = Liquid.tide(L);
+        Object.assign(ROT, Liquid.rotation(Object.entries(L).map(([k, v]) => ({ coin: k, v: v.v })), c => window.Tax ? Tax.tag(c) : null)); } } catch (e) { }
+    let st = []; try { st = JSON.parse(localStorage.getItem("cs_stars") || "[]"); } catch (e) { }
+    const want = [...new Set(st.concat(ROWS.slice().sort((a, b) => b.rating - a.rating).slice(0, 12).map(r => r.coin)))];
+    const due = want.sort((a, b) => ((LQ[a] || {}).at || 0) - ((LQ[b] || {}).at || 0)).slice(0, 2);
+    for (const c of due) { try { const A = await Liquid.read(hlName(c), RHY[c] && RHY[c].B); if (A) { A.key = c; LQ[c] = A; } else LQ[c] = { at: Date.now(), none: true }; } catch (e) { if (String(e).includes("429")) break; } }
+    if (VIEW === "web") drawLiq();
+  }
+  function drawLiq() { const el = document.getElementById("webLiq"); if (!el || !window.Liquid) return;
+    const rows = Object.values(LQ).filter(A => !A.none && A.walls).sort((a, b) => b.d1[0] + b.d1[1] - a.d1[0] - a.d1[1]).map(A => ({ ...A, coin: sym(A.key) }));
+    const rot = Object.entries(ROT).filter(([, v]) => Math.abs(v.ch) >= 0.15).sort((a, b) => b[1].ch - a[1].ch);
+    el.innerHTML = (TIDE ? `<div class="note" style="max-width:none">The tide: open interest on all markets ${"$" + (TIDE.oi / 1e9).toFixed(2)}B, <b class="${TIDE.oiCh > 0 ? "L" : TIDE.oiCh < 0 ? "S" : ""}">${TIDE.oiCh >= 0 ? "+" : ""}${(TIDE.oiCh * 100).toFixed(1)}%</b> vs its recent normal (${TIDE.oiCh > 0.01 ? "leverage flowing in" : TIDE.oiCh < -0.01 ? "leverage flowing out" : "steady"}). 24 h volume ${(TIDE.vR * 100).toFixed(0)}% of normal.</div>` : "")
+      + (rot.length ? `<div class="note" style="max-width:none">Money rotating inside its industry: ${rot.slice(0, 6).map(([c, v]) => `<span class="L">${esc(sym(c))} +${(v.ch * 100).toFixed(0)}%</span>`).join(" · ")}${rot.filter(x => x[1].ch < 0).length ? " · leaving: " + rot.filter(x => x[1].ch < 0).slice(-6).reverse().map(([c, v]) => `<span class="S">${esc(sym(c))} ${(v.ch * 100).toFixed(0)}%</span>`).join(" · ") : ""} (share of the industry's $ volume vs normal)</div>` : "")
+      + Liquid.html(rows, { px: price }); }
   // venues (venues.js): perp vs stock, the same stock on several venues, crypto across exchanges and currencies
   async function venTick() {
     if (!window.Venues || !window.Web || document.hidden) return;
@@ -174,6 +197,7 @@
       Venues.signals().forEach(([id, a, v, lab]) => Web.emit(id, a, v, lab));
       if (VIEW === "web") { const el = document.getElementById("webVen"); if (el) el.innerHTML = Venues.html({ px: price, n: 15 }); } } catch (e) { console.warn("venues", e); } }
   setTimeout(venTick, 15000); setInterval(venTick, 60000);
+  setTimeout(liqTick, 30000); setInterval(liqTick, 60000);
   // crowd memory (rhyme.js)
   let rhFed = 0, rhKey = "BTC";
   async function rhymeTick() { if (!window.Rhyme || document.hidden) return; try { await Rhyme.load();
