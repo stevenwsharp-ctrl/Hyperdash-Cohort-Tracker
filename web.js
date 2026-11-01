@@ -48,6 +48,9 @@
    Discovery: after every scoring round the web tests each signal: its hit rate vs what the base rate of up moves gives a
    signal pointing that way (so an always-'+' calendar signal is not mistaken for skill). Proven signals (z ≥ 3) are
    drawn as stars; signals that are pure noise after 300+ checks (|z| < 0.7) are muted: their weights decay 20× faster.
+   Balance and scale: outcomes are graded by the size of the move (not win or lose); each signal's average move per call is
+   tracked; every asset has three balance points (4 h, 12 h, 24 h) and a swing phase (bal.*); a balanced tug of war between
+   strong signals blocks a strike.
    API: Web.emit(id, asset, value −1..1, label) · Web.ingest(src, [{t,a,x,rh:{1,4,24}|r, reg}], label) ·
         Web.forecast(asset[, h]) · Web.render(el, opts) · Web.addPrice(fn) */
 (function () {
@@ -110,7 +113,7 @@
     L.b += lr * 0.3 * g;
     for (const k in z) { const gk = g * z[k], dec = MUTE.has(k.split("~")[0]) ? L2 * 20 : L2; L.g[k] = (L.g[k] || 0) * DEC + gk * gk; L.w[k] = (L.w[k] || 0) * (1 - dec) + lr * gk / Math.sqrt(1e-3 + L.g[k]); }
     return p; }
-  const ll = (p, y) => -Math.log(Math.max(1e-6, y ? p : 1 - p));
+  const ll = (p, y) => -(y * Math.log(Math.max(1e-6, p)) + (1 - y) * Math.log(Math.max(1e-6, 1 - p)));   // works for graded targets too
   // one lesson for one horizon
   function learnH(h, x, reg, r, p0) {
     if (!isFinite(r) || Math.abs(r) < 0.0005 * Math.sqrt(h)) return;
@@ -126,12 +129,15 @@
     // mongoose: shock when the last 30 calls hit under 42%; huge moves count less
     M.rec.push(ok ? 1 : 0); if (M.rec.length > 30) M.rec.shift(); M.shock = M.rec.length >= 30 && M.rec.reduce((a, v) => a + v, 0) / M.rec.length < 0.42 ? 1 : 0;
     const big = Math.abs(r) / (0.01 * Math.sqrt(h)), dmp = big > 4 ? 4 / big : 1;
-    const pf = step(M.f, z, y, LRF * (M.shock ? 2 : 1) * dmp), pm = step(M.m, z, y, LRM * dmp), ps = step(M.s, z, y, LRS * dmp);
-    M.Lf = M.Lf * 0.97 + ll(pf, y) * 0.03; M.Lm = M.Lm * 0.985 + ll(pm, y) * 0.015; M.Ls = M.Ls * 0.995 + ll(ps, y) * 0.005; M.n++; D.n++;
+    // outcomes on a scale: the target is graded by the size of the move vs this horizon's normal move (a tiny wiggle ≈ 0.5,
+    // a normal move ≈ 0.82 / 0.18, a big move ≈ 1 / 0): results are not just win or lose
+    M.ar = M.ar ? M.ar * 0.995 + Math.abs(r) * 0.005 : Math.abs(r); const ys = sig(r / (M.ar || 1e-4) * 1.5);
+    const pf = step(M.f, z, ys, LRF * (M.shock ? 2 : 1) * dmp), pm = step(M.m, z, ys, LRM * dmp), ps = step(M.s, z, ys, LRS * dmp);
+    M.Lf = M.Lf * 0.97 + ll(pf, ys) * 0.03; M.Lm = M.Lm * 0.985 + ll(pm, ys) * 0.015; M.Ls = M.Ls * 0.995 + ll(ps, ys) * 0.005; M.n++; D.n++;
     if (h === 4) { const k = Object.keys(x).filter(q => x[q] && !q.endsWith("~d")), A = D.A;
       const LB = D.lab = D.lab || []; const xs = {}; k.forEach(q => { xs[q] = Math.round(x[q] * 10) / 10 || (x[q] > 0 ? 0.1 : -0.1); }); LB.push([xs, r > 0 ? 1 : 0]); if (LB.length > 4000) LB.splice(0, LB.length - 4000);
       A.U = A.U || [0, 0]; A.U[0]++; if (r > 0) A.U[1]++;   // the base rate of up moves
-      for (const q of k) { const o = A.N[q] = A.N[q] || [0, 0, 0, 0, 0, 0]; o[0]++; if (Math.sign(x[q]) === Math.sign(r)) o[1]++; o[2] += Math.sign(x[q]) * c1(r * 5) / 5; if (x[q] > 0) o[5] = (o[5] || 0) + 1;
+      for (const q of k) { const o = A.N[q] = A.N[q] || [0, 0, 0, 0, 0, 0]; o[0]++; if (Math.sign(x[q]) === Math.sign(r)) o[1]++; o[2] += Math.sign(x[q]) * c1(r * 5) / 5; if (x[q] > 0) o[5] = (o[5] || 0) + 1; o[6] = (o[6] || 0) + Math.sign(x[q]) * Math.max(-0.2, Math.min(0.2, r));   // signed move per call (a scale, not win/lose)
         if (reg > 0.2) { o[3]++; if (Math.sign(x[q]) === Math.sign(r)) o[4]++; } }      // record in wild markets
       for (let i = 0; i < k.length; i++) for (let j = i + 1; j < k.length; j++) { const a = k[i] < k[j] ? k[i] : k[j], b = k[i] < k[j] ? k[j] : k[i], e = A.P[a + "&" + b] = A.P[a + "&" + b] || [0, 0, 0];
         e[0]++; if (Math.sign(x[a]) === Math.sign(x[b])) { e[1]++; if (Math.sign(x[a]) === Math.sign(r)) e[2]++; }
@@ -177,16 +183,17 @@
   }
   // choose the link features: pairs that agree often enough and whose agreement has an outcome bias
   function choosePairs() {
-    const P = Object.entries(D.A.P).filter(([, e]) => e[1] >= 150).map(([k, e]) => ({ k, s: Math.abs(e[2] / e[1] - 0.5) * Math.sqrt(e[1]) })).sort((a, b) => b.s - a.s).slice(0, MAXP);
+    const calOnly = k => k.split("&").some(q => /^cyc\./.test(q));   // a calendar term is constant for weeks: such a pair restates the other signal (only the lab, with its added-value test, may link calendar signals)
+    const P = Object.entries(D.A.P).filter(([k, e]) => e[1] >= 150 && !calOnly(k)).map(([k, e]) => ({ k, s: Math.abs(e[2] / e[1] - 0.5) * Math.sqrt(e[1]) })).sort((a, b) => b.s - a.s).slice(0, MAXP);
     const base = P.filter(p => p.s >= 1.5).map(p => p.k);
     // Edison: keep up to 6 experiments running — pairs that fire together but have no evidence yet. After 400 lessons an
     // experiment that earned a real weight (|w| ≥ 0.05) is kept for good; the rest are dropped and new ones are tried.
     const E0 = D.ed = D.ed || { exp: [], kept: [], tried: 0, keptN: 0, dropped: {} }, W4 = D.M[4], al = sig((W4.Ls - W4.Lf) * 12), wOf = k => al * (W4.f.w[k] || 0) + (1 - al) * (W4.s.w[k] || 0);
     const zP = k => { const e = D.A.P[k]; return e && e[3] != null ? zNode([e[0], e[3], 0, 0, 0, e[4] || 0]) : 0; };   // the product's hit rate vs chance
     E0.exp = E0.exp.filter(x => { if (D.n - x.at < 250) return true; E0.tried++; if (Math.abs(wOf(x.k)) >= 0.05 && Math.abs(zP(x.k)) >= 2.5) { if (!E0.kept.includes(x.k)) { E0.kept.push(x.k); E0.keptN++; } } else E0.dropped[x.k] = D.n; return false; });
-    E0.kept = E0.kept.filter(k => Math.abs(wOf(k)) >= 0.02).slice(-24);   // a kept link that fades away is let go
+    E0.kept = E0.kept.filter(k => Math.abs(wOf(k)) >= 0.02 && !calOnly(k)).slice(-24); E0.exp = E0.exp.filter(x => !calOnly(x.k));   // a kept link that fades away is let go
     const busy = new Set(base.concat(E0.kept, E0.exp.map(x => x.k)));
-    if (E0.exp.length < 12) { const cand = Object.entries(D.A.P).filter(([k, e]) => e[0] >= 60 && !busy.has(k) && !(E0.dropped[k] && D.n - E0.dropped[k] < 3000)).map(([k]) => k);
+    if (E0.exp.length < 12) { const cand = Object.entries(D.A.P).filter(([k, e]) => e[0] >= 60 && !busy.has(k) && !calOnly(k) && !(E0.dropped[k] && D.n - E0.dropped[k] < 3000)).map(([k]) => k);
       // seek: most new experiments go to the pairs whose product already looks strongest; some stay random (exploration)
       const ranked = cand.map(k => ({ k, z: Math.abs(zP(k)) })).sort((a, b) => b.z - a.z), need = 12 - E0.exp.length, nBest = Math.ceil(need * 0.7), pick = ranked.slice(0, nBest).map(o => o.k), rest = ranked.slice(nBest).map(o => o.k);
       for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
@@ -252,9 +259,32 @@
       let h = 0; Object.values(c).forEach(k => { const pp = k / n; h -= pp * Math.log(pp); }); const ord = 1 - h / Math.log(6); if (ord >= 0.04 && s8) x["phy.entropy"] = Math.round(c1(Math.sign(s8) * ord * 8) * 100) / 100; }
     return x;
   }
+  /* ---------- balance: equilibrium on several scales ----------
+     Price swings around balance points like a weight on springs. Three springs per asset: its average over the last 8,
+     24 and 48 half-hours (4 h, 12 h, 24 h). For each: the stretch (distance from the balance point in σ). The web learns
+     whether each spring pulls price back (a negative weight = mean reversion) or the move keeps going (positive = momentum);
+     the scales can disagree (stretched up on 4 h, still below balance on 24 h) and are learned one by one.
+     The swing: velocity (last 3 moves) against the 12 h stretch gives the phase — at an extreme and turning back
+     (bal.turn), or passing through balance with speed (bal.through: the swing usually overshoots the other way).
+     Tug of war (forecast): when many strong signals pull hard in opposite directions, the forces are in balance —
+     tension, not an edge: the web says wait. */
+  const BALL = { "bal.s8": "Balance · stretch from the 4 h balance point", "bal.s24": "Balance · stretch from the 12 h balance point", "bal.s48": "Balance · stretch from the 24 h balance point",
+    "bal.turn": "Balance · at the end of a swing, turning back", "bal.through": "Balance · swinging through balance with speed" };
+  function balance(a) {
+    const P = PX[a], x = {}; if (!P || P.length < 14) return x; const r = []; for (let i = 1; i < P.length; i++) r.push(Math.log(P[i] / P[i - 1]));
+    const sd = Math.sqrt(r.reduce((s, v) => s + v * v, 0) / r.length) || 1e-9, lp = P.map(p => Math.log(p)), now = lp[lp.length - 1];
+    const st = k => { if (lp.length < Math.min(k, 12)) return null; const w = lp.slice(-Math.min(k, lp.length)), m = w.reduce((s, v) => s + v, 0) / w.length; return (now - m) / (sd * Math.sqrt(Math.min(k, lp.length) / 3)); };
+    [8, 24, 48].forEach(k => { const z = st(k); if (z != null && Math.abs(z) >= 0.5) x["bal.s" + k] = Math.round(c1(z / 2.5) * 100) / 100; });
+    const v = r.slice(-3).reduce((s, q) => s + q, 0) / (sd * Math.sqrt(3)), d = st(24);
+    if (d != null) { if (Math.abs(d) >= 1.5 && Math.sign(v) === -Math.sign(d) && Math.abs(v) >= 0.5) x["bal.turn"] = Math.round(c1(-Math.sign(d) * Math.min(1, Math.abs(d) / 3) * Math.min(1, Math.abs(v))) * 100) / 100;
+      if (Math.abs(d) < 0.4 && Math.abs(v) >= 1.2) x["bal.through"] = Math.round(c1(Math.sign(v) * (Math.abs(v) - 0.8) / 2) * 100) / 100; }
+    return x;
+  }
+  // tug of war: strong signals pulling both ways (high gross pull, small net)
+  function tug(x) { let g = 0, n = 0, k = 0; for (const q in x) { if (/^(cyc|wx|phy|bal)\./.test(q) || q.includes("~")) continue; g += Math.abs(x[q]); n += x[q]; k++; } return { gross: g, net: n, k, t: k >= 4 && g >= 2 ? 1 - Math.abs(n) / g : 0 }; }
   function derive(a, x, bk) {
     if (!Object.keys(x).length) return x; x = Object.assign({}, x); const jet = jetNow();
-    for (const L0 of [WXL, CYL]) for (const k in L0) if (LABEL[k] !== L0[k]) { LABEL[k] = L0[k]; lsS("web_labels", LABEL); }
+    for (const L0 of [WXL, CYL, BALL]) for (const k in L0) if (LABEL[k] !== L0[k]) { LABEL[k] = L0[k]; lsS("web_labels", LABEL); }
     const P = PX[a], rg = regime(a, true), sv = Object.values(x), cons = sv.length >= 3 ? sv.reduce((s, v) => s + v, 0) / sv.length : 0;
     if (Math.abs(jet) >= 0.15) x["wx.jet"] = Math.round(jet * 100) / 100;
     if (rg >= 0.3 && Math.abs(cons) >= 0.25) x["wx.storm"] = Math.round(c1(Math.sign(cons) * rg * Math.abs(cons) * 3) * 100) / 100;
@@ -262,8 +292,8 @@
       if (avg > 0 && prior > 1.8 * avg && recent < 0.5 * prior) { const dir = Math.sign(m.slice(0, 8).reduce((s, v) => s + v, 0)); if (dir) x["wx.eye"] = Math.round(dir * c1(1 - recent / prior) * 100) / 100; }
       const z = avg > 0 ? m[9] / avg : 0; if (Math.abs(z) >= 3) x["wx.twister"] = Math.round(Math.sign(z) * c1((Math.abs(z) - 2) / 3) * 100) / 100; }
     const b = bk == null ? Math.floor(Date.now() / BUCKET) : bk, pv = D.S.find(s => s.a === a && s.bk === b - 1);
-    Object.assign(x, cycles(Date.now()), physics(a));
-    if (pv) for (const k of Object.keys(x)) { if (k.endsWith("~d") || /^(wx|cyc|phy)\./.test(k)) continue; const d = Math.round(c1(x[k] - (pv.x[k] || 0)) * 100) / 100; if (Math.abs(d) >= 0.2) x[k + "~d"] = d; }
+    Object.assign(x, cycles(Date.now()), physics(a), balance(a));
+    if (pv) for (const k of Object.keys(x)) { if (k.endsWith("~d") || /^(wx|cyc|phy|bal)\./.test(k)) continue; const d = Math.round(c1(x[k] - (pv.x[k] || 0)) * 100) / 100; if (Math.abs(d) >= 0.2) x[k + "~d"] = d; }
     return x;
   }
   function tick() {
@@ -312,7 +342,7 @@
   // ---------- what the web knows ----------
   function nodes() {
     const N = {}, W = D.M[4];
-    for (const [k, o] of Object.entries(D.A.N)) N[k] = { id: k, n: o[0], hit: o[1], edge: o[2], nW: o[3] || 0, hitW: o[4] || 0, z: zNode(o) };
+    for (const [k, o] of Object.entries(D.A.N)) N[k] = { id: k, n: o[0], hit: o[1], edge: o[2], nW: o[3] || 0, hitW: o[4] || 0, z: zNode(o), avg: o[6] != null && o[0] ? o[6] / o[0] : null };
     for (const id of new Set([].concat(...Object.values(LIVE).map(L => Object.keys(L))))) if (!N[id]) N[id] = { id, n: 0, hit: 0, edge: 0, nW: 0, hitW: 0 };
     Object.values(N).forEach(o => { o.hitR = o.n ? o.hit / o.n : 0; o.edgeM = o.n ? o.edge / o.n : 0; o.hitWild = o.nW >= 10 ? o.hitW / o.nW : null;
       const a = sig((W.Ls - W.Lf) * 12); o.w = a * (W.f.w[o.id] || 0) + (1 - a) * (W.s.w[o.id] || 0); o.wv = a * (W.f.w[o.id + "~vol"] || 0) + (1 - a) * (W.s.w[o.id + "~vol"] || 0); o.label = LABEL[o.id] || o.id; });
@@ -332,9 +362,9 @@
     const reg = regime(a), z = expand(x, reg), hh = h || 4, P = prob(hh, z), M = D.M[hh], al = P.a;
     const contrib = Object.entries(z).map(([k, v]) => ({ id: k, label: k.includes("|") ? (LABEL[k.split("|")[0]] || k.split("|")[0]) + " — only while " + (LABEL[k.split("|")[1].slice(0, -1)] || k.split("|")[1].slice(0, -1)) + (k.slice(-1) === "+" ? " is up" : " is down") : k.includes("&") ? k.split("&").map(q => LABEL[q] || q).join(" + ") : k.endsWith("~vol") ? (LABEL[k.slice(0, -4)] || k) + " (in this volatility)" : LABEL[k] || k, v, c: (al * (M.f.w[k] || 0) + (1 - al) * (M.s.w[k] || 0)) * v })).sort((m, n) => Math.abs(n.c) - Math.abs(m.c));
     const ph = Object.fromEntries(HZ.map(q => [q, prob(q, z).p]));
-    const sk = strike(hunt(M), P.p);
+    const sk = strike(hunt(M), P.p), TW = tug(x); if (TW.t >= 0.75) sk.on = false;   // balanced tug of war: tension, not an edge
     return { p: P.p, raw: P.raw, ph, n: M.n, ready: M.n >= 100, reg, fast: al, med: P.am, contrib, strike: sk.on, band: sk, shock: !!M.shock, lvl: M.lvl,
-      sense: { owl: Math.abs(P.p - P.raw) >= 0.01 ? "calibrated " + Math.round(P.raw * 100) + "% → " + Math.round(P.p * 100) + "%" : "calibrated", widow: sk.on ? "strike" : "wait", mongoose: M.shock ? "shock: relearning fast" : "steady", cat: "strike bar band " + M.lvl } };
+      tug: TW, sense: { scale: TW.t >= 0.75 ? `balanced tug of war (${TW.k} signals, pull ${TW.gross.toFixed(1)} vs net ${TW.net.toFixed(1)})` : "one side leads", owl: Math.abs(P.p - P.raw) >= 0.01 ? "calibrated " + Math.round(P.raw * 100) + "% → " + Math.round(P.p * 100) + "%" : "calibrated", widow: sk.on ? "strike" : "wait", mongoose: M.shock ? "shock: relearning fast" : "steady", cat: "strike bar band " + M.lvl } };
   }
   const stats = () => ({ snaps: D.S.length, open: D.S.filter(s => !s.done).length, trained: D.n, assets: Object.keys(LIVE).length, hist: D.hist, pairs: D.pairs.length,
     hz: Object.fromEntries(HZ.map(h => { const M = hunt(D.M[h]); return [h, { n: M.n, hit: M.calls ? M.right / M.calls : null, fast: prob(h, {}).a, shock: !!M.shock, lvl: M.lvl,
@@ -343,7 +373,7 @@
   // ---------- picture ----------
   // shapes: ★ proven signal (z ≥ 2.5) · ● signal from the sites (positioning, flows, whales) · ■ environment (markets, cycles,
   // weather, physics, venues) · ▬ behavior (psychology, coordination, coupling, groups, rhythm) · ◆ muted (noise)
-  const famOf = id => /^(mkt|cyc|wx|phy|dis)\./.test(id) ? "env" : /^(psy|sync|ent|grp|rhy)\./.test(id) ? "beh" : "site";
+  const famOf = id => /^(mkt|cyc|wx|phy|dis|bal)\./.test(id) ? "env" : /^(psy|sync|ent|grp|rhy)\./.test(id) ? "beh" : "site";
   function shape(kind, x, y, r, fill, fo, stroke, sw, extra) {
     const a = `fill="${fill}" fill-opacity="${fo}" stroke="${stroke}" stroke-width="${sw}" ${extra || ""}`;
     if (kind === "star") { let d = ""; for (let k = 0; k < 10; k++) { const rr = k % 2 ? r * 0.45 : r * 1.15, an = -Math.PI / 2 + k * Math.PI / 5; d += (k ? "L" : "M") + (x + rr * Math.cos(an)).toFixed(1) + "," + (y + rr * Math.sin(an)).toFixed(1); } return `<path d="${d}Z" ${a}/>`; }
@@ -403,8 +433,8 @@
   function workingHtml(o) {
     o = o || {}; const X = discover(), cv = getComputedStyle(document.documentElement), col = k => cv.getPropertyValue(k).trim(), up = col("--bull") || col("--up") || "#19d38a", dn = col("--bear") || col("--down") || "#ff4d5e", dim = col("--dim") || "#888", ink = col("--text") || col("--ink") || "#ddd", line = col("--line") || "#333";
     const PR = new Set(D.proven || []), kind = id => PR.has(id) ? "star" : famOf(id), lim = o.compact ? 5 : 10;
-    const row = (n, c) => `<tr><td style="text-align:left;padding:3px 6px">${icon(kind(n.id), c)} ${n.label}</td><td style="text-align:right;padding:3px 6px;color:${c}">${Math.round(n.hitR * 100)}%</td><td style="text-align:right;padding:3px 6px;color:${dim}">${n.n.toLocaleString()}</td><td style="text-align:right;padding:3px 6px">${n.z.toFixed(1)}</td><td style="text-align:right;padding:3px 6px;color:${n.w >= 0 ? up : dn}">${n.w >= 0 ? "+" : ""}${n.w.toFixed(2)}</td></tr>`;
-    const tb = (title, rows, note) => `<div style="flex:1 1 320px;min-width:0;border:1px solid ${line};border-radius:10px;padding:8px 10px"><div style="font:600 12px var(--sans,system-ui);color:${ink};margin-bottom:4px">${title}</div>${rows.length ? `<table style="width:100%;border-collapse:collapse;font:11.5px var(--mono)"><tr style="color:${dim}"><th style="text-align:left;padding:2px 6px;font-weight:400">Signal</th><th style="text-align:right;padding:2px 6px;font-weight:400">Right</th><th style="text-align:right;padding:2px 6px;font-weight:400">Checks</th><th style="text-align:right;padding:2px 6px;font-weight:400">z</th><th style="text-align:right;padding:2px 6px;font-weight:400">Weight</th></tr>${rows.join("")}</table>` : `<div style="font:11.5px var(--mono);color:${dim}">${note}</div>`}</div>`;
+    const row = (n, c) => `<tr><td style="text-align:left;padding:3px 6px">${icon(kind(n.id), c)} ${n.label}</td><td style="text-align:right;padding:3px 6px;color:${c}">${Math.round(n.hitR * 100)}%</td><td style="text-align:right;padding:3px 6px;color:${dim}">${n.n.toLocaleString()}</td><td style="text-align:right;padding:3px 6px;color:${n.avg == null ? dim : n.avg >= 0 ? up : dn}">${n.avg == null ? "–" : (n.avg >= 0 ? "+" : "") + (n.avg * 100).toFixed(2) + "%"}</td><td style="text-align:right;padding:3px 6px">${n.z.toFixed(1)}</td><td style="text-align:right;padding:3px 6px;color:${n.w >= 0 ? up : dn}">${n.w >= 0 ? "+" : ""}${n.w.toFixed(2)}</td></tr>`;
+    const tb = (title, rows, note) => `<div style="flex:1 1 320px;min-width:0;border:1px solid ${line};border-radius:10px;padding:8px 10px"><div style="font:600 12px var(--sans,system-ui);color:${ink};margin-bottom:4px">${title}</div>${rows.length ? `<table style="width:100%;border-collapse:collapse;font:11.5px var(--mono)"><tr style="color:${dim}"><th style="text-align:left;padding:2px 6px;font-weight:400">Signal</th><th style="text-align:right;padding:2px 6px;font-weight:400">Right</th><th style="text-align:right;padding:2px 6px;font-weight:400">Checks</th><th style="text-align:right;padding:2px 6px;font-weight:400" title="Average move per call in the signal's direction, 4 h later — results on a scale, not just right or wrong">Avg move</th><th style="text-align:right;padding:2px 6px;font-weight:400">z</th><th style="text-align:right;padding:2px 6px;font-weight:400">Weight</th></tr>${rows.join("")}</table>` : `<div style="font:11.5px var(--mono);color:${dim}">${note}</div>`}</div>`;
     const S = X.st.hz, strike = HZ.map(h => { const s = S[h]; return `<span style="white-space:nowrap">${h < 1 ? "30m" : h + "h"}: all calls <b style="color:${s.hit >= 0.5 ? up : dn}">${s.hit != null ? Math.round(s.hit * 100) + "%" : "–"}</b>${s.strikeHit ? ` · 🕷 strikes <b style="color:${s.strikeHit.hit >= 0.5 ? up : dn}">${Math.round(s.strikeHit.hit * 100)}%</b> of ${s.strikeHit.n.toLocaleString()}` : " · no strike level yet"}${s.shock ? " · ⚡ shock" : ""}</span>`; }).join(" &nbsp;|&nbsp; ");
     return `<div style="margin-top:10px"><div style="font:600 13px var(--sans,system-ui);color:${ink};margin-bottom:4px">What's working</div><div style="font:11.5px var(--mono);color:${dim};margin-bottom:6px">${strike}</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">${tb("Working — right more often than chance (z ≥ 2.5)", X.working.slice(0, lim).map(n => row(n, up)), "No signal has strong evidence yet (it needs 50+ checks and z ≥ 2.5 vs chance).")}
@@ -418,7 +448,7 @@
     const F = forecast(asset); if (!F) return "";
     const cv = getComputedStyle(document.documentElement), up = cv.getPropertyValue("--bull").trim() || cv.getPropertyValue("--up").trim(), dn = cv.getPropertyValue("--bear").trim() || cv.getPropertyValue("--down").trim();
     const pp = p => `<b style="color:${p >= 0.5 ? up : dn}">${Math.round(p * 100)}%</b>`;
-    return `<span style="font:12px var(--mono)">Signal web P(up): 30m ${pp(F.ph[0.5])} · 1h ${pp(F.ph[1])} · 4h ${pp(F.ph[4])} · 24h ${pp(F.ph[24])}${F.ready ? "" : ` <span style="opacity:.6">(learning, ${F.n}/100)</span>`} · <b title="Black widow: strike only in confidence bands that paid (56%+ over 30+ calls)">${F.strike ? "🕷 STRIKE" : "wait"}</b>${F.shock ? ` · <span title="Mongoose: the last 30 calls missed often; relearning fast">⚡ shock</span>` : ""} · drivers: ${F.contrib.slice(0, 3).map(c => `${c.label} ${c.c >= 0 ? "+" : ""}${c.c.toFixed(2)}`).join(", ")}</span>`;
+    return `<span style="font:12px var(--mono)">Signal web P(up): 30m ${pp(F.ph[0.5])} · 1h ${pp(F.ph[1])} · 4h ${pp(F.ph[4])} · 24h ${pp(F.ph[24])}${F.ready ? "" : ` <span style="opacity:.6">(learning, ${F.n}/100)</span>`} · <b title="Black widow: strike only in confidence bands that paid (56%+ over 30+ calls)">${F.strike ? "🕷 STRIKE" : "wait"}</b>${F.tug && F.tug.t >= 0.75 ? ` · <span title="Strong signals pull hard both ways (gross ${F.tug.gross.toFixed(1)}, net ${F.tug.net.toFixed(1)}): the forces are in balance — tension builds, but no side leads">⚖ tug of war</span>` : ""}${F.shock ? ` · <span title="Mongoose: the last 30 calls missed often; relearning fast">⚡ shock</span>` : ""} · drivers: ${F.contrib.slice(0, 3).map(c => `${c.label} ${c.c >= 0 ? "+" : ""}${c.c.toFixed(2)}`).join(", ")}</span>`;
   }
   setInterval(() => { try { reload(); labRun(); } catch (e) { } }, 120000); setTimeout(() => { try { labRun(); } catch (e) { } }, 40000);
   window.Web = { emit, tick, ingest, forecast, forecastHtml, render, nodes, edges, stats, discover, workingHtml, cycles, lab: () => labRun(), addPrice: f => PRICE.push(f), data: () => D };
