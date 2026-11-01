@@ -126,13 +126,13 @@
       const lv = Y && Sync.live(Y, r.coin, 2 * 36e5);
       if (lv) { if (lv.best) L.push(["sync.best", lv.best, "Coordination · best holders moved together"]); if (lv.worst) L.push(["sync.worst", lv.worst, "Coordination · worst holders moved together"]); if (lv.leader) L.push(["sync.leader", lv.leader, "Coordination · a leader wallet moved first"]); }
       // rhythm
-      const RH = RHY[r.coin] && RHY[r.coin].R; if (RH) [["trend", "Rhythm · path memory (trend or snap-back)"], ["hour", "Rhythm · this hour of the day, history"], ["cycle", "Rhythm · repeating cycle"], ["fib", "Rhythm · Fibonacci level (back-tested)"], ["home", "Rhythm · pull back home (vs chance)"], ["flow", "Rhythm · poetry in motion (smooth trend)"]].forEach(([k, lab]) => { const v = RH.sig[k]; if (v) L.push(["rhy." + k, v, lab]); });
+      const RH = RHY[r.coin] && RHY[r.coin].R; if (RH) [["trend", "Rhythm · path memory (trend or snap-back)"], ["hour", "Rhythm · this hour of the day, history"], ["cycle", "Rhythm · repeating cycle"], ["fib", "Rhythm · Fibonacci level (back-tested)"], ["home", "Rhythm · pull back home (vs chance)"], ["flow", "Rhythm · poetry in motion (smooth trend)"], ["wave", "Frequency · projected wave (back-tested)"], ["resonance", "Frequency · resonance (all waves turn together)"]].forEach(([k, lab]) => { const v = RH.sig[k]; if (v) L.push(["rhy." + k, v, lab]); });
       L.forEach(([id, v, lab]) => { if (isFinite(v) && v) Web.emit(id, a, c1(v), lab); });
       const ps = L.filter(x => /^psy\./.test(x[0]) && Math.abs(x[1]) >= 0.2); if (ps.length) out.push({ r, ps });
       const ls = L.filter(x => /^(ent|sync)\./.test(x[0]) && Math.abs(x[1]) >= 0.2); if (ls.length) lnk.push({ r, ps: ls, why: [].concat(s ? s.why : [], lv ? lv.why : []) });
     });
     window.CROWD = { R, out, lnk, E, Y, SW };
-    if (VIEW === "web") renderPsy();
+    if (VIEW === "web") { const el = document.getElementById("webRhyme"), keep = el && el.innerHTML ? { k: el._key, at: el._at } : null; renderPsy(); const e2 = document.getElementById("webRhyme"); if (e2 && keep) { e2._key = keep.k; e2._at = keep.at; } drawRhyme(); }
   }
   const sym = c => { try { return parse(c).sym; } catch (e) { return c; } };
   try { const st = document.createElement("style"); st.textContent = `#webPsy a.nhl,#webPsy a.nhl:visited{color:var(--text,inherit);text-decoration:none;font:500 13.5px/1.35 var(--sans,system-ui)}#webPsy a.nhl:hover{color:var(--accent,#4da3ff);text-decoration:underline;text-underline-offset:3px}#webPsy td{vertical-align:top}`; document.head.appendChild(st); } catch (e) { }
@@ -158,10 +158,11 @@
         const sum = R => Object.values(R.sig).reduce((a, v) => a + (v || 0), 0), pick = (localStorage.getItem("cs_rhy_pick") && E.find(x => x.c === localStorage.getItem("cs_rhy_pick"))) || E[0];
         return `<h3 style="margin-top:14px">Rhythm · randomness, regularity, Fibonacci, music and flow</h3><div class="card" style="padding:6px 10px;overflow-x:auto"><table class="tr"><thead><tr><th style="text-align:left">Market</th><th style="text-align:left">Randomness</th><th style="text-align:left">Flow</th><th style="text-align:left">Fibonacci</th><th style="text-align:left">Music</th><th>Lean</th></tr></thead><tbody>${E.map(({ c, R }) => `<tr data-rhy="${esc(c)}" style="cursor:pointer${c === pick.c ? ";background:var(--hover,rgba(127,127,127,.08))" : ""}"><td style="text-align:left">${esc(sym(c))}</td><td style="text-align:left">${esc(R.rand.label.split(":")[0])}</td><td style="text-align:left">${esc(R.flow.label.split(":")[0])}${R.flow.dir ? (R.flow.dir > 0 ? " ▲" : " ▼") : ""}</td><td style="text-align:left">${R.fib ? `${R.fib.x != null ? Math.round(R.fib.x * 100) + "%" : "–"}${R.fib.near ? " at " + (R.fib.near.L * 100).toFixed(1) : ""}${R.fib.edge != null ? (R.fib.edge >= 0.08 ? " · works here" : R.fib.edge >= 0.04 ? " · small edge" : " · no edge") : ""}` : "–"}</td><td style="text-align:left">${R.music ? (R.music.tension ? "squeeze · " : "") + (R.music.zHome != null ? R.music.zHome.toFixed(1) + "σ from home" : "") : "–"}</td><td class="${sum(R) >= 0 ? "L" : "S"}">${sum(R) ? (sum(R) > 0 ? "▲ " : "▼ ") + Math.abs(sum(R)).toFixed(2) : "–"}</td></tr>`).join("")}</tbody></table></div>
           <div class="card" style="padding:6px 10px;overflow-x:auto;margin-top:8px"><b>${esc(sym(pick.c))}</b> (select a row)${Rhythm.html(pick.R, { px: v => price(v) })}</div>`; })()}
+      <h3 style="margin-top:14px">Crowd memory · how the crowd acts at every hour, and the past moments that rhyme with now</h3><div class="card" style="padding:8px 10px" id="webRhyme"></div>
       <h3 style="margin-top:14px">Venues · price gaps between outlets and currencies</h3><div class="card" style="padding:6px 10px;overflow-x:auto" id="webVen">${window.Venues ? Venues.html({ px: price, n: 15 }) : ""}</div>
       <div class="note" style="max-width:none;margin-top:6px">"Entanglement" is a metaphor: in physics, measuring one entangled particle tells you the other's state. Coupled markets share drivers (rates, the dollar, AI spend, crypto risk appetite), so a move in one says something about the other — a statistical link that can break. When a tight link breaks, that is news too: the name now trades on its own story.</div>`;
   }
-  document.addEventListener("click", e => { if (e.target.closest(".tab[data-tab='web']")) setTimeout(renderPsy, 50); const rr = e.target.closest("[data-rhy]"); if (rr) { try { localStorage.setItem("cs_rhy_pick", rr.dataset.rhy); } catch (x) { } renderPsy(); } });
+  document.addEventListener("click", e => { if (e.target.closest(".tab[data-tab='web']")) setTimeout(() => { renderPsy(); drawRhyme(); }, 50); const rr = e.target.closest("[data-rhy]"); if (rr) { try { localStorage.setItem("cs_rhy_pick", rr.dataset.rhy); } catch (x) { } renderPsy(); } });
   setTimeout(feed, 25000); setInterval(feed, 60000);
   setTimeout(rhyLoad, 40000); setInterval(rhyLoad, 60000);
   // venues (venues.js): perp vs stock, the same stock on several venues, crypto across exchanges and currencies
@@ -172,4 +173,11 @@
       Venues.signals().forEach(([id, a, v, lab]) => Web.emit(id, a, v, lab));
       if (VIEW === "web") { const el = document.getElementById("webVen"); if (el) el.innerHTML = Venues.html({ px: price, n: 15 }); } } catch (e) { console.warn("venues", e); } }
   setTimeout(venTick, 15000); setInterval(venTick, 60000);
+  // crowd memory (rhyme.js)
+  let rhFed = 0, rhKey = "BTC";
+  async function rhymeTick() { if (!window.Rhyme || document.hidden) return; try { await Rhyme.load();
+      if (window.Web) { Rhyme.signals().forEach(([id, a, v, lab]) => Web.emit(id, a, v, lab)); if (Date.now() - rhFed > 60 * 6e4) { rhFed = Date.now(); Rhyme.feedWeb(); } }
+      drawRhyme(); } catch (e) { console.warn("rhyme", e); } }
+  function drawRhyme() { const el = document.getElementById("webRhyme"); if (el && window.Rhyme && Rhyme.data()) { if (el._key) rhKey = el._key; if (el._at == null || !el.innerHTML) Rhyme.html(rhKey, el, { onKey: k => { rhKey = k; } }); } }
+  setTimeout(rhymeTick, 20000); setInterval(rhymeTick, 5 * 6e4);
 })();

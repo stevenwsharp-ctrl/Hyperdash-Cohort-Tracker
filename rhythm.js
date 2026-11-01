@@ -15,6 +15,10 @@
    5. Music — consonant intervals between swings (unison 1:1, octave 2:1, fifth 3:2, fourth 4:3, thirds 5:4 and 6:5,
       golden 1.618) in size and in time, vs a shuffled control; tension (volatility squeeze) and resolution (return to
       "home", the 48-bar mean), each back-tested; the next note = targets for the running swing.
+   6. Frequency — the spectrum of the price path (a Fourier transform over up to 512 bars): the strongest waves that beat
+      shuffled copies, how much of the movement they carry (signal vs noise), their projection for the next bars, resonance
+      when all of them turn the same way, a walk-forward test of the projection (the web gets it only if it worked), and
+      Tesla's 3-6-9 (do cycles of 3, 6, 9 … hours carry more power than other lengths, vs chance).
    Bars: [[t, open, high, low, close]], oldest first. Each part gives a signal from -1 to +1 for the signal web. */
 (function () {
   "use strict";
@@ -106,6 +110,39 @@
     const sig = zn && homeR != null && hb != null && Math.abs(zn.z) >= 2 ? c1(-Math.sign(zn.z) * (homeR - hb) * 4) : 0;
     return { sz, tm, szB, tmB, fav, tg, dir, pct, tension: pct != null && pct <= 0.15, zHome: zn ? zn.z : null, homeR, homeB: hb, homeN, burst, sig };
   }
+  // ---------- 6. frequency: the spectrum of the price path, its strongest real waves, and their projection ----------
+  // detrended log price over the last N bars; power at each period P (a discrete Fourier transform at 1/P)
+  function dft(x, P) { const w = 2 * Math.PI / P; let a = 0, b = 0; for (let t = 0; t < x.length; t++) { a += x[t] * Math.cos(w * t); b += x[t] * Math.sin(w * t); } return { a, b, pw: (a * a + b * b) / x.length }; }
+  function detr(lp) { const n = lp.length, mx = (n - 1) / 2, my = lp.reduce((s, v) => s + v, 0) / n; let sxy = 0, sxx = 0; lp.forEach((v, i) => { sxy += (i - mx) * (v - my); sxx += (i - mx) ** 2; }); const k = sxx ? sxy / sxx : 0; return lp.map((v, i) => v - my - k * (i - mx)); }
+  const PER = n => { const a = []; for (let p = 4; p <= Math.min(160, n / 3); p += p < 30 ? 1 : p < 80 ? 2 : 4) a.push(p); return a; };
+  function waves(B, N) {
+    const lp = B.slice(-N).map(b => Math.log(b[4])), x = detr(lp), n = x.length, Ps = PER(n), sp = Ps.map(P => ({ P, ...dft(x, P) })), tot = x.reduce((s, v) => s + v * v, 0) / n || 1e-12;
+    const peaks = sp.filter((o, i) => i > 0 && i < sp.length - 1 && o.pw >= sp[i - 1].pw && o.pw >= sp[i + 1].pw).sort((a, b) => b.pw - a.pw).slice(0, 4);
+    return { x, n, sp, peaks, tot };
+  }
+  function project(W, keep, q) { const n = W.n; let d = 0, dir = []; keep.forEach(o => { const w = 2 * Math.PI / o.P, f = t => (2 / n) * (o.a * Math.cos(w * t) + o.b * Math.sin(w * t)); d += f(n - 1 + q) - f(n - 1); dir.push(Math.sign(f(n) - f(n - 1))); }); return { d, dir }; }
+  function spectrum(B) {
+    if (!B || B.length < 200) return null; const N = Math.min(512, B.length), W = waves(B, N);
+    // significance: the same periods on shuffled copies of the same moves (a random walk also has slow "waves")
+    const thr = {}; const sv = []; for (let k = 0; k < 12; k++) { const S = surrogate(B.slice(-N - 1)), Ws = waves(S, N); sv.push(Ws); }
+    W.sp.forEach(o => { const v = sv.map(Ws => { const m = Ws.sp.find(q => q.P === o.P); return m ? m.pw : 0; }).sort((a, b) => a - b); thr[o.P] = v[v.length - 1] || Infinity; });   // above the strongest of 12 shuffled copies
+    let keep = W.peaks.filter(o => o.pw > thr[o.P] * 1.2).slice(0, 3); const snr0 = keep.reduce((s, o) => s + o.pw, 0) / (W.sp.reduce((s, o) => s + o.pw, 0) || 1);
+    if (snr0 < 0.08) keep = []; const snr = keep.length ? snr0 : 0;   // a real wave must carry a real share of the movement
+    const q = keep.length ? Math.max(2, Math.round(Math.min(...keep.map(o => o.P)) / 4)) : 4, pr = project(W, keep, q);
+    // walk-forward test: did the projected direction come true on this market's own past?
+    let hit = 0, runs = 0; const r = []; for (let i = 1; i < B.length; i++) r.push(Math.log(B[i][4] / B[i - 1][4])); const sd = Math.sqrt(r.reduce((s, v) => s + v * v, 0) / r.length) || 1e-9;
+    for (let end = Math.max(N, 200); end <= B.length - q - 1 && keep.length; end += 12) { const Wb = waves(B.slice(0, end), Math.min(N, end)), kb = Wb.peaks.filter(o => keep.some(k => Math.abs(k.P - o.P) <= Math.max(1, k.P * 0.1))).slice(0, 3); if (!kb.length) continue;
+      const pb = project(Wb, kb, q), act = Math.log(B[end - 1 + q][4] / B[end - 1][4]); if (Math.abs(pb.d) < 1e-9 || !act) continue; runs++; if (Math.sign(pb.d) === Math.sign(act)) hit++; }
+    const hr = runs ? hit / runs : null, zt = runs ? (hr - 0.5) * 2 * Math.sqrt(runs) : 0, trust = hr != null && runs >= 25 && zt >= 2 ? c1((hr - 0.5) * 6) : 0;   // must beat a coin flip with z ≥ 2
+    const res = keep.length >= 2 && pr.dir.every(v => v === pr.dir[0]) ? pr.dir[0] : 0;
+    // Tesla 3-6-9: do cycles of 3, 6, 9 … hours carry more power than other lengths? (hourly bars only)
+    let tesla = null; const bar = (B[B.length - 1][0] - B[0][0]) / (B.length - 1);
+    if (Math.abs(bar - 36e5) < 6e5) { const pw = P => dft(W.x, P).pw, T9 = [6, 9, 12, 18, 24, 27, 36, 45, 54, 72], Ct = [5, 7, 8, 10, 11, 14, 15, 20, 28, 40, 50, 60];
+      const m = A => A.reduce((s, P) => s + Math.log(pw(P) + 1e-18), 0) / A.length, d0 = m(T9) - m(Ct);
+      const ds = sv.map(Ws => { const p2 = P => dft(Ws.x, P).pw, mm = A => A.reduce((s, P) => s + Math.log(p2(P) + 1e-18), 0) / A.length; return mm(T9) - mm(Ct); }), mu = ds.reduce((s, v) => s + v, 0) / ds.length, sdd = Math.sqrt(ds.reduce((s, v) => s + (v - mu) ** 2, 0) / ds.length) || 1;
+      tesla = { ratio: Math.exp(d0), z: (d0 - mu) / sdd }; }
+    return { keep, snr, q, proj: pr.d, projZ: pr.d / (sd * Math.sqrt(q)), dir: pr.dir, res, hit: hr, runs, trust, tesla, sp: W.sp, thr, n: N, x: W.x, bar };
+  }
   // ---------- main ----------
   function analyze(B, o) {
     o = o || {}; if (!B || B.length < 80) return null; const r = []; for (let i = 1; i < B.length; i++) r.push(Math.log(B[i][4] / B[i - 1][4]));
@@ -136,6 +173,9 @@
         out.cycle = { L: c.L, ac: c.ac, thr, hrs: c.L * bar / 36e5, next: then, q }; out.sig.cycle = c1(Math.sign(then) * (c.ac - thr) * 4); } else { out.sig.cycle = 0; out.cycleNone = c ? { ac: c.ac, thr } : null; } }
     // 3. Fibonacci
     out.fib = fib(B); out.sig.fib = out.fib ? out.fib.sig : 0;
+    // frequency
+    try { out.freq = spectrum(B); const Fq = out.freq; out.sig.wave = Fq && Fq.keep.length && Fq.trust > 0 ? c1(Math.sign(Fq.proj) * Math.min(1, Math.abs(Fq.projZ)) * Fq.trust) : 0;
+      out.sig.resonance = Fq && Fq.res && Fq.trust > 0 ? c1(Fq.res * Fq.trust) : 0; } catch (e) { out.sig.wave = 0; out.sig.resonance = 0; }
     // music
     try { out.music = music(B, zigzag(B, 3)); out.sig.home = out.music ? out.music.sig : 0; } catch (e) { out.sig.home = 0; }
     // 4. poetry in motion: smooth, aligned, calm
@@ -167,6 +207,16 @@
         <div class="note" style="margin:2px 0 0">Back-test on ${f.pivots} swings: price turned at 38.2–61.8% levels ${f.tF.rate != null ? Math.round(f.tF.rate * 100) + "% of " + f.tF.n : "–"} vs ${f.tC.rate != null ? Math.round(f.tC.rate * 100) + "% of " + f.tC.n : "–"} at non-Fibonacci levels → ${f.edge == null ? "not enough swings yet" : f.edge >= 0.08 ? "<b>Fibonacci levels work on this market</b>" : f.edge >= 0.04 ? "<b>a small Fibonacci edge</b> (levels hold a bit more often than others)" : f.edge <= -0.08 ? "Fibonacci levels work worse than other levels here" : "no real Fibonacci edge here (levels act like any other)"}.
         Golden-ratio swings: ${f.gold.g} of ${f.gold.n} (control band ${f.gold.gc}). Fibonacci bar counts between turns: ${f.fbars.fb} of ${f.fbars.nb} (chance ≈ ${Math.round(f.fbars.base * f.fbars.nb)}).${f.fibTime ? ` Now ${f.since} bars since the last turn: a Fibonacci count.` : ""}</div></td></tr>`; }
     h += `<tr><td style="text-align:left"><b>Poetry in motion</b></td><td style="text-align:left">${F.label}${F.dir ? ` (${F.dir > 0 ? "up" : "down"})` : ""}. Efficiency ${fx(F.e8)} / ${fx(F.e24)} / ${fx(F.e72)} (short / mid / long; 1.00 = a straight line), ${F.same ? "all the same direction" : "mixed directions"}, calm ${fx(F.calm)}.<div class="note" style="margin:2px 0 0">How to profit: ${F.score >= 0.3 ? "ride it — enter on small pullbacks, use a wide trailing stop, do not take profit early." : "no flow — take quick profits; wait for a smooth move before you size up."}</div></td></tr>`;
+    const Q = R.freq; if (Q) { const cv = typeof getComputedStyle === "function" ? getComputedStyle(document.documentElement) : null, col = k => cv ? cv.getPropertyValue(k).trim() : "", acc = col("--accent") || "#4da3ff", dimc = col("--dim") || "#888", upc = col("--bull") || col("--up") || "#19d38a", dnc = col("--bear") || col("--down") || "#ff4d5e";
+      const SW = 280, SH = 70, mx = Math.max(...Q.sp.map(o => o.pw)) || 1, bw = SW / Q.sp.length, keepP = new Set(Q.keep.map(o => o.P));
+      const bars = Q.sp.map((o, i) => { const h = Math.max(1, Math.sqrt(o.pw / mx) * (SH - 12)); return `<rect x="${(i * bw).toFixed(1)}" y="${(SH - h).toFixed(1)}" width="${Math.max(1, bw - 0.6).toFixed(1)}" height="${h.toFixed(1)}" fill="${keepP.has(o.P) ? acc : dimc}" fill-opacity="${keepP.has(o.P) ? 0.95 : 0.35}"><title>cycle ${o.P} bars${keepP.has(o.P) ? " — real (beats shuffled copies)" : ""}</title></rect>`; }).join("");
+      const L = Math.min(120, Q.x.length), xs = Q.x.slice(-L), wv = t => Q.keep.reduce((s, o) => { const w = 2 * Math.PI / o.P; return s + (2 / Q.n) * (o.a * Math.cos(w * t) + o.b * Math.sin(w * t)); }, 0);
+      const all = xs.concat(Array.from({ length: Q.q * 3 }, (_, k) => wv(Q.n - 1 + k + 1))), lo = Math.min(...all, ...xs), hi = Math.max(...all, ...xs), WW = 280, WH = 70, sx = i => i / (L + Q.q * 3) * WW, sy = v => WH - 4 - (v - lo) / ((hi - lo) || 1) * (WH - 8);
+      const pp = xs.map((v, i) => (i ? "L" : "M") + sx(i).toFixed(1) + "," + sy(v).toFixed(1)).join(""), wp = Array.from({ length: L }, (_, i) => (i ? "L" : "M") + sx(i).toFixed(1) + "," + sy(wv(Q.n - L + i)).toFixed(1)).join(""), fp = Array.from({ length: Q.q * 3 + 1 }, (_, k) => (k ? "L" : "M") + sx(L - 1 + k).toFixed(1) + "," + sy(wv(Q.n - 1 + k)).toFixed(1)).join("");
+      const pic = Q.keep.length ? `<div style="display:flex;flex-wrap:wrap;gap:10px;margin:4px 0"><svg viewBox="0 0 ${SW} ${SH}" width="${SW}" height="${SH}" style="max-width:100%">${bars}</svg><svg viewBox="0 0 ${WW} ${WH}" width="${WW}" height="${WH}" style="max-width:100%"><path d="${pp}" fill="none" stroke="${dimc}" stroke-width="1"/><path d="${wp}" fill="none" stroke="${acc}" stroke-width="1.6"/><path d="${fp}" fill="none" stroke="${Q.proj >= 0 ? upc : dnc}" stroke-width="2" stroke-dasharray="3 3"/></svg></div>` : "";
+      const ph = o => o.P * Q.bar / 36e5, hh = v => v >= 24 ? (v / 24).toFixed(1) + " days" : v.toFixed(v < 10 ? 1 : 0) + "h";
+      h += `<tr><td style="text-align:left"><b>Frequency</b></td><td style="text-align:left">${Q.keep.length ? `Real waves (stronger than in shuffled copies): ${Q.keep.map(o => `<b>${hh(ph(o))}</b>`).join(", ")}; they carry ${Math.round(Q.snr * 100)}% of the movement (signal vs noise). Projection for the next ${hh(Q.q * Q.bar / 36e5)}: <span class="${cl(Q.proj)}">${Q.proj >= 0 ? "up" : "down"} ${Math.abs(Q.projZ).toFixed(1)}σ</span>${Q.res ? ` · <b>resonance</b>: every wave turns ${Q.res > 0 ? "up" : "down"} together` : ""}.` : "No wave stronger than chance: the spectrum looks like noise now."}
+        <div class="note" style="margin:2px 0 0">Walk-forward test on this market's past: the wave projection was right ${Q.hit != null ? Math.round(Q.hit * 100) + "% of " + Q.runs : "–"} times → ${Q.trust > 0 ? "<b>trusted</b> (weight " + Q.trust.toFixed(2) + ")" : "not trusted: no weight in the web"}.${Q.tesla ? ` Tesla 3-6-9: cycles of 6, 9, 12, 18, 24 … hours carry ${Q.tesla.ratio.toFixed(2)}× the power of other lengths, z ${Q.tesla.z.toFixed(1)} vs chance → ${Q.tesla.z >= 2 ? "<b>a real 3-6-9 rhythm here</b>" : "no special 3-6-9 rhythm"}.` : ""}</div>${pic}${Q.keep.length ? `<div class="note" style="margin:0">Left: the spectrum (each bar = one cycle length, blue = real wave). Right: price (grey), the sum of the real waves (blue) and its projection (dashed).</div>` : ""}</td></tr>`; }
     const M = R.music; if (M) { const P = o.px || (v => v.toFixed(2)), pr = x => x ? `${x.c} of ${x.n} (${Math.round(x.r * 100)}%)` : "–", vs = (x, b) => x && b != null ? (x.r > b + 0.08 ? " — <b>more than chance</b>" : x.r < b - 0.08 ? " — less than chance" : " — about chance") : "";
       h += `<tr><td style="text-align:left"><b>Music</b></td><td style="text-align:left">Swing sizes in consonant intervals (1:1, 2:1, 3:2, 4:3, 5:4, 6:5, 1.618): ${pr(M.sz)} vs ${M.szB != null ? Math.round(M.szB * 100) + "%" : "–"} by chance${vs(M.sz, M.szB)}. In time: ${pr(M.tm)} vs ${M.tmB != null ? Math.round(M.tmB * 100) + "%" : "–"}${vs(M.tm, M.tmB)}.${M.fav.length ? ` Most played: ${M.fav.map(x => x[0] + " ×" + x[1]).join(", ")}.` : ""}
         Next note (targets for this ${M.dir > 0 ? "up" : "down"} swing): ${M.tg.map(t => `${t.n} ${P(t.p)}`).join(" · ")}.
