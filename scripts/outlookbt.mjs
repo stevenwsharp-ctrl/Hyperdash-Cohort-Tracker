@@ -37,15 +37,18 @@ const fwd = (m, i, h) => i + h <= NH && m.px[i + h] > 0 && m.px[i] > 0 ? Math.lo
 function cons(o, W) { let s = 0, w = 0; SYS.forEach(k => { if (o[k] == null || !W[k]) return; s += o[k] * W[k]; w += W[k]; }); const raw = w ? s / w : 0; let ag = 0; SYS.forEach(k => { if (o[k] != null && W[k] && Math.sign(o[k]) === Math.sign(raw) && Math.abs(o[k]) >= 0.1) ag += W[k]; }); return raw * (0.4 + 0.6 * (w ? ag / w : 0)); }   // agreement counted by weight
 const rank = a => { const idx = a.map((v, i) => [v, i]).sort((x, y) => x[0] - y[0]), r = new Array(a.length); idx.forEach(([, i], k) => r[i] = k); return r; };
 const spear = (x, y) => { if (x.length < 8) return null; const rx = rank(x), ry = rank(y), n = x.length, mx = (n - 1) / 2; let a = 0, b = 0, c = 0; for (let i = 0; i < n; i++) { a += (rx[i] - mx) * (ry[i] - mx); b += (rx[i] - mx) ** 2; c += (ry[i] - mx) ** 2; } return a / Math.sqrt(b * c); };
-const START = 24 * 15;   // 15 days of warm-up (7-day momentum looks back 14 days)
+const START = 24 * 15, FILL = { o: 0, f: 0 };   // 15 days of warm-up (7-day momentum looks back 14 days)
 const stat = a => { const n = a.length; if (!n) return null; const m = a.reduce((s, v) => s + v, 0) / n, sd = n > 1 ? Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / (n - 1)) : 0; return { n, m, sd, hit: a.filter(v => v > 0).length / n }; };
-const out = { t: new Date().toISOString(), from: new Date(T0).toISOString(), days: Math.round(NH / 24), markets: coins.length, hz: {} };
+const out = { entry: "limit order 1/4 sigma of the horizon better than the signal price, alive for the first quarter of the horizon; a pick counts only if it fills; exit at market at the horizon end", t: new Date().toISOString(), from: new Date(T0).toISOString(), days: Math.round(NH / 24), markets: coins.length, hz: {} };
 for (const h of HZ) {
   const steps = []; for (let i = START; i + h <= NH; i += 24) steps.push(i);
-  const rows = steps.map(i => { const U = coins.map(k => { const m = P.m[k]; if (vol24(m, i) < 1e6) return null; const S = scores(m, i, h), r = fwd(m, i, h); return S && r != null ? { k, o: S.o, r } : null; }).filter(Boolean); return { i, U }; }).filter(x => x.U.length >= 15);
-  const evalK = (row, get) => { const v = row.U.map(u => ({ s: get(u), r: u.r })).filter(x => x.s != null), avg = row.U.reduce((s, u) => s + u.r, 0) / row.U.length;
-    const Lg = v.filter(x => x.s > 0.1).sort((a, b) => b.s - a.s).slice(0, 5), Sh = v.filter(x => x.s < -0.1).sort((a, b) => a.s - b.s).slice(0, 5), mean = a => a.reduce((s, x) => s + x.r, 0) / a.length;
-    const sp = (Lg.length ? mean(Lg) - avg : 0) + (Sh.length ? avg - mean(Sh) : 0); return { sp: Lg.length || Sh.length ? sp : null, ic: spear(v.map(x => x.s), v.map(x => x.r)) }; };
+  const rows = steps.map(i => { const U = coins.map(k => { const m = P.m[k]; if (vol24(m, i) < 1e6) return null; const S = scores(m, i, h), r = fwd(m, i, h); return S && r != null ? { k, o: S.o, r, m, i, sd: S.sd } : null; }).filter(Boolean); return { i, U }; }).filter(x => x.U.length >= 15);
+  const evalK = (row, get) => { const v = row.U.map(u => ({ s: get(u), r: u.r, u })).filter(x => x.s != null), avg = row.U.reduce((s, u) => s + u.r, 0) / row.U.length;
+    const Lg = v.filter(x => x.s > 0.1).sort((a, b) => b.s - a.s).slice(0, 5), Sh = v.filter(x => x.s < -0.1).sort((a, b) => a.s - b.s).slice(0, 5), mean = a => a.reduce((s, x) => s + x, 0) / a.length;
+    // limit entry: 1/4 sigma of the horizon better than the price at the signal, alive for the first quarter of the horizon; exit at market at the end
+    const fill = (u, d) => { const m = u.m, i = u.i, lp = m.px[i] * Math.exp(-d * 0.25 * u.sd * Math.sqrt(h / 24)), w = Math.max(2, Math.ceil(h / 4)); for (let q = i + 1; q <= Math.min(NH, i + w); q++) { const lo = m.lo[q] ?? m.px[q], hi = m.hi[q] ?? m.px[q]; if (d > 0 ? lo <= lp : hi >= lp) return m.px[i + h] > 0 ? Math.log(m.px[i + h] / lp) : null; } return null; };
+    const lr = Lg.map(x => fill(x.u, 1)).filter(v => v != null), sr = Sh.map(x => fill(x.u, -1)).filter(v => v != null); FILL.o += Lg.length + Sh.length; FILL.f += lr.length + sr.length;
+    const sp = (lr.length ? mean(lr) - avg : 0) + (sr.length ? avg - mean(sr) : 0); return { sp: lr.length || sr.length ? sp : null, ic: spear(v.map(x => x.s), v.map(x => x.r)) }; };
   const cut = Math.floor(rows.length * 0.6), res = {}, W = {};
   for (const k of SYS) { const E = rows.map(row => evalK(row, u => u.o[k])), sp = E.map(e => e.sp).filter(v => v != null), ic = E.map(e => e.ic).filter(v => v != null), tr = E.slice(0, cut).map(e => e.sp).filter(v => v != null), te = E.slice(cut).map(e => e.sp).filter(v => v != null);
     const S = stat(sp), I = stat(ic), Tr = stat(tr), Te = stat(te), neff = S ? S.n * Math.min(1, 24 / h) : 0;
@@ -60,7 +63,7 @@ for (const h of HZ) {
   out.hz[h] = { steps: rows.length, res, w: W };
 }
 fs.mkdirSync(OUT, { recursive: true });
-fs.writeFileSync(path.join(OUT, "outlook_bt.json"), JSON.stringify(out));
+out.fillRate = FILL.o ? FILL.f / FILL.o : null; fs.writeFileSync(path.join(OUT, "outlook_bt.json"), JSON.stringify(out));
 // lessons for the spider web: the 40 most traded markets, every 4 hours, 24 h scores + equal-weight consensus
 const top = coins.map(k => [k, P.m[k].v.reduce((s, v) => s + (v || 0), 0)]).sort((a, b) => b[1] - a[1]).slice(0, 40).map(x => x[0]), items = [];
 for (let i = START; i < NH; i += 4) for (const k of top) { const m = P.m[k], S = scores(m, i, 24); if (!S) continue; const x = {}; for (const s of SYS) if (S.o[s] != null && Math.abs(S.o[s]) >= 0.1) x["ol." + s] = Math.round(S.o[s] * 100) / 100;
