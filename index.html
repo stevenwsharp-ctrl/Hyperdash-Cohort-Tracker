@@ -1183,6 +1183,7 @@ function detail(r){
     <h3>Funding · flow · liquidation map · volume profile</h3><div class="cards">${fundingCard(r)}${flowCard(r)}</div>
     <h3>Why this rating</h3><div class="cards">${ratingCard(r)}${newsCard(r)}</div>
     <h3>How good and bad traders hold it · leverage, liquidations, stops</h3>${behaviorCard(r)}
+    <h3>Trapped longs vs shorts · how deep, past their stop, near liquidation</h3><div class="card">${window.Trapped ? Trapped.html(Trapped.analyze(SPEC && SPEC.m && SPEC.m[r.coin] && SPEC.m[r.coin].holders, LEVELS && LEVELS.m && LEVELS.m[r.coin] && LEVELS.m[r.coin].h, r.ctx && r.ctx.px), { px: price, usd }) : ""}</div>
     <h3>Top holders on this coin · overall record vs this coin</h3>${holdersTable(r)}
     <h3>How to trade it</h3><div class="cards">${perp}${us}${lev}${none}</div>
     <h3>PnL cohorts — white border = in your Smart or Fools group</h3>
@@ -1783,7 +1784,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) { re
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <script src="mchart.js?v=7"></script>
 <script src="basket.js?v=2"></script>
-<script src="web.js?v=18"></script>
+<script src="web.js?v=19"></script>
 <script src="pcshim.js?v=1"></script>
 <script src="prochart.js?v=11"></script>
 <script src="spotflow.js?v=1"></script>
@@ -1802,7 +1803,8 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) { re
 <script src="planner.js?v=1"></script>
 <script src="rollover.js?v=1"></script>
 <script src="matrix.js?v=1"></script>
-<script src="crowd.js?v=16"></script>
+<script src="trapped.js?v=1"></script>
+<script src="crowd.js?v=17"></script>
 <script>(function(){const r0=render;render=function(){const x=r0.apply(this,arguments);try{window.mcAttach&&mcAttach()}catch(e){}return x};try{window.mcAttach&&mcAttach()}catch(e){}})();</script>
 <script src="site.js?v=4"></script>
 </body>
