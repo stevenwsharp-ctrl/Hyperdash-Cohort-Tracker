@@ -15,7 +15,7 @@ import { http, makeIO, agg, score, normCoin, SMART, FOOLS, fidelityOK } from "./
 import { buildInstruments } from "./instruments.mjs";
 import { optionStats } from "./options.mjs";
 import { computeTrends, detectEvents } from "./trends.mjs";
-import { getVix, getEarnings } from "./context.mjs";
+import { getVix, getEarnings, getIdx } from "./context.mjs";
 
 const OUT = process.argv[2] || "out";
 const INPUT = process.argv[3];
@@ -226,6 +226,7 @@ async function main() {
   if (!INPUT) {
     const cx = io.read("context.json", { earnings: {}, earningsT: null });
     try { cx.vix = await getVix(); } catch (e) { note("vix", e); }
+    try { const ix = await getIdx(); if (Object.keys(ix).length) cx.idx = ix; } catch (e) { note("idx", e); }
     if (inst && (!cx.earningsT || Date.now() - Date.parse(cx.earningsT) > 12 * 36e5)) {
       const syms = new Set();
       for (const c in inst.m) { const I = inst.m[c]; if (I.u) syms.add(I.u.s); }

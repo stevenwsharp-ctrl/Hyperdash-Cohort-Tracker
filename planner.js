@@ -93,6 +93,7 @@
       out.tf[tf] = { n, trend: ctxNow[tf], ctx: ctxNow, pick, best, top, plan, now, px: B[n - 1][4], atr: X.atr[n - 1], rules: V.length };
     }
     // ledger: save new plans; score open ones with the bars of their time frame
+    if (/^hubtest:/.test(key)) { out.ledger = []; return out; }   // test-runner runs do not write to the paper ledger
     const L = ld(); let ch = false;
     for (const tf of TF) { const p = out.tf[tf] && out.tf[tf].plan; if (p && !L.some(x => x.key === key && x.tf === tf && x.t0 === p.t0)) { L.push({ key, tf, t0: p.t0, exp: p.exp, side: p.side, entry: p.entry, stop: p.stop, target: p.target, rule: `${p.rule.k}/${p.rule.sm}/${p.rule.tR}R/${p.rule.fil}`, proven: p.proven, st: "open" }); ch = true; } }
     L.forEach(x => { if (x.key !== key || x.st !== "open" || !F[x.tf]) return; const B = F[x.tf].B, risk = Math.abs(x.entry - x.stop);

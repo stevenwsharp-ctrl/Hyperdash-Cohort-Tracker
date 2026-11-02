@@ -3,6 +3,16 @@ import { http } from "./lib.mjs";
 
 const UAH = { "accept": "application/json, text/plain, */*", "accept-language": "en-US,en;q=0.9", origin: "https://www.nasdaq.com", referer: "https://www.nasdaq.com/" };
 
+// Dow, Nasdaq Composite, Nasdaq 100, S&P 500: price, day change %, and the day's 5-minute closes (for the index strip)
+export async function getIdx() {
+  const out = {};
+  for (const s of ["^DJI", "^IXIC", "^NDX", "^GSPC"]) {
+    try { const j = await http(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(s)}?interval=5m&range=1d`, { tries: 2, timeoutMs: 15000, headers: { "user-agent": "Mozilla/5.0" } });
+      const r = j.chart && j.chart.result && j.chart.result[0]; if (!r) continue; const m = r.meta || {}, c = ((r.indicators || {}).quote || [{}])[0].close || [], cl = c.filter(v => v != null), px = cl.length ? cl[cl.length - 1] : m.regularMarketPrice, prev = m.chartPreviousClose || m.previousClose;
+      out[s] = { px: Math.round(px * 100) / 100, ch: prev ? Math.round((px / prev - 1) * 1e4) / 100 : null, sp: cl.filter((v, i) => i % 3 === 0).map(v => Math.round(v * 100) / 100) }; } catch (e) { }
+  }
+  return out;
+}
 export async function getVix() {
   const j = await http("https://cdn.cboe.com/api/global/delayed_quotes/quotes/_VIX.json", { tries: 2, timeoutMs: 20000 });
   const d = j.data || {};

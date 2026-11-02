@@ -48,6 +48,7 @@
     try { if (window.Markov && h1) o.M = Markov.analyze(h1); } catch (e) { }
     try { if (window.Matrix && h1) { o.K = Matrix.kalman(h1); o.D = Matrix.dirac(h1); } } catch (e) { }
     try { if (window.Rollover && h1) o.R = Rollover.analyze(h1); } catch (e) { }
+    try { if (window.Hub) { const H = Hub.from; Hub.report([].concat(H.planner(o.P, A), H.markov(o.M, A), H.kd(o.K, o.D, A), H.roll(o.R, A))); } } catch (e) { }
     return X = o;
   }
   function trapped(px) { try { const SP = soxx ? (window.TRAPDATA || {}).SP : (typeof SPEC !== "undefined" ? SPEC : null), LV = soxx ? (window.TRAPDATA || {}).LV : (typeof LEVELS !== "undefined" ? LEVELS : null); const h = SP && SP.m && SP.m[COIN] && SP.m[COIN].holders; return h && window.Trapped ? Trapped.analyze(h, LV && LV.m && LV.m[COIN] && LV.m[COIN].h, px) : null; } catch (e) { return null; } }
@@ -84,4 +85,5 @@
     card.querySelector("details").ontoggle = e => { open = e.target.open; lsS("ndx_open", open); };
   }
   setTimeout(tick, soxx ? 14000 : 9000); setInterval(tick, 60000);
+  if (soxx && window.Hub) Hub.card(card, "hubCard");   // the knowledge hub sits right under the Nasdaq panel on SOXX Sniper
 })();

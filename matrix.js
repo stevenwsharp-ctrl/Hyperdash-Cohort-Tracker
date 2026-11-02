@@ -61,8 +61,8 @@
     return { N, T, names: use, E: E.map(e => e.val), lp, sig, k, ar, arS, dAR: arS - ar, mode, res, resAll, cond: E[0].val / Math.max(1e-6, E[E.length - 1].val), pr: (E.reduce((s, e) => s + e.val, 0) ** 2) / E.reduce((s, e) => s + e.val * e.val, 0) };
   }
   // walk-forward check of a signal series: first half learns the sign, second half must confirm
-  function wf(sigs, fut) { const idx = sigs.map((v, i) => i).filter(i => sigs[i] && fut[i] != null); if (idx.length < 60) return { z: 0, sign: 0, n: idx.length };
-    const half = Math.floor(idx.length / 2), hz = L => { let h = 0; L.forEach(i => { if (Math.sign(sigs[i]) === Math.sign(fut[i])) h++; }); return (h - L.length / 2) / Math.sqrt(L.length / 4) / Math.SQRT2; };   // ÷√2: overlapping 4-bar outcomes
+  function wf(sigs, fut, h) { h = h || 4; const idx = sigs.map((v, i) => i).filter(i => i % h === 0 && sigs[i] && fut[i] != null);   /* every h-th bar only: the h-bar outcomes do not overlap, so the calls are independent */ if (idx.length < 40) return { z: 0, sign: 0, n: idx.length };
+    const half = Math.floor(idx.length / 2), hz = L => { let h = 0; L.forEach(i => { if (Math.sign(sigs[i]) === Math.sign(fut[i])) h++; }); return (h - L.length / 2) / Math.sqrt(L.length / 4); };
     const z1 = hz(idx.slice(0, half)), sign = z1 >= 0 ? 1 : -1, z2 = hz(idx.slice(half)) * sign; return { z: z2, sign, n: idx.length, zl: z1 }; }
   const futOf = (c, h) => c.map((v, i) => i + h < c.length ? Math.log(c[i + h] / v) : null);
   function kalman(B) {
