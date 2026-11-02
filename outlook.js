@@ -93,7 +93,7 @@
         const raw = w ? s / w : 0; let agW = 0; SYS.forEach(([k]) => { if (o[k] != null && Math.sign(o[k]) === Math.sign(raw) && Math.abs(o[k]) >= 0.1) { ag++; agW += W[k]; } });
         const cons = raw * (0.4 + 0.6 * (w ? agW / w : 0));   // agreement matters, counted by weight: one loud weak system alone counts for less
         return { r, px, sd, sH, s: { ...o, cons }, ag, n }; }); all[h].W = W; }
-    const L = ledger(all); LAST = { all, L, at: Date.now() };
+    const L = ledger(all); LAST = { all, L, at: Date.now() }; window.csOutlook = () => LAST;
     // the web learns the 24 h consensus and the three new lenses
     try { if (window.Web) all[24].forEach(x => { const a = x.r.sym || parse(x.r.coin).sym; [["ol.cons", x.s.cons, "Outlook · 24 h consensus of six systems"], ["ol.smart", x.s.smart, "Outlook · smart money (cohort gap)"], ["ol.mom", x.s.mom, "Outlook · momentum (vol units)"], ["ol.rev", x.s.rev, "Outlook · reversion stretch"], ["ol.pos", x.s.pos, "Outlook · positioning (trapped, carry, crowd)"], ["ol.flow", x.s.flow, "Outlook · fresh flow (gap change)"]].forEach(([id, v, lab]) => { if (v != null && Math.abs(v) >= 0.1) Web.emit(id, a, v, lab); }); }); } catch (e) { }
     return LAST;
