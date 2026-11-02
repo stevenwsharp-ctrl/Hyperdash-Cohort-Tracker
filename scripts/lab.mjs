@@ -89,27 +89,37 @@ const HYP = {
 const days = []; { const all = Object.values(M).flatMap(m => [dayKey(m.B[0][0]), dayKey(m.B[m.B.length - 1][0])]); const d1 = Math.max(...Object.values(M).map(m => dayKey(m.B[m.B.length - 1][0]))); for (let d = d1 - 420; d <= d1; d++) days.push(d); }
 const lastDay = days[days.length - 1], CACHE = {};
 const crossAt = d => CACHE[d] || (CACHE[d] = cross(d));
+// excursions with NO stop and NO target: the worst point against the bet (max drawdown, MAE) and the best point for it (max profit, MFE)
+// between the fill and the exit, from daily highs and lows, as a fraction of the entry (MAE ≤ 0, MFE ≥ 0)
+function excur(B, k, e, en, side) { let lo = Infinity, hi = -Infinity; for (let q = k; q <= e; q++) { lo = Math.min(lo, B[q][3]); hi = Math.max(hi, B[q][2]); }
+  return side > 0 ? { mae: Math.min(0, lo / en - 1), mfe: Math.max(0, hi / en - 1) } : { mae: Math.min(0, 1 - hi / en), mfe: Math.max(0, 1 - lo / en) }; }
+const qtl = (a, q) => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.max(0, Math.floor(q * (s.length - 1))))]; };
+function exStats(X) { if (X.length < 8) return null; const r4x = v => v == null ? null : Math.round(v * 1e4) / 1e4, win = X.filter(x => x.r > 0), lose = X.filter(x => x.r <= 0);
+  return { n: X.length, mae50: r4x(qtl(X.map(x => x.mae), 0.5)), mae90: r4x(qtl(X.map(x => x.mae), 0.1)), mfe50: r4x(qtl(X.map(x => x.mfe), 0.5)), mfe90: r4x(qtl(X.map(x => x.mfe), 0.9)),
+    winMae80: win.length >= 5 ? r4x(qtl(win.map(x => x.mae), 0.2)) : null,      // 80% of the winners never went further against the bet than this: a stop beyond it rarely kills a winner
+    loseMfe50: lose.length >= 5 ? r4x(qtl(lose.map(x => x.mfe), 0.5)) : null,   // half of the losers were up at least this much on the way: profit that a target could have kept
+    capture: r4x(qtl(X.filter(x => x.mfe > 0.005).map(x => x.r / x.mfe), 0.5)) }; }   // median share of the best point kept by holding to the end
 function bet(m, f, d, side, h) {   // limit entry 1/4 sigma_h better, alive max(1, h/4) days; exit at market after h days
   const B = m.B, j = f.j, sH = f.sdD * Math.sqrt(h), lp = f.px * Math.exp(-side * 0.25 * sH), w = Math.max(1, Math.floor(h / 4));
-  for (let k = j + 1; k <= Math.min(B.length - 1, j + w); k++) { if (side > 0 ? B[k][3] <= lp : B[k][2] >= lp) { const e = j + h; if (e >= B.length || dayKey(B[e][0]) > d + h + 4) return { open: 1 }; const en = side > 0 ? Math.min(lp, B[k][1]) : Math.max(lp, B[k][1]); return { r: Math.log(B[e][4] / en), fill: 1 }; } }
+  for (let k = j + 1; k <= Math.min(B.length - 1, j + w); k++) { if (side > 0 ? B[k][3] <= lp : B[k][2] >= lp) { const e = j + h; if (e >= B.length || dayKey(B[e][0]) > d + h + 4) return { open: 1 }; const en = side > 0 ? Math.min(lp, B[k][1]) : Math.max(lp, B[k][1]); return { r: Math.log(B[e][4] / en), fill: 1, ...excur(B, k, e, en, side) }; } }
   return { r: null, fill: 0 };
 }
 const RES = {};
 for (const h of [1, 2, 7]) for (const [name, H] of Object.entries(HYP)) {
   const steps = []; for (let d = days[0] + 150; d + h <= lastDay; d += h) steps.push(d);
-  const rows = [], byC = {}, byI = {}; let orders = 0, fills = 0;
+  const rows = [], byC = {}, byI = {}, EX = []; let orders = 0, fills = 0;
   for (const d of steps) { const F = crossAt(d), U = Object.keys(F).filter(c => (M[c].B[F[c].j][5] * F[c].px > 0)); if (U.length < 25) continue;
     // baseline: the same limit-order bet on EVERY market, per side, so a hypothesis is judged only on what it picks
     // (a limit filled on a dip has its own bias; comparing with the plain market move would credit that to the hypothesis)
     const base = {}; for (const side of [1, -1]) { const a = U.map(c => bet(M[c], F[c], d, side, h)).filter(b => b.fill && b.r != null).map(b => side * b.r); base[side] = a.length ? mean(a) : 0; }
     const S = U.map(c => ({ c, s: H.f(F[c], M[c]) })).filter(x => Math.abs(x.s) >= 0.3);
     const Lg = S.filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 6), Sh = S.filter(x => x.s < 0).sort((a, b) => a.s - b.s).slice(0, 6); if (!Lg.length && !Sh.length) continue;
-    const res = (x, side) => { orders++; const b = bet(M[x.c], F[x.c], d, side, h); if (b.open || !b.fill || b.r == null) return null; fills++; const v = side * b.r - base[side] - 0.001; const t = M[x.c].tg, k1 = t.cls, k2 = t.ind || t.cls;
+    const res = (x, side) => { orders++; const b = bet(M[x.c], F[x.c], d, side, h); if (b.open || !b.fill || b.r == null) return null; fills++; EX.push({ mae: b.mae, mfe: b.mfe, r: side * b.r }); const v = side * b.r - base[side] - 0.001; const t = M[x.c].tg, k1 = t.cls, k2 = t.ind || t.cls;
       (byC[k1] = byC[k1] || []).push(v); (byI[k2] = byI[k2] || []).push(v); return v; };
     const lv = Lg.map(x => res(x, 1)).filter(v => v != null), sv = Sh.map(x => res(x, -1)).filter(v => v != null), all = lv.concat(sv); if (all.length) rows.push({ d, v: mean(all), n: all.length }); }
   const st = a => { if (!a.length) return null; const m = mean(a), s = sd(a); return { n: a.length, m, hit: a.filter(v => v > 0).length / a.length, t: s ? m / s * Math.sqrt(a.length) : 0 }; };
   const v = rows.map(r => r.v), half = Math.floor(v.length / 2), pk = o => Object.fromEntries(Object.entries(o).filter(([, a]) => a.length >= 8).map(([k, a]) => [k, st(a)]));
-  (RES[name] = RES[name] || { d: H.d, h: {} }).h[h] = { all: st(v), first: st(v.slice(0, half)), second: st(v.slice(half)), bets: rows.reduce((s, r) => s + r.n, 0), fill: orders ? fills / orders : null, byClass: pk(byC), byInd: pk(byI) };
+  (RES[name] = RES[name] || { d: H.d, h: {} }).h[h] = { all: st(v), first: st(v.slice(0, half)), second: st(v.slice(half)), bets: rows.reduce((s, r) => s + r.n, 0), fill: orders ? fills / orders : null, byClass: pk(byC), byInd: pk(byI), ex: exStats(EX) };
 }
 // ---------- today: profiles and the current bets ----------
 const F0 = crossAt(lastDay), prof = {}, picks = {};
@@ -117,13 +127,17 @@ for (const c in F0) { const f = F0[c], t = M[c].tg; prof[c] = { s: M[c].s, cls: 
   r7: r4(f.r7), r30: r4(f.r30), r90: r4(f.r90), vr: r4(f.vr), v20: r4(f.v20), athD: r4(f.athD), atlU: r4(f.atlU), pos52: r4(f.pos52), pump: r4(f.pump), rel30: r4(f.rel30), relZ: r4(f.relZ), grp: f.grp, grpR30: r4(f.grpR30), grpZ: r4(f.grpZ), beta: r4(f.beta), corr: r4(f.corr), sdD: r4(f.sdD),
   sc: Object.fromEntries(Object.entries(HYP).map(([k, H]) => [k, r4(H.f(f, M[c]))])) }; }
 function r4(v) { return v == null || !isFinite(v) ? null : Math.round(v * 1e4) / 1e4; }
+// each market's own excursions: a long and a short entered at every close of the last 250 days, held h days, no stop and no target
+for (const c in F0) { const B = M[c].B, n = B.length, P = prof[c]; P.ex = {};
+  for (const h of [1, 2, 7]) { const o = {}; for (const side of [1, -1]) { const X = []; for (let k = Math.max(1, n - 250 - h); k + h < n; k++) { const en = B[k][4], x = excur(B, k + 1, k + h, en, side); X.push({ ...x, r: side * Math.log(B[k + h][4] / en) }); } o[side > 0 ? "L" : "S"] = exStats(X); } P.ex[h] = o; } }
 // setups for every market and every horizon: the hypotheses that held up there (positive overall and on the second half),
 // each weighted by its t-stat, blended into one lean, with a limit entry, a limit target and a "wrong if" price
 const WH = Object.fromEntries([1, 2, 7].map(h => [h, Object.fromEntries(Object.entries(RES).map(([k, R]) => { const x = R.h[h]; return [k, x && x.all && x.second && x.all.t > 0.5 && x.second.m > 0 ? Math.min(3, x.all.t) : 0]; }))]));
 for (const c in F0) { const f = F0[c], P = prof[c]; P.setups = {};
   for (const h of [1, 2, 7]) { const W = WH[h]; let s = 0, w = 0; const why = []; for (const k in HYP) { const v = P.sc[k]; if (!W[k] || v == null) continue; w += W[k]; s += v * W[k]; if (Math.abs(v) >= 0.3) why.push([k, r4(v)]); }
     const lean = w ? s / Object.values(W).reduce((a, b) => a + b, 0) : 0, side = Math.sign(lean), sH = f.sdD * Math.sqrt(h); if (!side || Math.abs(lean) < 0.05) { P.setups[h] = { side: 0 }; continue; }
-    P.setups[h] = { side, lean: r4(lean), lim: r4(f.px * Math.exp(-side * 0.25 * sH)), tgt: r4(f.px * Math.exp(side * (0.5 + Math.min(1, Math.abs(lean) * 2)) * sH)), wrong: r4(f.px * Math.exp(-side * 0.75 * sH)), why: why.filter(([k, v]) => Math.sign(v) === side && W[k]).sort((a, b) => Math.abs(b[1]) * WH[h][b[0]] - Math.abs(a[1]) * WH[h][a[0]]).map(x => x[0]).slice(0, 3) }; } }
+    const EXh = P.ex && P.ex[h] && P.ex[h][side > 0 ? "L" : "S"], exP = v => v == null ? null : r4(f.px * (1 + v * side));   // excursion prices for this side (drawdown below a long, above a short)
+    P.setups[h] = { dd50: EXh ? exP(EXh.mae50) : null, dd90: EXh ? exP(EXh.mae90) : null, up50: EXh ? exP(EXh.mfe50) : null, up90: EXh ? exP(EXh.mfe90) : null, winStop: EXh && EXh.winMae80 != null ? exP(EXh.winMae80) : null, side, lean: r4(lean), lim: r4(f.px * Math.exp(-side * 0.25 * sH)), tgt: r4(f.px * Math.exp(side * (0.5 + Math.min(1, Math.abs(lean) * 2)) * sH)), wrong: r4(f.px * Math.exp(-side * 0.75 * sH)), why: why.filter(([k, v]) => Math.sign(v) === side && W[k]).sort((a, b) => Math.abs(b[1]) * WH[h][b[0]] - Math.abs(a[1]) * WH[h][a[0]]).map(x => x[0]).slice(0, 3) }; } }
 for (const [name, H] of Object.entries(HYP)) { const S = Object.keys(F0).map(c => ({ c, s: H.f(F0[c], M[c]) })).filter(x => Math.abs(x.s) >= 0.3); picks[name] = { L: S.filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 6).map(x => x.c), S: S.filter(x => x.s < 0).sort((a, b) => a.s - b.s).slice(0, 6).map(x => x.c) }; }
 const out = { weights: WH, t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
 fs.writeFileSync(path.join(OUT, "lab.json"), JSON.stringify(out));
