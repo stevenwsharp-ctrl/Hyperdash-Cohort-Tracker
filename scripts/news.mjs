@@ -6,6 +6,9 @@
 // Usage: node scripts/news.mjs <outDir>
 import { http, makeIO, score, splitCoin, fidelityOK } from "./lib.mjs";
 import { ALIAS, CRYPTO, GENERIC } from "./instruments.mjs";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url); require("../shock.js");   // the market shock rules, the same file the pages use
+const SHOCK = globalThis.ShockRules;
 
 const OUT = process.argv[2] || "out";
 const io = makeIO(OUT);
@@ -139,6 +142,9 @@ async function main() {
     if (c.macro) o.m = 1; if (big) o.b = 1;
     return o;
   });
+  // market shock score (shock.js): the pages show an alarm at 6+, a banner at 4+
+  const pool = [...out, ...N.items];
+  for (const o of out) { const x = SHOCK.classify(o, pool); if (x && x.s >= 4) o.x = { s: x.s, cat: x.cat, label: x.label, dir: x.dir, react: x.react, why: x.why }; }
   N.items = [...out, ...N.items].filter(i => now - i.t < KEEP_H * 36e5).sort((a, b) => b.t - a.t).slice(0, MAX_ITEMS);
   N.t = new Date().toISOString();
 
@@ -167,6 +173,14 @@ async function main() {
         sent++;
       } catch (e) { console.error("news alert:", e.message); }
     }
+    // market shock: always sent (unless ALERT_TYPES has "noshock"), urgent priority, one per kind of event per 20 minutes
+    if (!ALERT_TYPES.has("noshock")) for (const it of out.filter(i => i.x && i.x.s >= SHOCK.ALARM && now - i.t < 20 * 6e4).sort((a, b) => b.x.s - a.x.s)) {
+      const k = "__shock:" + it.x.cat + ":" + it.x.dir; if (now - (N.alerted[k] || 0) < 20 * 6e4) continue; N.alerted[k] = now;
+      const title = `MARKET SHOCK: ${it.x.label}`, body = `${it.h}\n${it.src}\nUsual first reaction: ${it.x.react}`;
+      try { const topic = process.env.NTFY_TOPIC, hook = process.env.DISCORD_WEBHOOK_URL;
+        if (topic) await http(`https://ntfy.sh/${encodeURIComponent(topic)}`, { method: "POST", body, as: "text", tries: 2, headers: { Title: title, Priority: "5", Tags: "rotating_light", ...(it.url ? { Click: it.url } : {}) } });
+        if (hook) await http(hook, { method: "POST", as: "text", tries: 2, headers: { "content-type": "application/json" }, body: JSON.stringify({ content: `@everyone 🚨 **${title}**\n${body}${it.url ? `\n<${it.url}>` : ""}` }) });
+      } catch (e) { console.error("shock alert:", e.message); } }
     for (const k in N.alerted) if (now - N.alerted[k] > 864e5) delete N.alerted[k];
   }
 
