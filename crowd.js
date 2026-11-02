@@ -46,7 +46,7 @@
   }
   // ---- coupling map from history.json, hourly bars ----
   let E = null, eT = 0;
-  const MACRO = ["XYZ:SP500", "XYZ:XYZ100", "PARA:10Y", "XYZ:EUR", "XYZ:JPY", "XYZ:GOLD", "XYZ:CL", "BTC", "ETH"];
+  const MACRO = ["XYZ:SP500", "XYZ:XYZ100", "XYZ:KR200", "PARA:10Y", "XYZ:EUR", "XYZ:JPY", "XYZ:GOLD", "XYZ:CL", "BTC", "ETH"];
   function ent() {
     if (E && Date.now() - eT < 10 * 6e4) return E; const T = times(); if (T.length < 30) return E;
     const last = (HIST.snapshots[HIST.snapshots.length - 1] || {}).d || {};
@@ -91,7 +91,7 @@
     const SW = sweep();
     const g = c => { const x = ctxOf(c); return x && x.ch != null ? x.ch : null; };
     const mac = [["mkt.us10y", "PARA:10Y", 3, "Rates · US 10Y yield 24h"], ["mkt.eur", "XYZ:EUR", 1, "Currencies · euro 24h (dollar weaker +)"], ["mkt.gold", "XYZ:GOLD", 3, "Commodities · gold 24h"],
-      ["mkt.oil", "XYZ:CL", 5, "Commodities · oil 24h"], ["mkt.btc", "BTC", 6, "Crypto · Bitcoin 24h"], ["mkt.sp500", "XYZ:SP500", 2, "Stocks · S&P 500 24h"]].map(([id, c, sc, lab]) => [id, g(c), sc, lab]).filter(x => x[1] != null);
+      ["mkt.oil", "XYZ:CL", 5, "Commodities · oil 24h"], ["mkt.btc", "BTC", 6, "Crypto · Bitcoin 24h"], ["mkt.sp500", "XYZ:SP500", 2, "Stocks · S&P 500 24h"], ["mkt.ndx", "XYZ:XYZ100", 2.5, "Stocks · Nasdaq-100 perp 24h (futures)"], ["mkt.kospi", "XYZ:KR200", 3, "Korea · KOSPI 200 perp 24h (memory chips)"]].map(([id, c, sc, lab]) => [id, g(c), sc, lab]).filter(x => x[1] != null);
     const vix = CONTEXT && CONTEXT.vix ? CONTEXT.vix : null;
     const out = [], lnk = [];
     ROWS.slice().sort((a, b) => b.rating - a.rating).slice(0, 80).forEach(r => {
