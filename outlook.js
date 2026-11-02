@@ -12,7 +12,9 @@
    the "wrong if" price is ¾ σ the other way. Targets are ranges for planning, not promises.
    Track record: every 2 hours the top 3 longs and top 3 shorts of each system and horizon are saved in this browser; when the
    horizon ends they are scored (long return minus short return). The record sets the consensus weights.
-   Spider web: the live web is drawn on this page; the consensus, momentum, reversion and positioning scores for 24 h go into it.
+   Backtest: scripts/outlookbt.mjs tests five systems (all but the web) on the 40-day hourly panel every week; its t-stats are
+   the prior weights, and its 6,000 past moments are replayed into the spider web once (Web.ingest).
+   Spider web: the live web is drawn on this page; the consensus and the five testable scores for 24 h go into it.
    Uses: ROWS, HIST, LIVE / ctxOf, SPEC, LEVELS, parse, esc, price, usd, gotoCoin, VIEW, Web, Trapped, csRhythm. */
 (function () {
   "use strict";
@@ -73,38 +75,48 @@
   }
   function record(L, h, k) { const d = L.filter(e => e.h === h && e.k === k && e.sp != null && !e.dead); if (!d.length) return null; const m = d.reduce((s, e) => s + e.sp, 0) / d.length; return { n: d.length, m, hit: d.filter(e => e.sp > 0).length / d.length }; }
   const weight = (L, h, k) => { const R = record(L, h, k); return !R || R.n < 8 ? 1 : Math.max(0.25, Math.min(2.5, 1 + R.m * 25 * Math.min(1, R.n / 30))); };   // +4%/pick avg spread → 2×
+  // ---------- 40-day backtest (scripts/outlookbt.mjs, weekly on the backtest branch) and the web's history lessons ----------
+  const BTU = "https://raw.githubusercontent.com/stevenwsharp-ctrl/Hyperdash-Cohort-Tracker/backtest/";
+  let BT = null, btT = 0, lessonsDone = false;
+  async function loadBT() { if (BT && Date.now() - btT < 6 * 36e5) return; btT = Date.now();
+    try { const r = await fetch(BTU + "outlook_bt.json?t=" + Math.floor(Date.now() / 36e5)); if (r.ok) BT = await r.json(); } catch (e) { }
+    // replay the 40 days into the spider web once per new file (the web skips what it has already learned)
+    if (!lessonsDone && window.Web && BT) { lessonsDone = true; try { const seen = (Web.data().hist || {})["outlookbt"]; if (!seen || Date.parse(BT.t) > seen.at) { const j = await (await fetch(BTU + "outlook_lessons.json?t=" + Date.parse(BT.t))).json(); const n = Web.ingest("outlookbt", j.items || [], "Outlook backtest · 40 days, 40 most traded markets"); if (n) console.info("outlook: web learned", n, "past moments"); } } catch (e) { console.warn("outlook lessons", e); } } }
+  const btRes = (h, k) => BT && BT.hz && BT.hz[h] && BT.hz[h].res && BT.hz[h].res[k] || null;
+  const btW = (h, k) => { const R = btRes(h, k); return R ? Math.max(0.2, Math.min(3, R.t)) : 1; };   // the backtest's t-stat as a prior weight (the web itself has no history to test: 1)
   // ---------- build ----------
   let LAST = null;
   function build() {
     const rows = (ROWS || []).filter(r => r.ctx && r.ctx.px > 0 && (r.ctx.v || 0) >= 1e6), all = {}, L0 = lsG(LK, []);
-    for (const [h] of HZ) { const W = Object.fromEntries(SYS.map(([k]) => [k, weight(L0, h, k)]));
+    for (const [h] of HZ) { const W = Object.fromEntries(SYS.map(([k]) => [k, weight(L0, h, k) * btW(h, k)]));
       all[h] = rows.map(r => { const { o, px, sd, sH } = score(r, h); let s = 0, w = 0, ag = 0, n = 0; SYS.forEach(([k]) => { if (o[k] == null) return; s += o[k] * W[k]; w += W[k]; n++; });
-        const raw = w ? s / w : 0; SYS.forEach(([k]) => { if (o[k] != null && Math.sign(o[k]) === Math.sign(raw) && Math.abs(o[k]) >= 0.1) ag++; });
-        const cons = raw * (0.4 + 0.6 * (n ? ag / n : 0));   // agreement matters: one loud system alone counts for less
+        const raw = w ? s / w : 0; let agW = 0; SYS.forEach(([k]) => { if (o[k] != null && Math.sign(o[k]) === Math.sign(raw) && Math.abs(o[k]) >= 0.1) { ag++; agW += W[k]; } });
+        const cons = raw * (0.4 + 0.6 * (w ? agW / w : 0));   // agreement matters, counted by weight: one loud weak system alone counts for less
         return { r, px, sd, sH, s: { ...o, cons }, ag, n }; }); all[h].W = W; }
     const L = ledger(all); LAST = { all, L, at: Date.now() };
     // the web learns the 24 h consensus and the three new lenses
-    try { if (window.Web) all[24].forEach(x => { const a = x.r.sym || parse(x.r.coin).sym; [["ol.cons", x.s.cons, "Outlook · 24 h consensus of six systems"], ["ol.mom", x.s.mom, "Outlook · momentum (vol units)"], ["ol.rev", x.s.rev, "Outlook · reversion stretch"], ["ol.pos", x.s.pos, "Outlook · positioning (trapped, carry, crowd)"]].forEach(([id, v, lab]) => { if (v != null && Math.abs(v) >= 0.1) Web.emit(id, a, v, lab); }); }); } catch (e) { }
+    try { if (window.Web) all[24].forEach(x => { const a = x.r.sym || parse(x.r.coin).sym; [["ol.cons", x.s.cons, "Outlook · 24 h consensus of six systems"], ["ol.smart", x.s.smart, "Outlook · smart money (cohort gap)"], ["ol.mom", x.s.mom, "Outlook · momentum (vol units)"], ["ol.rev", x.s.rev, "Outlook · reversion stretch"], ["ol.pos", x.s.pos, "Outlook · positioning (trapped, carry, crowd)"], ["ol.flow", x.s.flow, "Outlook · fresh flow (gap change)"]].forEach(([id, v, lab]) => { if (v != null && Math.abs(v) >= 0.1) Web.emit(id, a, v, lab); }); }); } catch (e) { }
     return LAST;
   }
   // ---------- draw ----------
   const tgt = (x, s, h) => { const d = Math.sign(s) || 1, m = 0.5 + Math.min(1, Math.abs(s)); return { t: x.px * Math.exp(d * x.sH * m), w: x.px * Math.exp(-d * x.sH * 0.75), pct: Math.exp(d * x.sH * m) - 1 }; };
   const col = v => v == null ? "var(--line)" : v > 0 ? `color-mix(in srgb,var(--bull,#19d38a) ${Math.round(25 + 75 * Math.min(1, Math.abs(v)))}%,transparent)` : `color-mix(in srgb,var(--bear,#ff4d5e) ${Math.round(25 + 75 * Math.min(1, Math.abs(v)))}%,transparent)`;
   const pc = v => (v >= 0 ? "+" : "") + (v * 100).toFixed(1) + "%", nm = x => `<a href="#" data-olgo="${esc(x.r.coin)}">${esc(x.r.sym || parse(x.r.coin).sym)}</a>`;
+  const btTxt = (R, k) => k === "web" ? "Backtest: the web has no 40-day history to test (it learns live and from replays)." : R ? `Backtest 40 d: <b class="${R.m > 0 ? "L" : "S"}">${pc(R.m)}</b> long−short per pick, ${Math.round(R.hit * 100)}% right, t ${R.t.toFixed(1)}${R.learnM != null ? ` (first 60% ${pc(R.learnM)}, last 40% ${pc(R.unseenM)})` : ""}` : "Backtest: loading…";
   const recTxt = R => R ? `${R.n} scored · ${Math.round(R.hit * 100)}% right · ${pc(R.m)} long−short per pick` : "no scored picks yet";
   function draw() {
-    if (VIEW !== "outlook") return; const B = LAST && Date.now() - LAST.at < 55e3 ? LAST : build(), A = B.all[H] || [], W = A.W || {}, L = B.L;
+    if (VIEW !== "outlook") return; if (!BT) loadBT().then(() => { LAST = null; if (VIEW === "outlook") draw(); }); const B = LAST && Date.now() - LAST.at < 55e3 ? LAST : build(), A = B.all[H] || [], W = A.W || {}, L = B.L;
     const best = (k, d) => A.filter(x => x.s[k] != null && x.s[k] * d > (k === "cons" ? 0.06 : 0.1) && (k !== "cons" || x.ag >= 2)).sort((a, b) => d * (b.s[k] - a.s[k])).slice(0, k === "cons" ? 10 : 5);
     const consRow = (x, d) => { const T = tgt(x, x.s.cons, H); return `<tr><td style="text-align:left">${nm(x)}</td><td>${price(x.px)}</td><td class="${d > 0 ? "L" : "S"}"><b>${price(T.t)}</b> <span class="tr">${pc(T.pct)}</span></td><td class="tr">${price(T.w)}</td><td style="text-align:left">${SYS.map(([k, n]) => `<span class="cell" title="${n}: ${x.s[k] == null ? "no data" : x.s[k].toFixed(2)}" style="background:${col(x.s[k])}"></span>`).join("")}</td><td>${x.ag}/${x.n}</td><td class="${d > 0 ? "L" : "S"}">${x.s.cons.toFixed(2)}</td></tr>`; };
     const consT = d => `<table><thead><tr><th style="text-align:left">${d > 0 ? "Best longs" : "Best shorts"}</th><th>Price</th><th>Target</th><th title="The idea is wrong if price gets here first (¾ σ the other way)">Wrong if</th><th style="text-align:left" title="${SYS.map(s => s[1]).join(" · ")}">6 systems</th><th title="Systems that agree">Agree</th><th>Score</th></tr></thead><tbody>${best("cons", d).map(x => consRow(x, d)).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--faint)">nothing clear</td></tr>`}</tbody></table>`;
     const breadth = SYS.map(([k, n]) => { const v = A.filter(x => x.s[k] != null && Math.abs(x.s[k]) >= 0.1), up = v.filter(x => x.s[k] > 0).length; return { n, up, dn: v.length - up }; });
     const sysCard = ([k, n]) => { const R = record(L, H, k), mini = (x, d) => { const T = tgt(x, x.s[k], H); return `<tr><td style="text-align:left">${nm(x)}</td><td><span class="bar" style="width:${Math.round(Math.abs(x.s[k]) * 50)}px;background:${col(x.s[k])}"></span> ${x.s[k].toFixed(2)}</td><td>${price(x.px)}</td><td class="${d > 0 ? "L" : "S"}">${price(T.t)} <span class="tr">${pc(T.pct)}</span></td></tr>`; };
-      return `<div class="card" style="padding:8px 10px"><div><span class="sysn">${n}</span> <span class="tr">weight ${(W[k] || 1).toFixed(2)}</span></div><div class="tr" style="margin:2px 0 4px">${HOW[k]}</div><div class="tr">Track record (${H === 168 ? "7 d" : H + " h"}): ${recTxt(R)}</div>
+      return `<div class="card" style="padding:8px 10px"><div><span class="sysn">${n}</span> <span class="tr">weight ${(W[k] || 1).toFixed(2)}</span></div><div class="tr" style="margin:2px 0 4px">${HOW[k]}</div><div class="tr">Track record (${H === 168 ? "7 d" : H + " h"}): ${recTxt(R)}</div><div class="tr">${btTxt(btRes(H, k), k)}</div>
         <table><thead><tr><th style="text-align:left" class="L">Long</th><th>score</th><th>price</th><th>target</th></tr></thead><tbody>${best(k, 1).map(x => mini(x, 1)).join("") || `<tr><td colspan="4" class="tr" style="text-align:center">none</td></tr>`}</tbody></table>
         <table style="margin-top:4px"><thead><tr><th style="text-align:left" class="S">Short</th><th>score</th><th>price</th><th>target</th></tr></thead><tbody>${best(k, -1).map(x => mini(x, -1)).join("") || `<tr><td colspan="4" class="tr" style="text-align:center">none</td></tr>`}</tbody></table></div>`; };
     const RC = record(L, H, "cons");
     sec.innerHTML = `<div class="olh">${HZ.map(([h, l]) => `<button data-olh="${h}" class="${h === H ? "on" : ""}">${l}</button>`).join("")}<span class="tr">${A.length} markets with $1M+ daily volume · refreshed ${new Date(B.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span></div>
-      <div class="card" style="padding:8px 10px;margin-bottom:10px"><b>Consensus · ${HZ.find(z => z[0] === H)[1].toLowerCase()}</b> <span class="tr">six systems blended, weighted by their own track record and by how many agree (2+ needed) · consensus record: ${recTxt(RC)}</span>
+      <div class="card" style="padding:8px 10px;margin-bottom:10px"><b>Consensus · ${HZ.find(z => z[0] === H)[1].toLowerCase()}</b> <span class="tr">six systems blended, weighted by the 40-day backtest × their live track record, and by how many agree (2+ needed) · live record: ${recTxt(RC)}</span>${BT && btRes(H, "cons") ? `<div class="tr">Backtest weights now: ${SYS.map(([k, n]) => `${n} ${(W[k] || 0).toFixed(2)}`).join(" · ")}. 40-day consensus on the unseen last 40%: ${pc(btRes(H, "cons").m)} per pick (equal weights: ${pc(btRes(H, "consEq").m)}).</div>` : ""}
         <div class="ol2" style="margin-top:6px"><div>${consT(1)}</div><div>${consT(-1)}</div></div>
         <div class="tr" style="margin-top:6px">Target = the ${H === 168 ? "7-day" : H + "-hour"} expected range from the market's own volatility (σ × √days), larger when conviction is higher. "Wrong if" = ¾ σ the other way. Cells: the six systems in order (${SYS.map(s => s[1]).join(", ")}), green long, red short, brighter = stronger.</div></div>
       <div class="card" style="padding:8px 10px;margin-bottom:10px"><b>Breadth</b> <span class="tr">how many markets each system leans long vs short</span>
@@ -117,5 +129,6 @@
   btn.onclick = () => { VIEW = "outlook"; document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === btn)); document.querySelectorAll("section[id^='v-']").forEach(s => s.hidden = s.id !== "v-outlook"); draw(); };
   document.querySelectorAll(".tab").forEach(b => { if (b !== btn) b.addEventListener("click", () => { sec.hidden = true; }); });
   sec.addEventListener("click", e => { const h = e.target.closest("[data-olh]"); if (h) { H = +h.dataset.olh; lsS("cs_ol_h", H); draw(); return; } const g = e.target.closest("[data-olgo]"); if (g) { e.preventDefault(); if (typeof gotoCoin === "function") gotoCoin(g.dataset.olgo); } });
-  setInterval(() => { if (!document.hidden) { if (VIEW === "outlook") draw(); else if (ROWS && ROWS.length && (!LAST || Date.now() - LAST.at > 10 * 6e4)) build(); } }, 60000);
+  setTimeout(loadBT, 30000);
+  setInterval(() => { if (!document.hidden) { loadBT(); if (VIEW === "outlook") draw(); else if (ROWS && ROWS.length && (!LAST || Date.now() - LAST.at > 10 * 6e4)) build(); } }, 60000);
 })();

@@ -43,6 +43,8 @@ jobs:
           BT_MAX_MIN: ${{ inputs.max_minutes || '110' }}
           BT_PANEL: ${{ inputs.panel || '1' }}
         run: node scripts/backtest.mjs bt bt/latest.json
+      - name: Outlook backtest (six ranking systems) and lessons for the signal web
+        run: if [ -f bt/panel.json.gz ]; then node scripts/outlookbt.mjs bt/panel.json.gz bt || true; fi
       - name: Push results to the backtest branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
