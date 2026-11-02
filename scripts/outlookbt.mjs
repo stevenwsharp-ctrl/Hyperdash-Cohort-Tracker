@@ -48,7 +48,9 @@ for (const h of HZ) {
     // limit entry: 1/4 sigma of the horizon better than the price at the signal, alive for the first quarter of the horizon; exit at market at the end
     const fill = (u, d) => { const m = u.m, i = u.i, lp = m.px[i] * Math.exp(-d * 0.25 * u.sd * Math.sqrt(h / 24)), w = Math.max(2, Math.ceil(h / 4)); for (let q = i + 1; q <= Math.min(NH, i + w); q++) { const lo = m.lo[q] ?? m.px[q], hi = m.hi[q] ?? m.px[q]; if (d > 0 ? lo <= lp : hi >= lp) return m.px[i + h] > 0 ? Math.log(m.px[i + h] / lp) : null; } return null; };
     const lr = Lg.map(x => fill(x.u, 1)).filter(v => v != null), sr = Sh.map(x => fill(x.u, -1)).filter(v => v != null); FILL.o += Lg.length + Sh.length; FILL.f += lr.length + sr.length;
-    const sp = (lr.length ? mean(lr) - avg : 0) + (sr.length ? avg - mean(sr) : 0); return { sp: lr.length || sr.length ? sp : null, ic: spear(v.map(x => x.s), v.map(x => x.r)) }; };
+    // baseline: the same limit order on every market (per side), so the limit's own fill bias is not credited to the system
+    const bL = row.U.map(u => fill(u, 1)).filter(v => v != null), bS = row.U.map(u => fill(u, -1)).filter(v => v != null), aL = bL.length ? mean(bL) : avg, aS = bS.length ? mean(bS) : avg;
+    const sp = (lr.length ? mean(lr) - aL : 0) + (sr.length ? aS - mean(sr) : 0); return { sp: lr.length || sr.length ? sp : null, ic: spear(v.map(x => x.s), v.map(x => x.r)) }; };
   const cut = Math.floor(rows.length * 0.6), res = {}, W = {};
   for (const k of SYS) { const E = rows.map(row => evalK(row, u => u.o[k])), sp = E.map(e => e.sp).filter(v => v != null), ic = E.map(e => e.ic).filter(v => v != null), tr = E.slice(0, cut).map(e => e.sp).filter(v => v != null), te = E.slice(cut).map(e => e.sp).filter(v => v != null);
     const S = stat(sp), I = stat(ic), Tr = stat(tr), Te = stat(te), neff = S ? S.n * Math.min(1, 24 / h) : 0;

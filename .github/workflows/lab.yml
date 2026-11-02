@@ -1,0 +1,44 @@
+name: Bet lab
+
+# Hypothetical bets on every liquid market + a profile of each market (industry, life cycle, own past, peers).
+# Writes lab.json to the "lab" branch. Runs every day, when the lab script changes, or by hand.
+on:
+  schedule:
+    - cron: "41 12 * * *"
+  push:
+    branches: [main]
+    paths: ["scripts/lab.mjs", ".github/workflows/lab.yml", "tax.js"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lab
+  cancel-in-progress: true
+
+jobs:
+  lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Get the current market list
+        run: |
+          mkdir -p lab
+          git fetch --depth=1 origin data && git show origin/data:latest.json > latest.json
+      - name: Run the bet lab
+        run: node scripts/lab.mjs lab latest.json
+      - name: Push results to the lab branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd lab
+          git init -q -b lab
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -qm "lab $(date -u +%FT%TZ)"
+          git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" lab
