@@ -31,8 +31,9 @@ const post = b => http("https://api.hyperliquid.xyz/info", { method: "POST", tri
 let MS = 7; const MR = () => { MS = (MS * 16807) % 2147483647; return MS / 2147483647; };
 const mock = n => { let p = 50 + MR() * 100; const t0 = Math.floor(Date.now() / D) * D; return Array.from({ length: n }, (_, i) => { const o = p; p *= Math.exp((MR() - 0.5) * 0.08); return [t0 - (n - 1 - i) * D, o, Math.max(o, p) * 1.01, Math.min(o, p) * 0.99, p, 1e6]; }); };   // LAB_MOCK=1: random walks, for testing the script offline
 async function hlDaily(c) { if (process.env.LAB_MOCK) return mock(100 + Math.floor(MR() * 900)); try { const k = await post({ type: "candleSnapshot", req: { coin: hlName(c), interval: "1d", startTime: Date.now() - 1200 * D, endTime: Date.now() } }); return Array.isArray(k) ? k.map(b => [b.t, +b.o, +b.h, +b.l, +b.c, +b.v]).filter(b => b[4] > 0) : []; } catch (e) { return []; } }
-async function yahoo(sym) { if (process.env.LAB_MOCK) return mock(1200); try { const j = await http(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5y`, { tries: 2, timeoutMs: 15000, headers: { "user-agent": "Mozilla/5.0" } }); const r = j.chart.result[0], q = r.indicators.quote[0];
-  return r.timestamp.map((t, i) => [t * 1000, q.open[i], q.high[i], q.low[i], q.close[i], q.volume[i] || 0]).filter(b => b[4] > 0 && b[2] != null && b[3] != null); } catch (e) { return []; } }
+async function yahoo(sym) { if (process.env.LAB_MOCK) return mock(1200); try { const j = await http(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5y`, { tries: 2, timeoutMs: 15000, headers: { "user-agent": "Mozilla/5.0" } }); const r = j.chart.result[0], q = r.indicators.quote[0], ad = (r.indicators.adjclose && r.indicators.adjclose[0] && r.indicators.adjclose[0].adjclose) || q.close;
+  // split- and dividend-adjusted: scale open, high and low by the same factor as the close (a reverse split is not a crash)
+  return r.timestamp.map((t, i) => { const k = q.close[i] > 0 && ad[i] > 0 ? ad[i] / q.close[i] : 1; return [t * 1000, q.open[i] * k, q.high[i] * k, q.low[i] * k, ad[i], q.volume[i] || 0]; }).filter(b => b[4] > 0 && b[2] > 0 && b[3] > 0); } catch (e) { return []; } }
 const M = {};
 for (const c of universe) { const tg = Tax.tag(c), hl = await hlDaily(c); await sleep(220); let yh = [];
   if (["Stock", "ETF"].includes(tg.cls) && hl.length < 400) { yh = await yahoo(tg.s || c.split(":").pop()); await sleep(150); }
@@ -82,7 +83,7 @@ const HYP = {
   "pump-fade": { d: "Fade the extreme: after a 14-day move over ±50%, bet on part of it coming back", f: f => Math.abs(f.pump) > 0.4 ? -c1(f.pump / 0.8) : 0 },
   "beta-tide": { d: "Tide: when its market (Bitcoin or the S&P 500) is above its 50-day average, long the high-beta names; below, short them", f: f => f.beta == null || f.benchTrend == null ? 0 : c1(Math.sign(f.benchTrend) * (f.beta - 1)) },
   "vol-squeeze": { d: "Coiled spring: volatility at under 60% of its own normal; bet in the direction of the last 7 days", f: f => f.vr != null && f.vr < 0.6 && f.r7 ? Math.sign(f.r7) * 0.6 : 0 },
-  "young-small": { d: "Life stage of the company or coin: young (listed 2021 or later) and small or mid size = long; old giants = short (risk appetite factor)", f: (f, m) => { const t = m.tg; if (!t.yr) return 0; const young = t.yr >= 2021, small = ["small", "mid"].includes(t.cap); return young && small ? 0.6 : !young && t.cap === "mega" ? -0.4 : 0; } },
+  "young-small": { d: "Life stage of the company or coin: young (listed 2021 or later) and small or mid size = long; old giants = short (risk appetite factor)", f: (f, m) => { const t = m.tg; if (!t.yr) return 0; const cap = String(t.cap || ""), young = t.yr >= 2021, small = /small|mid/i.test(cap); return young && small ? 0.6 : !young && /mega/i.test(cap) ? -0.4 : 0; } },
 };
 // ---------- the bets ----------
 const days = []; { const all = Object.values(M).flatMap(m => [dayKey(m.B[0][0]), dayKey(m.B[m.B.length - 1][0])]); const d1 = Math.max(...Object.values(M).map(m => dayKey(m.B[m.B.length - 1][0]))); for (let d = d1 - 420; d <= d1; d++) days.push(d); }

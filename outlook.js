@@ -98,6 +98,13 @@
         const cons = raw * (0.4 + 0.6 * (w ? agW / w : 0));   // agreement matters, counted by weight: one loud weak system alone counts for less
         return { r, px, sd, sH, s: { ...o, cons }, ag, n }; }); all[h].W = W; }
     const L = ledger(all); LAST = { all, L, at: Date.now() }; window.csOutlook = () => LAST;
+    // publish to the agreement layer (agree.js): each market's Outlook lean and cohort gap, keyed by its underlying
+    try { if (window.Agree) { const U = { SOXL: ["SOXX", 3], XYZ100: ["QQQ", 1], SP500: ["SPY", 1] };
+      all[24].forEach(x => { const s = x.r.sym || parse(x.r.coin).sym, u = U[s] || [s, 1], c48 = (all[48].find(y => y.r.coin === x.r.coin) || {}).s, c7 = (all[168].find(y => y.r.coin === x.r.coin) || {}).s;
+        if (Math.abs(x.s.cons) >= 0.06) Agree.publish("Cohort Sniper · Outlook 24 h", u[0], { side: Math.sign(x.s.cons), h: "24 h", txt: `${s} consensus ${x.s.cons.toFixed(2)}, ${x.ag}/${x.n} systems agree` });
+        if (c48 && Math.abs(c48.cons) >= 0.06) Agree.publish("Cohort Sniper · Outlook 48 h", u[0], { side: Math.sign(c48.cons), h: "48 h", txt: `${s} consensus ${c48.cons.toFixed(2)}` });
+        if (c7 && Math.abs(c7.cons) >= 0.06) Agree.publish("Cohort Sniper · Outlook 7 d", u[0], { side: Math.sign(c7.cons), h: "7 d", txt: `${s} consensus ${c7.cons.toFixed(2)}` });
+        if ((x.r.score || 0) >= 30) Agree.publish("Cohort Sniper · cohort gap", u[0], { side: x.r.dir, h: "2–7 d", txt: `${s} smart money ${x.r.dir > 0 ? "long" : "short"}, score ${x.r.score}` }); }); } } catch (e) { }
     // the web learns the 24 h consensus and the three new lenses
     try { if (window.Web) all[24].forEach(x => { const a = x.r.sym || parse(x.r.coin).sym; [["ol.cons", x.s.cons, "Outlook · 24 h consensus of six systems"], ["ol.smart", x.s.smart, "Outlook · smart money (cohort gap)"], ["ol.mom", x.s.mom, "Outlook · momentum (vol units)"], ["ol.rev", x.s.rev, "Outlook · reversion stretch"], ["ol.pos", x.s.pos, "Outlook · positioning (trapped, carry, crowd)"], ["ol.flow", x.s.flow, "Outlook · fresh flow (gap change)"]].forEach(([id, v, lab]) => { if (v != null && Math.abs(v) >= 0.1) Web.emit(id, a, v, lab); }); }); } catch (e) { }
     return LAST;

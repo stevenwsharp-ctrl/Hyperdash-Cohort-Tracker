@@ -1,0 +1,72 @@
+/* Cohort Sniper · 🧪 Lab tab: hypothetical bets on every liquid market, and what each market is.
+   Data: lab.json from the daily bet lab (scripts/lab.mjs, "lab" branch), read through agree.js (the same file the other
+   two sites read, so the setups match everywhere).
+   - Hypotheses: ten ideas about industry, life cycle, own past and peers, each tested as limit-entry bets on every market
+     (1, 2 and 7 days), with the first half vs the second half (the check), by class and by industry
+   - Setups for every market at 24 h / 48 h / 7 d (only the hypotheses that held up vote), with limit entry, target, wrong-if
+   - Profiles: industry, size, listing age, stage, distance from the high, vs its peers, its industry's move, beta
+   To the knowledge hub: each hypothesis × horizon (and its best industries). To the spider web, per market: lab.setup (24 h),
+   life.stage, life.ath, peer.rs, peer.group — so the web learns which of these lead each market.
+   Uses: Agree, Hub, Web, VIEW, gotoCoin, esc, price. */
+(function () {
+  "use strict";
+  const tabs = document.querySelector(".tabs"), ol = document.querySelector('.tab[data-tab="outlook"]') || document.querySelector('.tab[data-tab="setups"]'), anchor = document.getElementById("v-setups"); if (!tabs || !ol || !anchor || !window.Agree) return;
+  const btn = document.createElement("button"); btn.className = "tab"; btn.dataset.tab = "lab"; btn.textContent = "🧪 Lab"; ol.after(btn);
+  const sec = document.createElement("section"); sec.id = "v-lab"; sec.hidden = true; anchor.after(sec);
+  const st = document.createElement("style");
+  st.textContent = `#v-lab table{width:100%;border-collapse:collapse;font:12px var(--mono)}#v-lab th,#v-lab td{padding:3px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}#v-lab th{color:var(--faint,#888);font-weight:600;cursor:pointer}
+    #v-lab .L{color:var(--bull,#19d38a)}#v-lab .S{color:var(--bear,#ff4d5e)}#v-lab .tr{font-size:11px;color:var(--faint,#888)}#v-lab .lh{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0 8px}
+    #v-lab .lh button{font:13px var(--mono);padding:5px 12px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--faint,#888);cursor:pointer}#v-lab .lh button.on{color:inherit;border-color:var(--accent,#4da3ff)}
+    #v-lab .stg{display:inline-block;width:18px;text-align:center;border-radius:4px;font-weight:700}`;
+  document.head.appendChild(st);
+  const lsG = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, lsS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } };
+  let H = lsG("cs_lab_h", 7), SORT = lsG("cs_lab_sort", ["relZ", -1]), FULL = null;
+  const RAW = "https://raw.githubusercontent.com/stevenwsharp-ctrl/Hyperdash-Cohort-Tracker/lab/lab.json";
+  async function full() { if (FULL && Date.now() - FULL._at < 30 * 6e4) return FULL; try { const r = await fetch(RAW + "?t=" + Math.floor(Date.now() / 18e5)); if (r.ok) { FULL = await r.json(); FULL._at = Date.now(); feed(); } } catch (e) { } return FULL; }
+  const pc = v => v == null || !isFinite(v) ? "–" : (v >= 0 ? "+" : "") + (v * 100).toFixed(1) + "%", pc2 = v => v == null ? "–" : (v >= 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
+  const HN = { "stage": "Trend stage", "rs-peer": "Leads its peers", "laggard": "Peer catch-up", "group-mom": "Industry rotation", "new-listing": "Young listing (short)", "ath": "Highs vs broken charts", "pump-fade": "Fade the extreme", "beta-tide": "Beta to the tide", "vol-squeeze": "Coiled spring", "young-small": "Young & small vs giants" };
+  const STG = { 1: ["1", "base", "var(--faint,#888)"], 2: ["2", "advance", "var(--bull,#19d38a)"], 3: ["3", "top", "#ffb547"], 4: ["4", "decline", "var(--bear,#ff4d5e)"], 0: ["–", "too young", "var(--faint,#888)"] };
+  function feed() {   // hub findings and web nodes
+    const F = FULL; if (!F) return;
+    try { if (window.Hub) { const out = []; for (const [k, R] of Object.entries(F.hyp)) for (const [h, x] of Object.entries(R.h)) { if (!x.all) continue; out.push({ eng: "lab", mkt: "*", rule: HN[k] || k, h: h + "d", n: x.all.n, m: x.all.m, unit: "%", z: x.all.t, oos: true });
+          Object.entries(x.byInd || {}).forEach(([ind, s]) => { if (s.n >= 12) out.push({ eng: "lab", mkt: ind, rule: HN[k] || k, h: h + "d", n: s.n, m: s.m, unit: "%", z: s.t, oos: true }); }); } Hub.report(out); } } catch (e) { }
+    try { if (window.Web) for (const [c, p] of Object.entries(F.prof)) { const a = p.s, S = p.setups && p.setups[1];
+        if (S && S.side) Web.emit("lab.setup", a, Math.max(-1, Math.min(1, S.lean * 2)), "Lab · 24 h setup (hypotheses that held up)");
+        if (p.stage === 2 || p.stage === 4) Web.emit("life.stage", a, p.stage === 2 ? 0.6 : -0.6, "Life cycle · trend stage (2 advance +, 4 decline −)");
+        if (p.athD != null) Web.emit("life.ath", a, Math.max(-1, Math.min(1, 1 + p.athD * 2)), "Life cycle · distance from the all-time high");
+        if (p.relZ != null) Web.emit("peer.rs", a, Math.max(-1, Math.min(1, p.relZ / 2)), "Peers · 30-day strength vs its industry");
+        if (p.grpZ != null) Web.emit("peer.group", a, Math.max(-1, Math.min(1, p.grpZ / 2)), "Peers · its industry vs all industries (30 days)"); } } catch (e) { }
+  }
+  async function draw() {
+    if (VIEW !== "lab") return; const F = await full();
+    if (!F) { sec.innerHTML = `<div class="info" style="margin-top:12px">The bet lab runs once a day (GitHub Actions, "Bet lab"). Its first results appear here when it finishes.</div>`; return; }
+    const hy = Object.entries(F.hyp).map(([k, R]) => ({ k, R, x: R.h[H] })).filter(o => o.x && o.x.all).sort((a, b) => b.x.all.t - a.x.all.t);
+    const works = o => o.x.all.t > 0.5 && o.x.second && o.x.second.m > 0;
+    const hrow = o => { const x = o.x, bi = Object.entries(x.byInd || {}).sort((a, b) => b[1].m - a[1].m), cls = Object.entries(x.byClass || {}).map(([c, s]) => `${c} ${pc2(s.m)}`).join(" · ");
+      return `<tr><td style="text-align:left"><b>${HN[o.k] || o.k}</b><div class="tr" style="white-space:normal;max-width:420px">${esc(o.R.d)}</div></td><td>${x.all.n}</td><td class="${x.all.m > 0 ? "L" : "S"}"><b>${pc2(x.all.m)}</b></td><td>${Math.round(x.all.hit * 100)}%</td><td>${x.all.t.toFixed(1)}</td><td>${x.first ? pc2(x.first.m) : "–"} → <b class="${x.second && x.second.m > 0 ? "L" : "S"}">${x.second ? pc2(x.second.m) : "–"}</b></td><td>${x.fill != null ? Math.round(x.fill * 100) + "%" : "–"}</td>
+        <td style="text-align:left;white-space:normal;max-width:330px"><span class="tr">${cls}</span>${bi.length ? `<div class="tr">best: ${bi.slice(0, 2).map(([i, s]) => `${esc(i)} <span class="L">${pc2(s.m)}</span>`).join(", ")} · worst: ${bi.slice(-2).reverse().map(([i, s]) => `${esc(i)} <span class="S">${pc2(s.m)}</span>`).join(", ")}</div>` : ""}</td><td>${works(o) ? '<b class="L">votes</b>' : '<span class="tr">no vote</span>'}</td></tr>`; };
+    const P = Object.entries(F.prof).map(([c, p]) => ({ c, ...p, set: p.setups && p.setups[H === 7 ? 7 : H === 2 ? 2 : 1] }));
+    const best = d => P.filter(p => p.set && p.set.side === d).sort((a, b) => Math.abs(b.set.lean) - Math.abs(a.set.lean)).slice(0, 10);
+    const srow = p => `<tr><td style="text-align:left"><a href="#" data-lbgo="${esc(p.c)}">${esc(p.s)}</a> <span class="tr">${esc(p.ind || p.cls || "")}</span></td><td>${price(p.px)}</td><td>${price(p.set.lim)}</td><td class="${p.set.side > 0 ? "L" : "S"}"><b>${price(p.set.tgt)}</b></td><td class="tr">${price(p.set.wrong)}</td><td>${Math.abs(p.set.lean).toFixed(2)}</td><td style="text-align:left" class="tr">${(p.set.why || []).map(w => HN[w] || w).join(", ")}</td></tr>`;
+    const sk = SORT[0], sd = SORT[1], val = p => { const v = p[sk]; return v == null ? -Infinity * sd : typeof v === "string" ? v : v; };
+    const rows = P.slice().sort((a, b) => { const x = val(a), y = val(b); return (typeof x === "string" ? String(x).localeCompare(String(y)) : x - y) * sd; });
+    const th = (k, l, t) => `<th data-lbs="${k}" title="${t || ""}">${l}${sk === k ? (sd > 0 ? " ▲" : " ▼") : ""}</th>`;
+    const prow = p => { const g = STG[p.stage || 0]; const s1 = p.setups || {}; const cell = h => { const x = s1[h]; return !x || !x.side ? `<span class="tr">·</span>` : `<b class="${x.side > 0 ? "L" : "S"}">${x.side > 0 ? "▲" : "▼"}</b>`; };
+      return `<tr><td style="text-align:left"><a href="#" data-lbgo="${esc(p.c)}">${esc(p.s)}</a></td><td style="text-align:left">${esc(p.cls || "")}</td><td style="text-align:left">${esc(p.ind || "")}</td><td>${esc(p.cap || "")}</td><td>${p.yr || "–"}</td><td>${p.ageHL != null ? p.ageHL + " d" : "–"}</td>
+        <td><span class="stg" style="color:${g[2]}" title="${g[1]}">${g[0]}</span></td><td class="${p.athD > -0.1 ? "L" : p.athD < -0.7 ? "S" : ""}">${pc(p.athD)}</td><td>${p.pos52 != null ? Math.round(p.pos52 * 100) + "%" : "–"}</td><td class="${p.r30 > 0 ? "L" : "S"}">${pc(p.r30)}</td>
+        <td class="${p.relZ > 0.5 ? "L" : p.relZ < -0.5 ? "S" : ""}">${p.relZ != null ? (p.relZ >= 0 ? "+" : "") + p.relZ.toFixed(1) + "σ" : "–"}</td><td class="${p.grpR30 > 0 ? "L" : "S"}">${pc(p.grpR30)}</td><td>${p.beta != null ? p.beta.toFixed(2) : "–"}</td><td>${p.vr != null ? p.vr.toFixed(2) : "–"}</td><td>${cell(1)} ${cell(2)} ${cell(7)}</td></tr>`; };
+    sec.innerHTML = `<div class="lh">${[[1, "Next 24 hours"], [2, "Next 48 hours"], [7, "Next 7 days"]].map(([h, l]) => `<button data-lbh="${h}" class="${h === H ? "on" : ""}">${l}</button>`).join("")}<span class="tr">${F.markets} markets · data as of ${F.asOf} · ${esc(F.entry)}</span></div>
+      <div class="card" style="padding:8px 10px;margin-bottom:10px;overflow-x:auto"><b>Hypotheses · tested as bets on every market</b> <span class="tr">result = long picks minus short picks, each vs the same limit-order bet on all markets (so only the picking counts); costs included</span>
+        <table style="margin-top:4px"><thead><tr><th style="text-align:left">Idea</th><th>Bets</th><th>Per bet</th><th>Right</th><th>t</th><th title="First half → second half (the check)">First → second half</th><th>Filled</th><th style="text-align:left">By class / industry</th><th>Setups</th></tr></thead><tbody>${hy.map(hrow).join("")}</tbody></table>
+        <div class="tr" style="margin-top:4px">Only ideas that made money overall and in the second half vote in the setups below; each votes with the weight of its evidence. Every coin and stock is judged with its industry, its place in its life cycle, its own past and its peers.</div></div>
+      <div class="card" style="padding:8px 10px;margin-bottom:10px;overflow-x:auto"><b>Setups · ${H === 7 ? "next 7 days" : H === 2 ? "next 48 hours" : "next 24 hours"}</b> <span class="tr">the same numbers SOXX Sniper and LETF Sniper show</span>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">${[1, -1].map(d => `<table><thead><tr><th style="text-align:left" class="${d > 0 ? "L" : "S"}">${d > 0 ? "Long" : "Short"}</th><th>Price</th><th>Limit entry</th><th>Target</th><th>Wrong if</th><th>Lean</th><th style="text-align:left">Why</th></tr></thead><tbody>${best(d).map(srow).join("") || `<tr><td colspan="7" class="tr" style="text-align:center">none</td></tr>`}</tbody></table>`).join("")}</div></div>
+      <div class="card" style="padding:8px 10px;overflow-x:auto"><b>Profiles · what each market is, where it is in its life, vs its own past and its peers</b> <span class="tr">select a heading to sort · setups: 24 h, 48 h, 7 d</span>
+        <table style="margin-top:4px"><thead><tr>${th("s", "Market")}${th("cls", "Class")}${th("ind", "Industry", "Peer group")}${th("cap", "Size")}${th("yr", "Listed", "First listing year (company or coin)")}${th("ageHL", "On HL", "Days since its Hyperliquid listing")}${th("stage", "Stage", "1 base · 2 advance · 3 top · 4 decline (150-day average)")}${th("athD", "From high", "Distance from the all-time high")}${th("pos52", "52 w", "Place in its 52-week range")}${th("r30", "30 d")}${th("relZ", "vs peers", "30-day move vs its industry, in σ")}${th("grpR30", "Industry 30 d")}${th("beta", "Beta", "To Bitcoin (coins) or the S&P 500 (the rest)")}${th("vr", "Vol now", "20-day volatility ÷ its own normal")}<th>Setups</th></tr></thead><tbody>${rows.map(prow).join("")}</tbody></table></div>`;
+  }
+  btn.onclick = () => { VIEW = "lab"; document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === btn)); document.querySelectorAll("section[id^='v-']").forEach(s => s.hidden = s.id !== "v-lab"); draw(); };
+  document.querySelectorAll(".tab").forEach(b => { if (b !== btn) b.addEventListener("click", () => { sec.hidden = true; }); });
+  sec.addEventListener("click", e => { const h = e.target.closest("[data-lbh]"); if (h) { H = +h.dataset.lbh; lsS("cs_lab_h", H); draw(); return; } const s = e.target.closest("[data-lbs]"); if (s) { SORT = [s.dataset.lbs, SORT[0] === s.dataset.lbs ? -SORT[1] : -1]; lsS("cs_lab_sort", SORT); draw(); return; }
+    const g = e.target.closest("[data-lbgo]"); if (g) { e.preventDefault(); if (typeof gotoCoin === "function") gotoCoin(g.dataset.lbgo); } });
+  setTimeout(full, 20000); setInterval(() => { if (!document.hidden) { full(); if (VIEW === "lab") draw(); } }, 10 * 6e4);
+})();

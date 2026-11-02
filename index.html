@@ -1183,6 +1183,7 @@ function detail(r){
     <h3>Funding · flow · liquidation map · volume profile</h3><div class="cards">${fundingCard(r)}${flowCard(r)}</div>
     <h3>Why this rating</h3><div class="cards">${ratingCard(r)}${newsCard(r)}</div>
     <h3>How good and bad traders hold it · leverage, liquidations, stops</h3>${behaviorCard(r)}
+    <h3>Same setups on every site · 24 h / 48 h / 7 days (SOXX Sniper and LETF Sniper show these exact numbers)</h3><div class="card">${window.Agree ? (() => { const s = r.sym || parse(r.coin).sym, U = { SOXL: ["SOXX", 3], XYZ100: ["QQQ", 1], SP500: ["SPY", 1] }, u = U[s] || [s, 1]; return Agree.html(u[0], { L: u[1], px: r.ctx && r.ctx.px, s }) + Agree.table(u[0], [[s, u[0], u[1]]]); })() : ""}</div>
     <h3>Trapped longs vs shorts · how deep, past their stop, near liquidation</h3><div class="card">${window.Trapped ? Trapped.html(Trapped.analyze(SPEC && SPEC.m && SPEC.m[r.coin] && SPEC.m[r.coin].holders, LEVELS && LEVELS.m && LEVELS.m[r.coin] && LEVELS.m[r.coin].h, r.ctx && r.ctx.px), { px: price, usd }) : ""}</div>
     <h3>Top holders on this coin · overall record vs this coin</h3>${holdersTable(r)}
     <h3>How to trade it</h3><div class="cards">${perp}${us}${lev}${none}</div>
@@ -1786,6 +1787,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) { re
 <script src="basket.js?v=2"></script>
 <script src="web.js?v=19"></script>
 <script src="hub.js?v=1"></script>
+<script src="agree.js?v=1"></script>
 <script src="idx.js?v=1"></script>
 <script src="pcshim.js?v=1"></script>
 <script src="prochart.js?v=11"></script>
@@ -1807,7 +1809,8 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) { re
 <script src="matrix.js?v=1"></script>
 <script src="trapped.js?v=1"></script>
 <script src="crowd.js?v=18"></script>
-<script src="outlook.js?v=3"></script>
+<script src="outlook.js?v=4"></script>
+<script src="bets.js?v=1"></script>
 <script src="ndx.js?v=2"></script>
 <script>(function(){const r0=render;render=function(){const x=r0.apply(this,arguments);try{window.mcAttach&&mcAttach()}catch(e){}return x};try{window.mcAttach&&mcAttach()}catch(e){}})();</script>
 <script src="site.js?v=4"></script>
