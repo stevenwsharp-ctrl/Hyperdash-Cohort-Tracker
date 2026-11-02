@@ -10,6 +10,9 @@
   const head = document.querySelector("header"); if (!head) return;
   const IX = [["^DJI", "Dow Jones", "YM=F", 0.009], ["^IXIC", "Nasdaq Composite", null, 0.012], ["^NDX", "Nasdaq 100", "NQ=F", 0.012], ["^GSPC", "S&P 500", "ES=F", 0.009]];
   const bar = document.createElement("section"); bar.id = "idxStrip"; head.after(bar);
+  // a way into Mastermind Investor from every tracker (it reads what the trackers learned in this browser)
+  if (!/mastermind/i.test(location.pathname)) { const mi = document.createElement("a"); mi.href = "https://stevenwsharp-ctrl.github.io/SOXX-Sniper/mastermind/"; mi.textContent = "🧠 Mastermind Investor";
+    mi.style.cssText = "font:12px var(--mono,monospace);color:#fff;background:linear-gradient(135deg,#9b6bff,#4da3ff);border-radius:8px;padding:6px 11px;text-decoration:none;white-space:nowrap"; head.appendChild(mi); }
   const st = document.createElement("style");
   st.textContent = `#idxStrip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 12px}@media(max-width:820px){#idxStrip{grid-template-columns:repeat(2,minmax(0,1fr))}}
     #idxStrip .ix{background:var(--panel,transparent);border:1px solid var(--line);border-radius:10px;padding:6px 10px;min-width:0;position:relative;overflow:hidden}
