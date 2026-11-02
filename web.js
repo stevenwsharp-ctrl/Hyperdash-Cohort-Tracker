@@ -373,7 +373,7 @@
   // ---------- picture ----------
   // shapes: ★ proven signal (z ≥ 2.5) · ● signal from the sites (positioning, flows, whales) · ■ environment (markets, cycles,
   // weather, physics, venues) · ▬ behavior (psychology, coordination, coupling, groups, rhythm) · ◆ muted (noise)
-  const famOf = id => /^(mkt|fut|cyc|wx|phy|dis|bal|carry|day)\./.test(id) ? "env" : /^(psy|sync|ent|grp|rhy|mk|pb)\./.test(id) ? "beh" : "site";
+  const famOf = id => /^(mkt|fut|cyc|wx|phy|dis|bal|carry|day|mx)\./.test(id) ? "env" : /^(psy|sync|ent|grp|rhy|mk|pb|dirac)\./.test(id) ? "beh" : "site";
   function shape(kind, x, y, r, fill, fo, stroke, sw, extra) {
     const a = `fill="${fill}" fill-opacity="${fo}" stroke="${stroke}" stroke-width="${sw}" ${extra || ""}`;
     if (kind === "star") { let d = ""; for (let k = 0; k < 10; k++) { const rr = k % 2 ? r * 0.45 : r * 1.15, an = -Math.PI / 2 + k * Math.PI / 5; d += (k ? "L" : "M") + (x + rr * Math.cos(an)).toFixed(1) + "," + (y + rr * Math.sin(an)).toFixed(1); } return `<path d="${d}Z" ${a}/>`; }
