@@ -247,6 +247,7 @@ footer{color:var(--faint);font-size:12px;padding:20px 0 40px;line-height:1.6}
     </div>
 
     <div id="msg"></div>
+    <div id="reviewBox"></div>
     <div id="fidNote" class="note" style="max-width:none;margin:4px 0 8px"></div>
     <div class="hdr" id="hdr">
       <div>#</div><div data-sort="coin">Market</div><div>Setup</div><div data-sort="rating">Rating · gap</div>
@@ -524,7 +525,7 @@ function contextFactors(r, MAC){
   for (const lf of liveFactors(r)) f.push(lf);
   const cf = carryFactor(r);
   if (cf) add("Funding carry (72h hold)", cf.mult, `Holding the smart side 72 hours ${cf.carry72 >= 0 ? "earns" : "costs"} ${Math.abs(cf.carry72).toFixed(2)}% in funding, against a backtested 72h edge of about ${cf.edge.toFixed(1)}% for this score band.`);
-  return btTune(r, f);
+  return window.Review ? Review.factors(r, btTune(r, f)) : btTune(r, f);
 }
 
 // ---------- Backtest-tuned factors ----------
@@ -1064,6 +1065,7 @@ function render(){
   if (VIEW === "heat") { renderHeat(); return; }
   if (VIEW === "traders") { renderTraders(); return; }
   if (VIEW !== "setups") return;
+  if (window.Review) { const h = Review.card(), el = $("reviewBox"); if (el && el.dataset.h !== String(h.length) + h.slice(-80)) { el.innerHTML = h; el.dataset.h = String(h.length) + h.slice(-80); } }
   const list = $("list");
   let rows = filtered();
   // the # column is the place in the list without the search box; a market the other filters hide shows NR
@@ -1811,6 +1813,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) { re
 <script src="trapped.js?v=1"></script>
 <script src="crowd.js?v=18"></script>
 <script src="outlook.js?v=5"></script>
+<script src="review.js?v=1"></script>
 <script src="bets.js?v=2"></script>
 <script src="ndx.js?v=2"></script>
 <script>(function(){const r0=render;render=function(){const x=r0.apply(this,arguments);try{window.mcAttach&&mcAttach()}catch(e){}return x};try{window.mcAttach&&mcAttach()}catch(e){}})();</script>
