@@ -2,11 +2,10 @@ name: EV governor
 
 # One scorecard for the three trackers (scripts/ev.mjs): expected value of every decision, prediction and result,
 # with a ruling (mute, cut, back, watch). Writes ev.json to the "ev" branch, next to the agents' notes (agents/).
-# Runs after the US close on market days, after the weekly backtest, and when the script changes.
+# Runs every day after the US close time, and when the script changes.
 on:
   schedule:
-    - cron: "17 21 * * 1-5"
-    - cron: "47 17 * * 0"
+    - cron: "17 21 * * *"   # every day, 4:17 PM ET in winter (Hyperliquid trades every day; on weekends the stock parts keep the last close)
   push:
     branches: [main]
     paths: ["scripts/ev.mjs", ".github/workflows/ev.yml"]
