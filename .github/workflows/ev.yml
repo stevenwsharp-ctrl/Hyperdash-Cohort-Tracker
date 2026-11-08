@@ -1,0 +1,49 @@
+name: EV governor
+
+# One scorecard for the three trackers (scripts/ev.mjs): expected value of every decision, prediction and result,
+# with a ruling (mute, cut, back, watch). Writes ev.json to the "ev" branch, next to the agents' notes (agents/).
+# Runs after the US close on market days, after the weekly backtest, and when the script changes.
+on:
+  schedule:
+    - cron: "17 21 * * 1-5"
+    - cron: "47 17 * * 0"
+  push:
+    branches: [main]
+    paths: ["scripts/ev.mjs", ".github/workflows/ev.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ev
+  cancel-in-progress: false
+
+jobs:
+  ev:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Get the evidence
+        run: |
+          git fetch --depth=1 origin backtest && git show origin/backtest:outlook_bt.json > outlook_bt.json || true
+          git show origin/backtest:backtest.json > backtest.json || true
+          git fetch --depth=1 origin lab && git show origin/lab:lab.json > lab.json || true
+      - name: The ev branch (keeps the agents' notes)
+        run: |
+          if git fetch -q origin ev 2>/dev/null; then git worktree add -q ev FETCH_HEAD && cd ev && git checkout -q -B ev; else mkdir ev && cd ev && git init -q -b ev; fi
+      - name: Score everything
+        run: node scripts/ev.mjs ev
+      - name: Push
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd ev
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -qm "ev $(date -u +%FT%TZ)" || exit 0
+          for i in 1 2 3; do git push -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:ev && break; git pull -q --rebase "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ev || true; done

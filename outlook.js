@@ -92,7 +92,7 @@
   let LAST = null;
   function build() {
     const rows = (ROWS || []).filter(r => r.ctx && r.ctx.px > 0 && (r.ctx.v || 0) >= 1e6), all = {}, L0 = lsG(LK, []);
-    for (const [h] of HZ) { const W = Object.fromEntries(SYS.map(([k]) => [k, weight(L0, h, k) * btW(h, k)]));
+    for (const [h] of HZ) { const W = Object.fromEntries(SYS.map(([k]) => [k, weight(L0, h, k) * btW(h, k) * (window.EVR ? EVR.factor("cohort", `outlook.${k}.${h}h`) : 1)]));   // EV governor: 0 mute, 0.5 cut, 1.25 back
       all[h] = rows.map(r => { const { o, px, sd, sH } = score(r, h); let s = 0, w = 0, ag = 0, n = 0; SYS.forEach(([k]) => { if (o[k] == null) return; s += o[k] * W[k]; w += W[k]; n++; });
         const raw = w ? s / w : 0; let agW = 0; SYS.forEach(([k]) => { if (o[k] != null && Math.sign(o[k]) === Math.sign(raw) && Math.abs(o[k]) >= 0.1) { ag++; agW += W[k]; } });
         const cons = raw * (0.4 + 0.6 * (w ? agW / w : 0));   // agreement matters, counted by weight: one loud weak system alone counts for less
