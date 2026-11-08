@@ -33,10 +33,24 @@ async function soxx() { const B = await getJ("https://raw.githubusercontent.com/
     items.push(rule({ id: `bot.${k}.all`, desc: `${b.name}: all trades (live ${b.all.n}, backtest ${b.bt ? b.bt.n : 0})`, unit: "usd", n: (b.all.n || 0) + (b.bt ? b.bt.n : 0), ev: ((b.all.usd || 0) + (b.bt ? b.bt.usd : 0)) / Math.max(1, (b.all.n || 0) + (b.bt ? b.bt.n : 0)), z: NaN })); }
   // versions grouped by idea and class (shadow trades: the biggest sample)
   const G = {}; (B.arms || []).forEach(a => { const k = `${a.cl === "L" ? "funds" : "spot"}.${a.idea}`, g = G[k] || (G[k] = { n: 0, s: 0, tz: 0 }); g.n += a.n; g.s += a.m * a.n; g.tz += a.t * Math.sqrt(a.n); });
-  for (const [k, g] of Object.entries(G)) items.push(rule({ id: `idea.${k}`, desc: `${B.ideas && B.ideas[k.split(".")[1]] || k} (${k.split(".")[0]}, all 15 versions)`, unit: "ret", n: g.n, ev: g.s / g.n, z: g.tz / Math.sqrt(g.n) }));
+  // Council, Nov 8 2026: each signal is traded by all versions of its idea (3 entry depths × 5 exits), so the version trades
+  // are strongly correlated and z over all of them is too large (up to √versions). zSig = z / √versions (the worst case: all
+  // versions trade every signal). When dated.json (bots branch) has 8+ days, zDay (a block z over the daily means) is the
+  // z for the ruling; until then a "back" also needs zSig ≥ 2, and a mute keeps the trade-level z (a mute only stops
+  // trades with a negative estimate; a back adds weight and needs real proof).
+  const V = {}; (B.arms || []).forEach(a => { const k = `${a.cl === "L" ? "funds" : "spot"}.${a.idea}`; V[k] = (V[k] || 0) + 1; });
+  const DT = await getJ("https://raw.githubusercontent.com/stevenwsharp-ctrl/SOXX-Sniper/bots/dated.json?t=" + Date.now()), DY = {};
+  if (DT && DT.days) for (const [d, X] of Object.entries(DT.days)) for (const [kk, v] of Object.entries(X || {})) { const m = /^([SL])\|([a-z0-9]+)@/.exec(kk); if (!m || !Array.isArray(v) || !(v[0] > 0)) continue;
+    const k = `${m[1] === "L" ? "funds" : "spot"}.${m[2]}`, a = (DY[k] || (DY[k] = {})), x = a[d] || (a[d] = [0, 0]); x[0] += v[0]; x[1] += v[1]; }
+  for (const [k, g] of Object.entries(G)) { const z = g.tz / Math.sqrt(g.n), zSig = z / Math.sqrt(V[k] || 1), dm = Object.keys(DY[k] || {}).sort().map(d => DY[k][d][1] / DY[k][d][0]), D = dm.length, h = Math.floor(D / 2);
+    const zDay = D >= 3 ? mean(dm) / ((sd(dm) || 1e-9) / Math.sqrt(D)) : NaN, useDay = D >= 8;
+    let x = rule({ id: `idea.${k}`, desc: `${B.ideas && B.ideas[k.split(".")[1]] || k} (${k.split(".")[0]}, all 15 versions)`, unit: "ret", n: g.n, ev: g.s / g.n, z: useDay ? zDay : z, zTrades: z, zSig, versions: V[k] || 1, days: D, zDay, ...(useDay ? { older: mean(dm.slice(0, h)), recent: mean(dm.slice(h)) } : {}) });
+    if (!useDay && x.status === "back" && !(zSig >= 2)) x = { ...x, status: "watch", factor: 1, why: `positive, not proven per signal (z per signal ${zSig.toFixed(1)})` };
+    items.push(x); }
   (B.arms || []).filter(a => a.n >= 30).sort((a, b) => b.t - a.t).slice(0, 5).forEach(a => items.push(rule({ id: `arm.${a.cl}.${a.idea}.${a.k}.${a.plan}`, desc: `best version: ${a.cl === "L" ? "funds" : "spot"} ${a.idea}, limit ${a.k} ATR, ${a.plan}`, unit: "ret", n: a.n, ev: a.m, z: a.t })));
   for (const cl of ["S", "L"]) (B.times && B.times[cl] || []).filter(x => x.n >= 50).forEach(x => items.push(rule({ id: `time.${cl}.${x.b}`, desc: `${cl === "L" ? "funds" : "spot"} trades started ${x.name} ET`, unit: "ret", n: x.n, ev: x.m, z: NaN })));
-  const sw = B.swings || []; return { at: B.at, items, extra: { swingsToday: sw.length, caught: sw.filter(x => x.caught).length } }; }
+  // swings of the last market day (swingDay): caught = a LIVE bot trade won in the swing; bt = only the replay caught it
+  const sw = B.swings || []; return { at: B.at, items, extra: { swingDay: B.swingDay || null, swingsToday: sw.length, caught: sw.filter(x => x.caught).length, caughtBt: sw.filter(x => !x.caught && x.bt).length } }; }
 
 // ---------- Cohort Sniper: Outlook, signal backtest, bet lab ----------
 function cohort() { const items = [], O = rd("outlook_bt.json"), K = rd("backtest.json"), L = rd("lab.json");
@@ -69,29 +83,55 @@ async function bars(sym) { const Y = await ysess(); for (let i = 0; i < 3; i++) 
       if (!best || score > best.score) best = { side, leg, back, ret, ago: end - e, ex, last, base, legMin: e - b, score, sg, vf }; }
     return best;
   }
-  // ---------- 1-minute bars from the Worker ----------
-const LETF_U = ["SOXL", "SOXS", "TQQQ", "SQQQ", "NVDL", "TSLL", "MSTU", "CONL", "SPXL", "TNA", "LABU", "NVDA", "TSLA", "MSTR", "COIN", "PLTR", "AMD", "SMCI", "AXTI", "BE", "HOOD", "OKLO", "IONQ", "RGTI", "APLD", "IREN", "CRWV", "NBIS", "MU", "AVGO"];
-async function letf() { const R = { rev: [], hard: [], f5: [], f1: [] }; let got = 0;
+  // ---------- the test universe (council, Nov 8 2026) ----------
+// One reading per underlying: LETF Sniper's rev.js reads the underlying for every fund, so the turn and fast-move tests run
+// on the underlyings, and each underlying counts one time (before: SOXL+SOXS, TQQQ+SQQQ, NVDL+NVDA … counted one move
+// two times with the same sign, so z was too large). The 🚀 rule (index.html) reads the FUND's own 15-minute move, so its
+// test runs on one long fund per underlying (no inverse funds).
+const LETF_U = ["SOXX", "QQQ", "SPY", "IWM", "XBI", "NVDA", "TSLA", "MSTR", "COIN", "PLTR", "AMD", "SMCI", "AXTI", "BE", "HOOD", "OKLO", "IONQ", "RGTI", "APLD", "IREN", "CRWV", "NBIS", "MU", "AVGO"];
+const LETF_F = { SOXL: 0.02, TQQQ: 0.02, SPXL: 0.02, TNA: 0.02, LABU: 0.02, NVDL: 0.04, TSLL: 0.04, MSTU: 0.04, CONL: 0.04 };   // 🚀: 2% index funds, 4% single-stock funds
+const COST_U = 0.0002, COST_F = 0.0005;   // a round trip: 0.05% on a fund (spread on thin funds) ≈ 0.02% of the underlying on a 2–3× fund
+const etMin = t => { const d = new Date(t - 5 * 36e5); return d.getUTCHours() * 60 + d.getUTCMinutes(); };   // ET (winter) minute of the day
+const tod = t => { const m = etMin(t); return m < 630 ? "open" : m < 900 ? "mid" : "close"; };   // 09:30–10:30, 10:30–15:00, 15:00–16:00
+const splits = a => { const o = {}; for (const p of ["open", "mid", "close"]) { const v = a.filter(x => x.p === p).map(x => x.v); o[p] = v.length ? { n: v.length, m: +mean(v).toFixed(5) } : null; } return o; };
+// a LIMIT order (Steven's rule): it counts only when price touches it; exit at market 15 minutes after the fill
+function limitTrade(D, S, i, d, k, alive) { const L = S.c[i] * Math.exp(-d * k);
+  for (let j = i + 1; j <= Math.min(i + alive, D.length - 16); j++) if (d > 0 ? S.l[j] <= L : S.h[j] >= L) return { t: D[i][0], v: d * Math.log(S.c[j + 15] / L) - COST_U, p: tod(D[i][0]) };
+  return null; }
+async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [], ff5: [], f15: [] }, tried = { frev: 0, ff5: 0 }; let got = 0, gotF = 0;
+  const byDay = B => { const days = new Map(); B.forEach(b => { const d = new Date(b[0] - 5 * 36e5).toISOString().slice(0, 10); if (!days.has(d)) days.set(d, []); days.get(d).push(b); }); return days; };
   for (let k = 0; k < LETF_U.length; k += 3) { await Promise.all(LETF_U.slice(k, k + 3).map(async s => { const B = await bars(s); if (!B || B.length < 200) return; got++;
-    const days = new Map(); B.forEach(b => { const d = new Date(b[0] - 5 * 36e5).toISOString().slice(0, 10); if (!days.has(d)) days.set(d, []); days.get(d).push(b); });
-    for (const D of days.values()) { if (D.length < 60) continue; const S = { c: D.map(b => b[4]), h: D.map(b => b[2]), l: D.map(b => b[3]), v: D.map(b => b[5]) }; let skip = -1;
-      const r1 = []; for (let i = 1; i < D.length; i++) r1.push(Math.log(S.c[i] / S.c[i - 1])); const sg = Math.max(0.0004, rsd(r1) || 0);
+    for (const D of byDay(B).values()) { if (D.length < 60) continue; const S = { c: D.map(b => b[4]), h: D.map(b => b[2]), l: D.map(b => b[3]), v: D.map(b => b[5]) }; let skip = -1;
+      const r1 = [0]; for (let i = 1; i < D.length; i++) r1.push(Math.log(S.c[i] / S.c[i - 1]));
       for (let i = 20; i < D.length - 16; i++) { const f15 = Math.log(S.c[i + 15] / S.c[i]);
-        if (i >= skip) { const x = detect(S, i); if (x && x.score >= 0.6) { skip = i + 15; R.rev.push({ t: D[i][0], v: x.side * f15 }); if (x.score >= 1) R.hard.push({ t: D[i][0], v: x.side * f15 }); } }
+        const sg = Math.max(0.0004, rsd(r1.slice(Math.max(1, i - 119), i + 1)) || 0);   // the last 120 minutes only (before: the whole day, a look-ahead)
+        if (i >= skip) { const x = detect(S, i); if (x && x.score >= 0.6) { skip = i + 15; R.rev.push({ t: D[i][0], v: x.side * f15 }); if (x.score >= 1) R.hard.push({ t: D[i][0], v: x.side * f15 });
+          tried.frev++; const y = limitTrade(D, S, i, -x.side, 0.5 * x.sg * Math.sqrt(5), 10); if (y) R.frev.push(y); } }
         const m5 = Math.log(S.c[i] / S.c[i - 5]), m1 = Math.log(S.c[i] / S.c[i - 1]);
-        if (Math.abs(m5) >= 4 * sg * Math.sqrt(5) && i % 5 === 0) R.f5.push({ t: D[i][0], v: Math.sign(m5) * f15 });
+        if (Math.abs(m5) >= 4 * sg * Math.sqrt(5) && i % 5 === 0) { R.f5.push({ t: D[i][0], v: Math.sign(m5) * f15 }); tried.ff5++; const y = limitTrade(D, S, i, -Math.sign(m5), 0.5 * sg * Math.sqrt(5), 5); if (y) R.ff5.push(y); }
         if (Math.abs(m1) >= 4 * sg && i % 3 === 0) R.f1.push({ t: D[i][0], v: Math.sign(m1) * f15 }); } } })); }
-  const L = a => a.sort((x, y) => x.t - y.t).map(x => x.v), items = [];
-  if (R.rev.length) items.push(fromList("rev.all.15m", "Hard reversal detector, all turns (score ≥ 0.6): trade the new direction, next 15 min", "ret", L(R.rev)));
-  if (R.hard.length) items.push(fromList("rev.hard.15m", "Hard reversal detector, HARD turns (score ≥ 1), next 15 min", "ret", L(R.hard)));
-  if (R.f5.length) items.push(fromList("fast.5m.15m", "Fast 5-minute move (4σ+): follow it, next 15 min (negative EV = fade it)", "ret", L(R.f5)));
-  if (R.f1.length) items.push(fromList("fast.1m.15m", "Fast 1-minute move (4σ+): follow it, next 15 min (negative EV = fade it)", "ret", L(R.f1)));
-  return { at: new Date().toISOString(), items, extra: { markets: got, of: LETF_U.length } }; }
+  for (const [s, th] of Object.entries(LETF_F)) { const B = await bars(s); if (!B || B.length < 200) continue; gotF++;
+    for (const D of byDay(B).values()) { if (D.length < 60) continue; const c = D.map(b => b[4]); let skip = -1;
+      for (let i = 15; i < D.length - 15; i++) { if (i < skip || i % 5) continue; const m15 = c[i] / c[i - 15] - 1; if (Math.abs(m15) < th) continue; skip = i + 15;
+        R.f15.push({ t: D[i][0], v: Math.sign(m15) * Math.log(c[i + 15] / c[i]) - COST_F, p: tod(D[i][0]) }); } } }
+  const L = a => a.sort((x, y) => x.t - y.t).map(x => x.v), items = [], add = (id, desc, a, ex) => { if (a.length) items.push({ ...fromList(id, desc, "ret", L(a.slice())), ...(ex || {}) }); };
+  add("rev.all.15m", "Hard reversal detector, all turns (score ≥ 0.6), on the underlying: trade the new direction, next 15 min", R.rev);
+  add("rev.hard.15m", "Hard reversal detector, HARD turns (score ≥ 1), on the underlying, next 15 min", R.hard);
+  add("fast.5m.15m", "Fast 5-minute move (4σ+) of the underlying: follow it, next 15 min (negative EV = fade it)", R.f5);
+  add("fast.1m.15m", "Fast 1-minute move (4σ+) of the underlying: follow it, next 15 min (negative EV = fade it)", R.f1);
+  add("fade.rev.15m", "Fade a turn (score ≥ 0.6): LIMIT entry in the old direction 0.5 × 5-min σ better than the signal close, alive 10 min, counts only when touched; exit 15 min after the fill; cost 0.02% of the underlying", R.frev, { fill: tried.frev ? +(R.frev.length / tried.frev).toFixed(3) : null, tod: splits(R.frev) });
+  add("fade.fast5m.15m", "Fade a fast 5-minute move (4σ+): LIMIT entry against the move 0.5 × 5-min σ past the close, alive 5 min, counts only when touched; exit 15 min after the fill; cost 0.02% of the underlying", R.ff5, { fill: tried.ff5 ? +(R.ff5.length / tried.ff5).toFixed(3) : null, tod: splits(R.ff5) });
+  add("fast.15m.15m", "🚀 rule: the fund moved 4%+ (single-stock fund) or 2%+ (index fund) in 15 min: follow it, next 15 min, cost 0.05% (one long fund per underlying)", R.f15, { tod: splits(R.f15) });
+  return { at: new Date().toISOString(), items, extra: { markets: got, of: LETF_U.length, funds: gotF, fundsOf: Object.keys(LETF_F).length } }; }
 
 async function main() {
   fs.mkdirSync(OUT, { recursive: true }); const prev = rd(`${OUT}/ev.json`);
   const T = { soxx: await soxx(), cohort: cohort(), letf: await letf() };
-  for (const [k, x] of Object.entries(T)) { const p = prev && prev.trackers && prev.trackers[k]; if (!x.items) continue;
+  // a source that failed today (no file, or Yahoo gave fewer than half of the markets) must not lift its mutes:
+  // keep the last good block, marked stale (council, Nov 8 2026)
+  const bad = { soxx: x => !x.items || !x.items.length, cohort: x => !x.items || !x.items.length, letf: x => !x.items || !x.items.length || !(x.extra && x.extra.markets >= LETF_U.length / 2) };
+  for (const k of Object.keys(T)) { const p = prev && prev.trackers && prev.trackers[k]; if (bad[k](T[k]) && p && p.items && p.items.length) { console.log(k, "source failed: keep the last good block", JSON.stringify(T[k].err || T[k].extra || "")); T[k] = { ...p, stale: true, staleSince: p.staleSince || p.at || prev.t, items: p.items.map(i => ({ ...i, changed: false })) }; } else if (T[k]) delete T[k].stale; }
+  for (const [k, x] of Object.entries(T)) { const p = prev && prev.trackers && prev.trackers[k]; if (!x.items || x.stale) continue;
     x.items.forEach(it => { const o = p && p.items && p.items.find(y => y.id === it.id); if (o) { it.prev = o.status; it.changed = o.status !== it.status; } });
     x.summary = { n: x.items.length, mute: x.items.filter(i => i.status === "mute").length, cut: x.items.filter(i => i.status === "cut").length, back: x.items.filter(i => i.status === "back").length, changed: x.items.filter(i => i.changed).length };
     x.rules = Object.fromEntries(x.items.filter(i => i.factor !== 1).map(i => [i.id, i.factor])); }
