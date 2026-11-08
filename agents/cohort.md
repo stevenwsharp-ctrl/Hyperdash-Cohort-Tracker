@@ -7,10 +7,10 @@
 - All workflows ran with no errors today: data (hourly; some scheduled runs "cancelled" and replaced by the dispatched run), Backtest 13:31, Bet lab 18:05, EV governor 18:11, pages builds OK.
 - Outlook momentum at 24 h: −1.41 %/pick, z −1.58, learning part −2.18 %, unseen part −0.26 % (loses on both parts). Ruling "cut" (half weight). Reversion at 24 h: −1.58 %/pick, z −1.57, learning −0.67 %, unseen −2.77 % (already gated by run 1).
 - New check: walk-forward on the 40-day panel (backtest branch panel.json.gz, 16:15 UTC) with steps every 6, 8, 12 and 24 h (more data than the daily step) and cuts at 50/60/70 %. Weights fitted on the older part (learning t, floor 0.2); the blend scored on the newer part only.
-  - With denser steps, reversion at 24 h WINS on the unseen part (+0.45 % and +0.65 % at 6 h steps). Gating reversion alone was not robust: it beat the full blend at only 7 of 12 checks.
+  - With denser steps, reversion at 24 h WINS on the unseen part (+0.45 % and +0.65 % at 6 h steps). Gating reversion alone was not robust: it beat the full blend at 9 of 12 checks, and it lost at 3 of the 6 checks with 6 h and 12 h steps.
   - Momentum at 24 h loses on the unseen part at every step and cut (−0.24 % to −1.70 %).
-  - Removing momentum alone made the blend WORSE (worse than the full blend at 10 of 12 checks): momentum and reversion offset each other.
-  - Removing BOTH: better than the full blend at 12 of 12 checks (average +1.3 pts per pick), and better than the live rule (reversion out only) at 8 of 12 (average +0.7 pts).
+  - Removing momentum alone made the blend WORSE (worse than the full blend at 11 of 12 checks): momentum and reversion offset each other.
+  - Removing BOTH: better than the full blend at 12 of 12 checks (average +1.2 pts per pick), and better than the live rule (reversion out only) at 8 of 12 (average +0.7 pts).
   - 7 d without momentum: better than the full blend at 12 of 12 checks (confirms the run-1 gate).
   - 48 h: removing momentum alone was mixed (4 of 12 better). Not changed.
 
