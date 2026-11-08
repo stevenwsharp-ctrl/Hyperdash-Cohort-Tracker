@@ -1,9 +1,9 @@
 {
- "t": "2026-11-08T18:06:47.070Z",
+ "t": "2026-11-08T18:11:58.363Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; agents read this file every market day",
  "trackers": {
   "soxx": {
-   "at": 1794063470660,
+   "at": 1794161212145,
    "items": [
     {
      "id": "bot.spot.live",
@@ -17,7 +17,9 @@
      "recent": 0.00103,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "bot.spot.bt",
@@ -31,7 +33,9 @@
      "recent": -0.0004206896551724139,
      "status": "cut",
      "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "why": "negative EV, not yet proven",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "bot.spot.all",
@@ -42,7 +46,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "bot.letf.live",
@@ -56,7 +62,9 @@
      "recent": -0.009174999999999999,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "bot.letf.bt",
@@ -70,7 +78,9 @@
      "recent": 0.002607857142857143,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "bot.letf.all",
@@ -81,7 +91,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "bot.both.live",
@@ -95,7 +107,9 @@
      "recent": -0.0022466666666666663,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "bot.both.bt",
@@ -109,7 +123,9 @@
      "recent": 0.00026999999999999995,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "bot.both.all",
@@ -120,7 +136,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "idea.spot.brk",
@@ -131,7 +149,9 @@
      "z": -2.6055901808678303,
      "status": "mute",
      "factor": 0,
-     "why": "proven negative EV"
+     "why": "proven negative EV",
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "idea.spot.pull",
@@ -142,7 +162,9 @@
      "z": -22.21211195456628,
      "status": "mute",
      "factor": 0,
-     "why": "proven negative EV"
+     "why": "proven negative EV",
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "idea.spot.vrev",
@@ -153,7 +175,9 @@
      "z": -15.064559848511514,
      "status": "mute",
      "factor": 0,
-     "why": "proven negative EV"
+     "why": "proven negative EV",
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "idea.spot.rsi",
@@ -164,7 +188,9 @@
      "z": -16.001057386419628,
      "status": "mute",
      "factor": 0,
-     "why": "proven negative EV"
+     "why": "proven negative EV",
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "idea.spot.mom",
@@ -175,7 +201,9 @@
      "z": -13.725124321876166,
      "status": "mute",
      "factor": 0,
-     "why": "proven negative EV"
+     "why": "proven negative EV",
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "idea.spot.sqz",
@@ -186,7 +214,9 @@
      "z": 4.726980120403808,
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "idea.funds.brk",
@@ -197,7 +227,9 @@
      "z": -10.616634226402892,
      "status": "mute",
      "factor": 0,
-     "why": "proven negative EV"
+     "why": "proven negative EV",
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "idea.funds.pull",
@@ -208,7 +240,9 @@
      "z": -12.614524096622855,
      "status": "mute",
      "factor": 0,
-     "why": "proven negative EV"
+     "why": "proven negative EV",
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "idea.funds.vrev",
@@ -219,7 +253,9 @@
      "z": -8.618749837847625,
      "status": "mute",
      "factor": 0,
-     "why": "proven negative EV"
+     "why": "proven negative EV",
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "idea.funds.rsi",
@@ -230,7 +266,9 @@
      "z": -9.707530225728888,
      "status": "mute",
      "factor": 0,
-     "why": "proven negative EV"
+     "why": "proven negative EV",
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "idea.funds.mom",
@@ -241,7 +279,9 @@
      "z": -9.754993144229212,
      "status": "mute",
      "factor": 0,
-     "why": "proven negative EV"
+     "why": "proven negative EV",
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "idea.funds.sqz",
@@ -252,7 +292,9 @@
      "z": 4.484095833719066,
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "arm.L.sqz.1.t6a",
@@ -263,7 +305,9 @@
      "z": 2.19,
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "arm.S.sqz.0.25.run",
@@ -274,7 +318,9 @@
      "z": 2.06,
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "arm.L.sqz.0.5.t6a",
@@ -285,7 +331,9 @@
      "z": 1.9,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "arm.S.sqz.0.5.run",
@@ -296,7 +344,9 @@
      "z": 1.69,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "arm.L.sqz.1.tim",
@@ -307,7 +357,9 @@
      "z": 1.57,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.S.0",
@@ -318,7 +370,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.S.1",
@@ -329,7 +383,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.S.2",
@@ -340,7 +396,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.S.3",
@@ -351,7 +409,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.S.4",
@@ -362,7 +422,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.S.5",
@@ -373,7 +435,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.S.6",
@@ -384,7 +448,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.S.7",
@@ -395,7 +461,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.S.8",
@@ -406,7 +474,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.S.9",
@@ -417,7 +487,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.S.10",
@@ -428,7 +500,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.S.11",
@@ -439,7 +513,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.S.12",
@@ -450,7 +526,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.L.0",
@@ -461,7 +539,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.L.1",
@@ -472,7 +552,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.L.2",
@@ -483,7 +565,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.L.3",
@@ -494,7 +578,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.L.4",
@@ -505,7 +591,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.L.5",
@@ -516,7 +604,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.L.6",
@@ -527,7 +617,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.L.7",
@@ -538,7 +630,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.L.8",
@@ -549,7 +643,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.L.9",
@@ -560,7 +656,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.L.10",
@@ -571,7 +669,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.L.11",
@@ -582,7 +682,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "time.L.12",
@@ -593,7 +695,9 @@
      "z": null,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     }
    ],
    "extra": {
@@ -640,7 +744,9 @@
      "recent": -0.007060980916858112,
      "status": "cut",
      "factor": 0.5,
-     "why": "decay: the recent half lost"
+     "why": "decay: the recent half lost",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "outlook.mom.24h",
@@ -654,7 +760,9 @@
      "recent": -0.0025584283497166534,
      "status": "cut",
      "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "why": "negative EV, not yet proven",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "outlook.rev.24h",
@@ -668,7 +776,9 @@
      "recent": -0.02767358262763221,
      "status": "cut",
      "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "why": "negative EV, not yet proven",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "outlook.pos.24h",
@@ -682,7 +792,9 @@
      "recent": 0.004270352214002232,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.flow.24h",
@@ -696,7 +808,9 @@
      "recent": 0.0002889714944960077,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.cons.24h",
@@ -708,7 +822,9 @@
      "hit": 0.6,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.consEq.24h",
@@ -720,7 +836,9 @@
      "hit": 0.6,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.smart.48h",
@@ -734,7 +852,9 @@
      "recent": 0.00014465843642146658,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.mom.48h",
@@ -748,7 +868,9 @@
      "recent": -0.005833561847392195,
      "status": "cut",
      "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "why": "negative EV, not yet proven",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "outlook.rev.48h",
@@ -762,7 +884,9 @@
      "recent": -0.030019149165006406,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.pos.48h",
@@ -776,7 +900,9 @@
      "recent": 0.013016362640640008,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.flow.48h",
@@ -790,7 +916,9 @@
      "recent": 0.000013750869545048686,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.cons.48h",
@@ -802,7 +930,9 @@
      "hit": 0.3,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.consEq.48h",
@@ -814,7 +944,9 @@
      "hit": 0.7,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.smart.168h",
@@ -828,7 +960,9 @@
      "recent": -0.005489701255696429,
      "status": "cut",
      "factor": 0.5,
-     "why": "decay: the recent half lost"
+     "why": "decay: the recent half lost",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "outlook.mom.168h",
@@ -842,7 +976,9 @@
      "recent": -0.07596849073518128,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.rev.168h",
@@ -856,7 +992,9 @@
      "recent": 0.02947027005369468,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.pos.168h",
@@ -870,7 +1008,9 @@
      "recent": 0.03900892947632286,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.flow.168h",
@@ -884,7 +1024,9 @@
      "recent": -0.04562510895145304,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.cons.168h",
@@ -896,7 +1038,9 @@
      "hit": 0.5,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "outlook.consEq.168h",
@@ -908,7 +1052,9 @@
      "hit": 0.375,
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "cond.trend_up",
@@ -923,7 +1069,9 @@
      "verdict": "helps: 3.0 pts hit rate",
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "cond.smart_adding",
@@ -938,7 +1086,9 @@
      "verdict": "helps: 6.1 pts hit rate",
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "cond.fools_adding",
@@ -953,7 +1103,9 @@
      "verdict": "no stable effect",
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "cond.mom_with",
@@ -968,7 +1120,9 @@
      "verdict": "no stable effect",
      "status": "cut",
      "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "why": "negative EV, not yet proven",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "cond.mom7_with",
@@ -983,7 +1137,9 @@
      "verdict": "no stable effect",
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "cond.earns",
@@ -998,7 +1154,9 @@
      "verdict": "no stable effect",
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "cond.cycle_with",
@@ -1013,7 +1171,9 @@
      "verdict": "no stable effect",
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "cond.range_extreme",
@@ -1028,7 +1188,9 @@
      "verdict": "helps: 6.5 pts hit rate",
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "cond.whale",
@@ -1043,7 +1205,9 @@
      "verdict": "no stable effect",
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "cond.vp_cheap",
@@ -1058,7 +1222,9 @@
      "verdict": "helps: 7.7 pts hit rate",
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "cond.vp_break",
@@ -1073,7 +1239,9 @@
      "verdict": "no stable effect",
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "cond.adding_earns",
@@ -1088,7 +1256,9 @@
      "verdict": "helps: 7.4 pts hit rate",
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "cond.adding_counter",
@@ -1103,7 +1273,9 @@
      "verdict": "no stable effect",
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "cond.earns_counter",
@@ -1118,7 +1290,9 @@
      "verdict": "no stable effect",
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "score.20",
@@ -1132,7 +1306,9 @@
      "recent": 1.002,
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "score.30",
@@ -1146,7 +1322,9 @@
      "recent": 1.055,
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "score.40",
@@ -1160,7 +1338,9 @@
      "recent": 1.066,
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "score.50",
@@ -1174,7 +1354,9 @@
      "recent": 1.023,
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "score.60",
@@ -1188,7 +1370,9 @@
      "recent": 0.863,
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "score.70",
@@ -1202,435 +1386,497 @@
      "recent": 0.887,
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "lab.stage.1d",
      "desc": "Bet lab: Weinstein stage: long stage 2 (rising 150-day average, price above), short stage 4 (fallin · 1 d",
      "unit": "ret",
      "n": 270,
-     "ev": 0.0017172634021441618,
-     "z": 1.2207528742551261,
-     "hit": 0.5185185185185185,
-     "older": 0.004610597810427081,
-     "recent": -0.001176071006138755,
+     "ev": 0.0020301135888804315,
+     "z": 1.5251345518818098,
+     "hit": 0.5333333333333333,
+     "older": 0.004508994769480927,
+     "recent": -0.0004487675917200689,
      "status": "cut",
      "factor": 0.5,
-     "why": "decay: the recent half lost"
+     "why": "decay: the recent half lost",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.stage.2d",
      "desc": "Bet lab: Weinstein stage: long stage 2 (rising 150-day average, price above), short stage 4 (fallin · 2 d",
      "unit": "ret",
      "n": 135,
-     "ev": 0.0033463728788841684,
-     "z": 1.039082090118707,
-     "hit": 0.5185185185185185,
-     "older": 0.010109943468283726,
-     "recent": -0.0033177334371418694,
-     "status": "cut",
-     "factor": 0.5,
-     "why": "decay: the recent half lost"
+     "ev": 0.003947667592028031,
+     "z": 1.2613143037549894,
+     "hit": 0.5259259259259259,
+     "older": 0.00793697616541791,
+     "recent": 0.000017025321188000218,
+     "status": "watch",
+     "factor": 1,
+     "why": "positive, not proven",
+     "prev": "cut",
+     "changed": true
     },
     {
      "id": "lab.stage.7d",
      "desc": "Bet lab: Weinstein stage: long stage 2 (rising 150-day average, price above), short stage 4 (fallin · 7 d",
      "unit": "ret",
-     "n": 37,
-     "ev": 0.02224209968476705,
-     "z": 2.143013129213041,
-     "hit": 0.7027027027027027,
-     "older": 0.037619896950856345,
-     "recent": 0.007673660169524547,
-     "status": "back",
-     "factor": 1.25,
-     "why": "proven positive EV"
+     "n": 38,
+     "ev": 0.009959736788895796,
+     "z": 0.6080262612642435,
+     "hit": 0.5263157894736842,
+     "older": 0.019257604899109448,
+     "recent": 0.0006618686786821467,
+     "status": "watch",
+     "factor": 1,
+     "why": "positive, not proven",
+     "prev": "back",
+     "changed": true
     },
     {
      "id": "lab.rs-peer.1d",
      "desc": "Bet lab: Relative strength vs its industry: long the leaders of their peer group, short the laggard · 1 d",
      "unit": "ret",
      "n": 270,
-     "ev": -0.0004299509278191732,
-     "z": -0.40310118071157613,
-     "hit": 0.4666666666666667,
-     "older": -0.0013939400366413794,
-     "recent": 0.0005340381810030332,
-     "status": "watch",
-     "factor": 1,
-     "why": "negative, weak evidence"
+     "ev": -0.0013806141277867181,
+     "z": -1.4395213040933017,
+     "hit": 0.4148148148148148,
+     "older": -0.0023329057418020075,
+     "recent": -0.0004283225137714305,
+     "status": "cut",
+     "factor": 0.5,
+     "why": "negative EV, not yet proven",
+     "prev": "watch",
+     "changed": true
     },
     {
      "id": "lab.rs-peer.2d",
      "desc": "Bet lab: Relative strength vs its industry: long the leaders of their peer group, short the laggard · 2 d",
      "unit": "ret",
      "n": 135,
-     "ev": -0.002134535580719759,
-     "z": -1.054594657487213,
-     "hit": 0.5185185185185185,
-     "older": -0.0029775158808862954,
-     "recent": -0.00130395204967332,
+     "ev": -0.002414512426788429,
+     "z": -1.1911874821428696,
+     "hit": 0.4074074074074074,
+     "older": -0.002923119384854118,
+     "recent": -0.0019133849828119479,
      "status": "cut",
      "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "why": "negative EV, not yet proven",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.rs-peer.7d",
      "desc": "Bet lab: Relative strength vs its industry: long the leaders of their peer group, short the laggard · 7 d",
      "unit": "ret",
      "n": 38,
-     "ev": 0.0057495184825986,
-     "z": 0.8672222339653217,
-     "hit": 0.5526315789473685,
-     "older": 0.012074559175289809,
-     "recent": -0.0005755222100926093,
+     "ev": 0.0013863837822319764,
+     "z": 0.2185003346384718,
+     "hit": 0.47368421052631576,
+     "older": 0.0035245354864865993,
+     "recent": -0.0007517679220226475,
      "status": "cut",
      "factor": 0.5,
-     "why": "decay: the recent half lost"
+     "why": "decay: the recent half lost",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.laggard.1d",
      "desc": "Bet lab: Catch-up: long laggards of a rising industry, short leaders of a falling one (peers pull i · 1 d",
      "unit": "ret",
-     "n": 261,
-     "ev": 0.000259812178278246,
-     "z": 0.17799761506041378,
-     "hit": 0.4559386973180077,
-     "older": 0.0003599684935299359,
-     "recent": 0.00016042041505137834,
+     "n": 259,
+     "ev": 0.0017348531849385093,
+     "z": 1.28794774266448,
+     "hit": 0.5057915057915058,
+     "older": 0.003141382245883917,
+     "recent": 0.00033914357830806645,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.laggard.2d",
      "desc": "Bet lab: Catch-up: long laggards of a rising industry, short leaders of a falling one (peers pull i · 2 d",
      "unit": "ret",
-     "n": 128,
-     "ev": -0.0005195964722134578,
-     "z": -0.16751711055232624,
-     "hit": 0.4375,
-     "older": -0.0026362395143485406,
-     "recent": 0.001597046569921626,
-     "status": "watch",
-     "factor": 1,
-     "why": "negative, weak evidence"
+     "n": 126,
+     "ev": 0.004065007531908734,
+     "z": 1.3515192454125378,
+     "hit": 0.5,
+     "older": 0.01205003420927476,
+     "recent": -0.003920019145457304,
+     "status": "cut",
+     "factor": 0.5,
+     "why": "decay: the recent half lost",
+     "prev": "watch",
+     "changed": true
     },
     {
      "id": "lab.laggard.7d",
      "desc": "Bet lab: Catch-up: long laggards of a rising industry, short leaders of a falling one (peers pull i · 7 d",
      "unit": "ret",
      "n": 34,
-     "ev": 0.010636007946802969,
-     "z": 0.843137022638431,
-     "hit": 0.5294117647058824,
-     "older": 0.024271630061539963,
-     "recent": -0.0029996141679340302,
+     "ev": 0.005026932639180341,
+     "z": 0.3781299104761827,
+     "hit": 0.5,
+     "older": 0.037686956817692775,
+     "recent": -0.027633091539332088,
      "status": "cut",
      "factor": 0.5,
-     "why": "decay: the recent half lost"
+     "why": "decay: the recent half lost",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.group-mom.1d",
      "desc": "Bet lab: Sector rotation: long the strongest industries, short the weakest (30-day median move vs a · 1 d",
      "unit": "ret",
      "n": 270,
-     "ev": 0.0009642283915704537,
-     "z": 0.8500985868930151,
-     "hit": 0.5296296296296297,
-     "older": 0.0006851448166256437,
-     "recent": 0.0012433119665152647,
+     "ev": 0.0009357974221861884,
+     "z": 0.7749247166597819,
+     "hit": 0.5370370370370371,
+     "older": 0.00008262546891720379,
+     "recent": 0.001788969375455173,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.group-mom.2d",
      "desc": "Bet lab: Sector rotation: long the strongest industries, short the weakest (30-day median move vs a · 2 d",
      "unit": "ret",
-     "n": 134,
-     "ev": 0.0002967797939848939,
-     "z": 0.09934736741294543,
-     "hit": 0.44029850746268656,
-     "older": 0.001210468315052566,
-     "recent": -0.0006169087270827792,
-     "status": "cut",
-     "factor": 0.5,
-     "why": "decay: the recent half lost"
+     "n": 135,
+     "ev": -0.0008341893400082567,
+     "z": -0.3198601720863624,
+     "hit": 0.4740740740740741,
+     "older": -0.00046862549475342136,
+     "recent": -0.0011943772463622862,
+     "status": "watch",
+     "factor": 1,
+     "why": "negative, weak evidence",
+     "prev": "cut",
+     "changed": true
     },
     {
      "id": "lab.group-mom.7d",
      "desc": "Bet lab: Sector rotation: long the strongest industries, short the weakest (30-day median move vs a · 7 d",
      "unit": "ret",
-     "n": 37,
-     "ev": -0.01327315000586994,
-     "z": -1.3582300299706875,
-     "hit": 0.3783783783783784,
-     "older": -0.01074796654179637,
-     "recent": -0.015665429077097524,
+     "n": 38,
+     "ev": -0.013705175602428782,
+     "z": -1.340310742289092,
+     "hit": 0.42105263157894735,
+     "older": -0.003992393697042454,
+     "recent": -0.023417957507815116,
      "status": "cut",
      "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "why": "negative EV, not yet proven",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.new-listing.1d",
      "desc": "Bet lab: Young listings: short markets listed on Hyperliquid in the last 90 days (supply unlocks, h · 1 d",
      "unit": "ret",
      "n": 258,
-     "ev": -0.0009005583814922471,
-     "z": -0.5007564680392758,
-     "hit": 0.49224806201550386,
-     "older": -0.004033125085727839,
-     "recent": 0.0022320083227433452,
+     "ev": 0.0006177621414113213,
+     "z": 0.3062109153145626,
+     "hit": 0.47674418604651164,
+     "older": -0.004275429723351945,
+     "recent": 0.005510954006174582,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.new-listing.2d",
      "desc": "Bet lab: Young listings: short markets listed on Hyperliquid in the last 90 days (supply unlocks, h · 2 d",
      "unit": "ret",
-     "n": 122,
-     "ev": 0.004313598352070345,
-     "z": 0.9146200188208679,
-     "hit": 0.5163934426229508,
-     "older": -0.002199452443419392,
-     "recent": 0.01082664914756008,
+     "n": 126,
+     "ev": -0.0018728564085094429,
+     "z": -0.3744428699533823,
+     "hit": 0.46825396825396826,
+     "older": -0.007145791168563611,
+     "recent": 0.003400078351544729,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.new-listing.7d",
      "desc": "Bet lab: Young listings: short markets listed on Hyperliquid in the last 90 days (supply unlocks, h · 7 d",
      "unit": "ret",
-     "n": 33,
-     "ev": -0.01901495286637182,
-     "z": -1.0360396027370946,
-     "hit": 0.3939393939393939,
-     "older": -0.04502609018912408,
-     "recent": 0.005466117555042051,
-     "status": "cut",
-     "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "n": 28,
+     "ev": -0.0014261417701406892,
+     "z": -0.06657008221323484,
+     "hit": 0.5714285714285714,
+     "older": -0.01680115737867389,
+     "recent": 0.013948873838392519,
+     "status": "watch",
+     "factor": 1,
+     "why": "negative, weak evidence",
+     "prev": "cut",
+     "changed": true
     },
     {
      "id": "lab.ath.1d",
      "desc": "Bet lab: Life cycle: long near all-time highs (within 10%: nothing overhead), short broken charts ( · 1 d",
      "unit": "ret",
      "n": 270,
-     "ev": -0.00038678243087126126,
-     "z": -0.3545838544660542,
-     "hit": 0.4740740740740741,
-     "older": 0.0012339401586662438,
-     "recent": -0.002007505020408767,
+     "ev": -0.000052601093710649924,
+     "z": -0.04706185710693727,
+     "hit": 0.5111111111111111,
+     "older": 0.00031211487723477907,
+     "recent": -0.0004173170646560796,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.ath.2d",
      "desc": "Bet lab: Life cycle: long near all-time highs (within 10%: nothing overhead), short broken charts ( · 2 d",
      "unit": "ret",
-     "n": 135,
-     "ev": -0.0020803635966588387,
-     "z": -0.9135951865238305,
-     "hit": 0.48148148148148145,
-     "older": 0.0038223657348840138,
-     "recent": -0.007896288085090764,
+     "n": 134,
+     "ev": -0.0010578868176296338,
+     "z": -0.42978945601700097,
+     "hit": 0.47761194029850745,
+     "older": 0.0003193153467316022,
+     "recent": -0.0024350889819908703,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.ath.7d",
      "desc": "Bet lab: Life cycle: long near all-time highs (within 10%: nothing overhead), short broken charts ( · 7 d",
      "unit": "ret",
-     "n": 37,
-     "ev": -0.004160566170122021,
-     "z": -0.4021791870084784,
-     "hit": 0.5405405405405406,
-     "older": 0.010222340612354951,
-     "recent": -0.01778647785878441,
-     "status": "watch",
-     "factor": 1,
-     "why": "negative, weak evidence"
+     "n": 38,
+     "ev": -0.014785949584362093,
+     "z": -1.7881773283101385,
+     "hit": 0.42105263157894735,
+     "older": -0.012314944433521071,
+     "recent": -0.01725695473520312,
+     "status": "cut",
+     "factor": 0.5,
+     "why": "negative EV, not yet proven",
+     "prev": "watch",
+     "changed": true
     },
     {
      "id": "lab.pump-fade.1d",
      "desc": "Bet lab: Fade the extreme: after a 14-day move over ±50%, bet on part of it coming back · 1 d",
      "unit": "ret",
      "n": 270,
-     "ev": -0.0030024868547842416,
-     "z": -1.8735082000707959,
-     "hit": 0.4777777777777778,
-     "older": -0.005973596803016453,
-     "recent": -0.0000313769065520289,
-     "status": "cut",
-     "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "ev": -0.003279634817005356,
+     "z": -2.1054118866255047,
+     "hit": 0.46296296296296297,
+     "older": -0.005362738063038895,
+     "recent": -0.0011965315709718217,
+     "status": "mute",
+     "factor": 0,
+     "why": "proven negative EV",
+     "prev": "cut",
+     "changed": true
     },
     {
      "id": "lab.pump-fade.2d",
      "desc": "Bet lab: Fade the extreme: after a 14-day move over ±50%, bet on part of it coming back · 2 d",
      "unit": "ret",
-     "n": 135,
-     "ev": -0.0052985982099860935,
-     "z": -1.3109545536722573,
-     "hit": 0.48148148148148145,
-     "older": -0.009699246485682074,
-     "recent": -0.0009626653501091708,
-     "status": "cut",
-     "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "n": 134,
+     "ev": -0.00274873290432823,
+     "z": -0.6137760255494594,
+     "hit": 0.4552238805970149,
+     "older": -0.007142025827863479,
+     "recent": 0.00164456001920702,
+     "status": "watch",
+     "factor": 1,
+     "why": "negative, weak evidence",
+     "prev": "cut",
+     "changed": true
     },
     {
      "id": "lab.pump-fade.7d",
      "desc": "Bet lab: Fade the extreme: after a 14-day move over ±50%, bet on part of it coming back · 7 d",
      "unit": "ret",
-     "n": 38,
-     "ev": -0.0196863443795361,
-     "z": -1.1952752174486196,
-     "hit": 0.4473684210526316,
-     "older": -0.028393728153596882,
-     "recent": -0.010978960605475317,
-     "status": "cut",
-     "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "n": 37,
+     "ev": 0.010015566966155059,
+     "z": 0.5221728097622639,
+     "hit": 0.5945945945945946,
+     "older": 0.0044139457901056535,
+     "recent": 0.015322365975043972,
+     "status": "watch",
+     "factor": 1,
+     "why": "positive, not proven",
+     "prev": "cut",
+     "changed": true
     },
     {
      "id": "lab.beta-tide.1d",
      "desc": "Bet lab: Tide: when its market (Bitcoin or the S&P 500) is above its 50-day average, long the high- · 1 d",
      "unit": "ret",
-     "n": 270,
-     "ev": -0.0021194648963494553,
-     "z": -1.6451814373151474,
-     "hit": 0.45555555555555555,
-     "older": -0.00013028143785462492,
-     "recent": -0.004108648354844284,
+     "n": 269,
+     "ev": -0.0019174466824184758,
+     "z": -1.509622645654488,
+     "hit": 0.45353159851301117,
+     "older": -0.00046327528977444063,
+     "recent": -0.003360846435116999,
      "status": "cut",
      "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "why": "negative EV, not yet proven",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.beta-tide.2d",
      "desc": "Bet lab: Tide: when its market (Bitcoin or the S&P 500) is above its 50-day average, long the high- · 2 d",
      "unit": "ret",
      "n": 135,
-     "ev": -0.0034461039940558032,
-     "z": -1.1702031684965988,
-     "hit": 0.42962962962962964,
-     "older": -0.0014399791525634244,
-     "recent": -0.005422726999643882,
-     "status": "cut",
-     "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "ev": 0.0011691189719213195,
+     "z": 0.3811108911694064,
+     "hit": 0.48148148148148145,
+     "older": 0.0022648326242552873,
+     "recent": 0.00008951875565108412,
+     "status": "watch",
+     "factor": 1,
+     "why": "positive, not proven",
+     "prev": "cut",
+     "changed": true
     },
     {
      "id": "lab.beta-tide.7d",
      "desc": "Bet lab: Tide: when its market (Bitcoin or the S&P 500) is above its 50-day average, long the high- · 7 d",
      "unit": "ret",
      "n": 38,
-     "ev": -0.0014545400549642632,
-     "z": -0.13848610215958507,
-     "hit": 0.39473684210526316,
-     "older": 0.018605516636005327,
-     "recent": -0.021514596745933857,
+     "ev": 0.006163620834790584,
+     "z": 0.713712468031102,
+     "hit": 0.5263157894736842,
+     "older": 0.012265410883413489,
+     "recent": 0.0000618307861676751,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.vol-squeeze.1d",
      "desc": "Bet lab: Coiled spring: volatility at under 60% of its own normal; bet in the direction of the last · 1 d",
      "unit": "ret",
-     "n": 262,
-     "ev": -0.0010799913004728356,
-     "z": -1.2700129921350853,
-     "hit": 0.46564885496183206,
-     "older": -0.0007228719643129288,
-     "recent": -0.0014371106366327436,
+     "n": 260,
+     "ev": -0.0017467572432060604,
+     "z": -1.877793003500087,
+     "hit": 0.45384615384615384,
+     "older": -0.0020912537018681686,
+     "recent": -0.0014022607845439522,
      "status": "cut",
      "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "why": "negative EV, not yet proven",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.vol-squeeze.2d",
      "desc": "Bet lab: Coiled spring: volatility at under 60% of its own normal; bet in the direction of the last · 2 d",
      "unit": "ret",
-     "n": 131,
-     "ev": 0.0022741581853077987,
-     "z": 0.512891422023108,
-     "hit": 0.46564885496183206,
-     "older": -0.00009639133923991709,
-     "recent": 0.004608790292816912,
+     "n": 129,
+     "ev": -0.0021214336823854626,
+     "z": -0.9789245509435383,
+     "hit": 0.49612403100775193,
+     "older": -0.0031593463024956925,
+     "recent": -0.001099488948738466,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.vol-squeeze.7d",
      "desc": "Bet lab: Coiled spring: volatility at under 60% of its own normal; bet in the direction of the last · 7 d",
      "unit": "ret",
-     "n": 35,
-     "ev": -0.004002254331114107,
-     "z": -0.5383286541667811,
-     "hit": 0.42857142857142855,
-     "older": -0.0013268541222302382,
-     "recent": -0.006529021195059984,
-     "status": "watch",
-     "factor": 1,
-     "why": "negative, weak evidence"
+     "n": 36,
+     "ev": 0.0018223252344353744,
+     "z": 0.21686543711722212,
+     "hit": 0.4444444444444444,
+     "older": 0.00752671368785796,
+     "recent": -0.0038820632189872106,
+     "status": "cut",
+     "factor": 0.5,
+     "why": "decay: the recent half lost",
+     "prev": "watch",
+     "changed": true
     },
     {
      "id": "lab.young-small.1d",
      "desc": "Bet lab: Life stage of the company or coin: young (listed 2021 or later) and small or mid size = lo · 1 d",
      "unit": "ret",
      "n": 270,
-     "ev": -0.0014211933116849806,
-     "z": -1.4649671077809423,
-     "hit": 0.43333333333333335,
-     "older": -0.003876255538217243,
-     "recent": 0.0010338689148472846,
-     "status": "cut",
-     "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "ev": -0.000523264769004605,
+     "z": -0.567854503913674,
+     "hit": 0.45555555555555555,
+     "older": -0.002585975062975528,
+     "recent": 0.001539445524966317,
+     "status": "watch",
+     "factor": 1,
+     "why": "negative, weak evidence",
+     "prev": "cut",
+     "changed": true
     },
     {
      "id": "lab.young-small.2d",
      "desc": "Bet lab: Life stage of the company or coin: young (listed 2021 or later) and small or mid size = lo · 2 d",
      "unit": "ret",
      "n": 135,
-     "ev": -0.004667572540256021,
-     "z": -2.2283799085053597,
-     "hit": 0.4148148148148148,
-     "older": -0.009202538112373627,
-     "recent": -0.00019929763831661544,
-     "status": "mute",
-     "factor": 0,
-     "why": "proven negative EV"
+     "ev": 0.000862916219779782,
+     "z": 0.4338338059270888,
+     "hit": 0.42962962962962964,
+     "older": -0.0037629248683434488,
+     "recent": 0.005420730233077671,
+     "status": "watch",
+     "factor": 1,
+     "why": "positive, not proven",
+     "prev": "mute",
+     "changed": true
     },
     {
      "id": "lab.young-small.7d",
      "desc": "Bet lab: Life stage of the company or coin: young (listed 2021 or later) and small or mid size = lo · 7 d",
      "unit": "ret",
      "n": 38,
-     "ev": 0.00006896523334546517,
-     "z": 0.009464939650768809,
+     "ev": 0.010727021002852472,
+     "z": 0.8445098016543477,
      "hit": 0.4473684210526316,
-     "older": -0.018865627183644863,
-     "recent": 0.019003557650335796,
+     "older": -0.017778112043402843,
+     "recent": 0.039232154049107786,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     }
    ],
    "summary": {
     "n": 71,
     "mute": 1,
-    "cut": 21,
-    "back": 10,
-    "changed": 0
+    "cut": 17,
+    "back": 9,
+    "changed": 14
    },
    "rules": {
     "outlook.smart.24h": 0.5,
@@ -1649,26 +1895,21 @@
     "score.60": 1.25,
     "score.70": 1.25,
     "lab.stage.1d": 0.5,
-    "lab.stage.2d": 0.5,
-    "lab.stage.7d": 1.25,
+    "lab.rs-peer.1d": 0.5,
     "lab.rs-peer.2d": 0.5,
     "lab.rs-peer.7d": 0.5,
+    "lab.laggard.2d": 0.5,
     "lab.laggard.7d": 0.5,
-    "lab.group-mom.2d": 0.5,
     "lab.group-mom.7d": 0.5,
-    "lab.new-listing.7d": 0.5,
-    "lab.pump-fade.1d": 0.5,
-    "lab.pump-fade.2d": 0.5,
-    "lab.pump-fade.7d": 0.5,
+    "lab.ath.7d": 0.5,
+    "lab.pump-fade.1d": 0,
     "lab.beta-tide.1d": 0.5,
-    "lab.beta-tide.2d": 0.5,
     "lab.vol-squeeze.1d": 0.5,
-    "lab.young-small.1d": 0.5,
-    "lab.young-small.2d": 0
+    "lab.vol-squeeze.7d": 0.5
    }
   },
   "letf": {
-   "at": "2026-11-08T18:06:47.069Z",
+   "at": "2026-11-08T18:11:58.363Z",
    "items": [
     {
      "id": "rev.all.15m",
@@ -1682,7 +1923,9 @@
      "recent": -0.004997612297256594,
      "status": "mute",
      "factor": 0,
-     "why": "proven negative EV"
+     "why": "proven negative EV",
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "rev.hard.15m",
@@ -1696,7 +1939,9 @@
      "recent": -0.0023195116006338987,
      "status": "mute",
      "factor": 0,
-     "why": "proven negative EV"
+     "why": "proven negative EV",
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "fast.5m.15m",
@@ -1710,21 +1955,25 @@
      "recent": -0.0012101933076550816,
      "status": "mute",
      "factor": 0,
-     "why": "proven negative EV"
+     "why": "proven negative EV",
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "fast.1m.15m",
      "desc": "Fast 1-minute move (4σ+): follow it, next 15 min (negative EV = fade it)",
      "unit": "ret",
      "n": 154,
-     "ev": -0.0016683656673571717,
-     "z": -1.794644374078945,
+     "ev": -0.0016683656673571723,
+     "z": -1.794644374078946,
      "hit": 0.37012987012987014,
-     "older": -0.004039734711650663,
-     "recent": 0.0007030033769363173,
+     "older": -0.004019768336530326,
+     "recent": 0.0006830370018159803,
      "status": "cut",
      "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "why": "negative EV, not yet proven",
+     "prev": "cut",
+     "changed": false
     }
    ],
    "extra": {
