@@ -91,8 +91,14 @@
   // Gates (EV agent, 2026-11-08): reversion at 24 h and momentum at 7 d lost on the learning part AND on the unseen part of the
   // 40-day backtest, and the consensus without them did better on the unseen part at all three walk-forward cuts (50/60/70%).
   // Weight 0 while the backtest still shows a loss on both parts; the system comes back by itself when either part turns positive.
-  const GATE = { 24: ["rev"], 168: ["mom"] };
-  const gated = (h, k) => { if (!(GATE[h] || []).includes(k)) return false; const R = btRes(h, k); return !!(R && R.learnM != null && R.unseenM != null && R.learnM < 0 && R.unseenM < 0); };
+  // Update (EV agent, 2026-11-08, second run): at 24 h, momentum and reversion offset each other, so they are gated as ONE group.
+  // Walk-forward on the 40-day panel (weights fitted on the older part; steps every 6 / 8 / 12 / 24 h; cuts 50 / 60 / 70 %):
+  // the blend without both beat the blend with both at 12 of 12 checks (+1.3 pts per pick on average) and beat the blend
+  // without reversion only at 8 of 12 (+0.7 pts); removing momentum alone made the blend worse. A group gates only while
+  // EVERY member lost on both parts; when one member turns positive, the whole group comes back.
+  const GATE = { 24: [["rev", "mom"]], 168: [["mom"]] };
+  const lost = (h, k) => { const R = btRes(h, k); return !!(R && R.learnM != null && R.unseenM != null && R.learnM < 0 && R.unseenM < 0); };
+  const gated = (h, k) => (GATE[h] || []).some(g => g.includes(k) && g.every(x => lost(h, x)));
   // ---------- build ----------
   let LAST = null;
   function build() {
@@ -127,7 +133,7 @@
     const consT = d => `<table><thead><tr><th style="text-align:left">${d > 0 ? "Best longs" : "Best shorts"}</th><th>Price</th><th title="Entry is a limit order; the pick counts only once price touches it">Limit entry</th><th title="Limit exit">Target</th><th title="The idea is wrong if price gets here first (¾ σ the other way): exit at market">Wrong if</th><th style="text-align:left" title="${SYS.map(s => s[1]).join(" · ")}">6 systems</th><th title="Systems that agree">Agree</th><th>Score</th></tr></thead><tbody>${best("cons", d).map(x => consRow(x, d)).join("") || `<tr><td colspan="8" style="text-align:center;color:var(--faint)">nothing clear</td></tr>`}</tbody></table>`;
     const breadth = SYS.map(([k, n]) => { const v = A.filter(x => x.s[k] != null && Math.abs(x.s[k]) >= 0.1), up = v.filter(x => x.s[k] > 0).length; return { n, up, dn: v.length - up }; });
     const sysCard = ([k, n]) => { const R = record(L, H, k), mini = (x, d) => { const T = tgt(x, x.s[k], H); return `<tr><td style="text-align:left">${nm(x)}</td><td><span class="bar" style="width:${Math.round(Math.abs(x.s[k]) * 50)}px;background:${col(x.s[k])}"></span> ${x.s[k].toFixed(2)}</td><td>${price(x.px)}</td><td class="${d > 0 ? "L" : "S"}">${price(T.t)} <span class="tr">${pc(T.pct)}</span></td></tr>`; };
-      return `<div class="card" style="padding:8px 10px"><div><span class="sysn">${n}</span> <span class="tr">weight ${W[k] == null ? "1.00" : W[k].toFixed(2)}${gated(H, k) ? " · gated: lost on both backtest parts, not in the consensus" : ""}</span></div><div class="tr" style="margin:2px 0 4px">${HOW[k]}</div><div class="tr">Track record (${H === 168 ? "7 d" : H + " h"}): ${recTxt(R)}</div><div class="tr">${btTxt(btRes(H, k), k)}</div>
+      return `<div class="card" style="padding:8px 10px"><div><span class="sysn">${n}</span> <span class="tr">weight ${W[k] == null ? "1.00" : W[k].toFixed(2)}${gated(H, k) ? " · gated: lost on both backtest parts (with its group), not in the consensus" : ""}</span></div><div class="tr" style="margin:2px 0 4px">${HOW[k]}</div><div class="tr">Track record (${H === 168 ? "7 d" : H + " h"}): ${recTxt(R)}</div><div class="tr">${btTxt(btRes(H, k), k)}</div>
         <table><thead><tr><th style="text-align:left" class="L">Long</th><th>score</th><th>price</th><th>target</th></tr></thead><tbody>${best(k, 1).map(x => mini(x, 1)).join("") || `<tr><td colspan="4" class="tr" style="text-align:center">none</td></tr>`}</tbody></table>
         <table style="margin-top:4px"><thead><tr><th style="text-align:left" class="S">Short</th><th>score</th><th>price</th><th>target</th></tr></thead><tbody>${best(k, -1).map(x => mini(x, -1)).join("") || `<tr><td colspan="4" class="tr" style="text-align:center">none</td></tr>`}</tbody></table></div>`; };
     const RC = record(L, H, "cons");
