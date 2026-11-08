@@ -88,12 +88,17 @@
     if (!lessonsDone && window.Web && BT) { lessonsDone = true; try { const seen = (Web.data().hist || {})["outlookbt"]; if (!seen || Date.parse(BT.t) > seen.at) { const j = await (await fetch(BTU + "outlook_lessons.json?t=" + Date.parse(BT.t))).json(); const n = Web.ingest("outlookbt", j.items || [], "Outlook backtest · 40 days, 40 most traded markets"); if (n) console.info("outlook: web learned", n, "past moments"); } } catch (e) { console.warn("outlook lessons", e); } } }
   const btRes = (h, k) => BT && BT.hz && BT.hz[h] && BT.hz[h].res && BT.hz[h].res[k] || null;
   const btW = (h, k) => { const R = btRes(h, k); return R ? Math.max(0.2, Math.min(3, R.t)) : 1; };   // the backtest's t-stat as a prior weight (the web itself has no history to test: 1)
+  // Gates (EV agent, 2026-11-08): reversion at 24 h and momentum at 7 d lost on the learning part AND on the unseen part of the
+  // 40-day backtest, and the consensus without them did better on the unseen part at all three walk-forward cuts (50/60/70%).
+  // Weight 0 while the backtest still shows a loss on both parts; the system comes back by itself when either part turns positive.
+  const GATE = { 24: ["rev"], 168: ["mom"] };
+  const gated = (h, k) => { if (!(GATE[h] || []).includes(k)) return false; const R = btRes(h, k); return !!(R && R.learnM != null && R.unseenM != null && R.learnM < 0 && R.unseenM < 0); };
   // ---------- build ----------
   let LAST = null;
   function build() {
     const rows = (ROWS || []).filter(r => r.ctx && r.ctx.px > 0 && (r.ctx.v || 0) >= 1e6), all = {}, L0 = lsG(LK, []);
-    for (const [h] of HZ) { const W = Object.fromEntries(SYS.map(([k]) => [k, weight(L0, h, k) * btW(h, k) * (window.EVR ? EVR.factor("cohort", `outlook.${k}.${h}h`) : 1)]));   // EV governor: 0 mute, 0.5 cut, 1.25 back
-      all[h] = rows.map(r => { const { o, px, sd, sH } = score(r, h); let s = 0, w = 0, ag = 0, n = 0; SYS.forEach(([k]) => { if (o[k] == null) return; s += o[k] * W[k]; w += W[k]; n++; });
+    for (const [h] of HZ) { const W = Object.fromEntries(SYS.map(([k]) => [k, (gated(h, k) ? 0 : 1) * weight(L0, h, k) * btW(h, k) * (window.EVR ? EVR.factor("cohort", `outlook.${k}.${h}h`) : 1)]));   // EV governor: 0 mute, 0.5 cut, 1.25 back
+      all[h] = rows.map(r => { const { o, px, sd, sH } = score(r, h); let s = 0, w = 0, ag = 0, n = 0; SYS.forEach(([k]) => { if (o[k] == null || !W[k]) return; s += o[k] * W[k]; w += W[k]; n++; });
         const raw = w ? s / w : 0; let agW = 0; SYS.forEach(([k]) => { if (o[k] != null && Math.sign(o[k]) === Math.sign(raw) && Math.abs(o[k]) >= 0.1) { ag++; agW += W[k]; } });
         const cons = raw * (0.4 + 0.6 * (w ? agW / w : 0));   // agreement matters, counted by weight: one loud weak system alone counts for less
         return { r, px, sd, sH, s: { ...o, cons }, ag, n }; }); all[h].W = W; }
@@ -122,7 +127,7 @@
     const consT = d => `<table><thead><tr><th style="text-align:left">${d > 0 ? "Best longs" : "Best shorts"}</th><th>Price</th><th title="Entry is a limit order; the pick counts only once price touches it">Limit entry</th><th title="Limit exit">Target</th><th title="The idea is wrong if price gets here first (¾ σ the other way): exit at market">Wrong if</th><th style="text-align:left" title="${SYS.map(s => s[1]).join(" · ")}">6 systems</th><th title="Systems that agree">Agree</th><th>Score</th></tr></thead><tbody>${best("cons", d).map(x => consRow(x, d)).join("") || `<tr><td colspan="8" style="text-align:center;color:var(--faint)">nothing clear</td></tr>`}</tbody></table>`;
     const breadth = SYS.map(([k, n]) => { const v = A.filter(x => x.s[k] != null && Math.abs(x.s[k]) >= 0.1), up = v.filter(x => x.s[k] > 0).length; return { n, up, dn: v.length - up }; });
     const sysCard = ([k, n]) => { const R = record(L, H, k), mini = (x, d) => { const T = tgt(x, x.s[k], H); return `<tr><td style="text-align:left">${nm(x)}</td><td><span class="bar" style="width:${Math.round(Math.abs(x.s[k]) * 50)}px;background:${col(x.s[k])}"></span> ${x.s[k].toFixed(2)}</td><td>${price(x.px)}</td><td class="${d > 0 ? "L" : "S"}">${price(T.t)} <span class="tr">${pc(T.pct)}</span></td></tr>`; };
-      return `<div class="card" style="padding:8px 10px"><div><span class="sysn">${n}</span> <span class="tr">weight ${(W[k] || 1).toFixed(2)}</span></div><div class="tr" style="margin:2px 0 4px">${HOW[k]}</div><div class="tr">Track record (${H === 168 ? "7 d" : H + " h"}): ${recTxt(R)}</div><div class="tr">${btTxt(btRes(H, k), k)}</div>
+      return `<div class="card" style="padding:8px 10px"><div><span class="sysn">${n}</span> <span class="tr">weight ${W[k] == null ? "1.00" : W[k].toFixed(2)}${gated(H, k) ? " · gated: lost on both backtest parts, not in the consensus" : ""}</span></div><div class="tr" style="margin:2px 0 4px">${HOW[k]}</div><div class="tr">Track record (${H === 168 ? "7 d" : H + " h"}): ${recTxt(R)}</div><div class="tr">${btTxt(btRes(H, k), k)}</div>
         <table><thead><tr><th style="text-align:left" class="L">Long</th><th>score</th><th>price</th><th>target</th></tr></thead><tbody>${best(k, 1).map(x => mini(x, 1)).join("") || `<tr><td colspan="4" class="tr" style="text-align:center">none</td></tr>`}</tbody></table>
         <table style="margin-top:4px"><thead><tr><th style="text-align:left" class="S">Short</th><th>score</th><th>price</th><th>target</th></tr></thead><tbody>${best(k, -1).map(x => mini(x, -1)).join("") || `<tr><td colspan="4" class="tr" style="text-align:center">none</td></tr>`}</tbody></table></div>`; };
     const RC = record(L, H, "cons");
