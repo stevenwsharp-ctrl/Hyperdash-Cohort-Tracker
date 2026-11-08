@@ -93,7 +93,7 @@
   // Weight 0 while the backtest still shows a loss on both parts; the system comes back by itself when either part turns positive.
   // Update (EV agent, 2026-11-08, second run): at 24 h, momentum and reversion offset each other, so they are gated as ONE group.
   // Walk-forward on the 40-day panel (weights fitted on the older part; steps every 6 / 8 / 12 / 24 h; cuts 50 / 60 / 70 %):
-  // the blend without both beat the blend with both at 12 of 12 checks (+1.3 pts per pick on average) and beat the blend
+  // the blend without both beat the blend with both at 12 of 12 checks (+1.2 pts per pick on average) and beat the blend
   // without reversion only at 8 of 12 (+0.7 pts); removing momentum alone made the blend worse. A group gates only while
   // EVERY member lost on both parts; when one member turns positive, the whole group comes back.
   const GATE = { 24: [["rev", "mom"]], 168: [["mom"]] };
