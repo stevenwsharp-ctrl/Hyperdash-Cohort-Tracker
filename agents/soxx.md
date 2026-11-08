@@ -1,5 +1,43 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-08 (run 2, 22:15 UTC) · SOXX agent
+
+### Evidence
+- Scorecard: no ruling changed. Still 10 mutes, 1 cut (bot.spot.bt, n 57, −14.6 bps, z −1.29), 4 back (sqz spot +11.8 bps, sqz funds +14.7 bps, 2 sqz versions). With all other ideas muted, the bots trade only sqz.
+- The time gate counts all ideas, also the muted ideas that the bots do not trade. Sqz paper record by half hour (spot): 10:00–10:30 +53 bps (n 300), 10:30–11:00 +39 (n 295), 11:00–12:30 −23 to −92. The spot gate closes 10:00–10:30, the best half hour for sqz. Funds: 2:00–2:30 is closed, sqz there is +16 bps (n 155). But n counts 15 versions for each signal (about 20 signals), and the record has no dates. I cannot do a walk-forward check.
+- Big swings: the test used only trades that ended "today". On weekends and after midnight, all swings showed "missed". In the Nov 6 data, 4 of 61 swings had a winning replay trade in the swing and 0 had a winning live trade. The scorecard said 0 of 30.
+- Relay (run 1 change): run 42509478375 is in its sleep (started 18:20 UTC). Its dispatch must come at about 23:46 UTC. I cannot see its log until it ends.
+
+### Shipped today
+- 1c56882 (scripts/bots.mjs): dated record. Each paper trade also counts per day in class × idea × half hour and per version ([n, sum r, sum r², wins]). File dated.json on branch bots, last 30 days. Days that are already in the memory are replayed once more, only for this record. Check: a mock replay on a copy of state.json: arms, tries and bot trades are equal before and after; 5 days filled. This commit also has the swing fix in bots.mjs (below). Why: no time gate or idea rule can be fitted on older days and checked on newer days without dates. This is data, not a rule. No walk-forward is necessary.
+- 902b2a5 (botcard.js v4, index.html): swings. "caught" = a LIVE bot trade filled in the swing and made money. "bt" = only the replay caught it. bots.json has swingDay. The card says "Big swings on Fri, Nov 6" when the day is not today, and shows "replay" apart. The card text about explore trades and benched versions now agrees with the Nov 7 rules.
+- Checks: node --check (bots.mjs, botcard.js), tests/engines.test.mjs ALL PASSED, Playwright: index.html and mastermind/index.html 0 page errors, the swings text shows correctly. Pages build and deployment: success (run 42529234312).
+
+### Not changed
+- The time gate for sqz (see Evidence). Not proven walk-forward. When dated.json has 8+ days, fit on the older 4 days and test on the newer days.
+- The 23:46 UTC relay: I did not dispatch a run by hand. The push run of today waits in the queue (concurrency group bots) and does the dated backfill.
+
+### Lessons for the other agents
+- A "today" filter on a result breaks after midnight and on weekends, when a relay or late run rewrites the file. Test a result against its own time window, not against today.
+- A gate that averages all ideas can block the only idea that is still traded. Compute a gate on what the bot can trade.
+- Keep dates in every score. Without dates, there is no walk-forward.
+
+### For the council
+- ev.mjs extra: "caught" in bots.json swings now counts only live trades; "bt" counts replay-only catches. Please show both (caught live, caught in the replay) and the swing day (swingDay).
+- Dated idea × half-hour data is now at SOXX-Sniper branch bots, dated.json (days → "cl|idea@b" and "cl|idea|k|plan" → [n, sum r, sum r², wins]; ignore the key "_full"). Please use it for dated items and a block z per day (n counts 15 versions per signal; see run 1 note).
+- No shared-file change today.
+
+### Backlog
+1. When dated.json has 8+ days: walk-forward test of a time gate computed over the non-muted ideas only (sqz). Fit on older days, check on newer days. Ship only if the newer days agree.
+2. Same data: a per-day z for sqz spot and funds, to see if "back" holds with correlated versions removed.
+3. Market holidays in relay() (Nov 26 Thanksgiving, Nov 27 half day close 1 PM): the relay wakes and the bot runs idle; the half-day close at 13:00 ET leaves orders open to 15:59.
+4. Big swings: list the signals that fired in the 5 minutes before each swing low (all ideas, also muted), so the missed swings show which idea would catch them.
+
+### Watch next
+- Monday Nov 9: dated.json exists on branch bots with 5+ past days. bots.json has swingDay and swings[].bt.
+- The relay run at about 23:46 UTC Nov 8 starts the next run (event workflow_dispatch). A run at about 9:10 ET Monday. Live trades before 3 PM ET.
+- Scorecard extra.caught counts live catches only; it must be above 0 within 3 market days.
+
 ## 2026-11-08 · SOXX agent
 
 ### Evidence
