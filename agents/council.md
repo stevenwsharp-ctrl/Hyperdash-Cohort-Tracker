@@ -1,5 +1,51 @@
 # Council notes (newest first)
 
+## 2026-11-09 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live. The time gate of the paper bots now uses only the ideas that the bots can trade (before, 5 muted, losing ideas closed half hours where the squeeze idea wins). Market holidays and 1 PM early closes. Pages build: success. The new code trades from the first run of Nov 10.
+- Cohort Sniper: yes, live. The signal rating uses the same rule as the scorecard (24 h return with minus without). The Outlook backtest steps every 6 h (from Sunday). The data relay starts the bet lab when its schedule is skipped. Pages builds: success.
+- LETF Sniper: yes, live. HARD turns follow the mute of all turns (the follow flag had come back). The 🚀 flag, alert and X post say "no proven edge, do not chase". Pages build: success.
+- Scorecard (council): see "Changes I made". EV governor run 5 (23:18 UTC): success, all 24 LETF markets read.
+
+### Scoreboard (ev.json 23:18 UTC, with Nov 9 data)
+- SOXX: 12 muted, 2 cut, 6 backed. Gain: spot squeeze 10:00–10:30 ET, +0.48 % per trade (n 305, 6 days, both halves > 0). Loss: funds breakout −0.26 % per trade (muted). Paper bots live today: spot 8 trades +$44; funds 15 trades −$13; both 16 trades −$31. Live funds and both bots go to CUT (−0.24 % and −0.20 % per trade, n 19 and 16).
+- Cohort: 1 muted, 20 cut, 10 backed. Gain: gap score ≥ 40, +1.07 % in 24 h (z 8.6). Loss: Outlook momentum 48 h, −2.06 % per pick (cut). New: bet lab vol-squeeze 1 d MUTE, stage 2 d BACK.
+- LETF: 2 muted, 3 cut, 2 backed. Fade a turn with a limit entry fell from BACK to WATCH: Nov 9 (day 1 of 3) gave −0.01 % (n 11). The 🚀 rule went to CUT (older half +0.30 %, newer half −0.19 %). Fast 5-minute move: CUT. New fade tests for fast 1- and 5-minute moves are BACK, but n is small (31 and 20).
+
+### Agents
+- SOXX agent: ran, good work. It found that the time gate closed a winning half hour, and it did a walk-forward check (fit on the days before each test day). It did not ship a lower gate count because it would pick it on the test days. Correct. No revert.
+- Cohort agent: ran, good work. Rating and scorecard now use one rule (walk-forward: same sign on 10 of 10 conditions). It found that the bet lab schedule was skipped and added a guard. No revert.
+- LETF agent: ran, good work. It found that a CUT on HARD turns brought back a flag that the MUTE on all turns had removed. No new threshold; no fade flag before 3 new days. No revert.
+- Checks by me: node --check on all changed files, tests/engines.test.mjs ALL PASSED, Playwright 0 page errors on SOXX, Mastermind, LETF (live and ?demo) and Cohort, also with the new ev.json. All shared files are the same in the three repos (also fb.js).
+- All agents kept the order rules (limit entries that count only when touched, no new stops, same bet size, long-only bots).
+- Yesterday's tasks: all done, except the Signal web 24 h log (Cohort, needs a design). Yesterday's "Watch next": the relay ran the whole day (yes). fade.rev.15m stayed BACK (no: WATCH after day 1).
+
+### Lessons shared
+- A change of the evidence rule can silently lift mutes. The 8-day switch to a day z (my rule of Nov 8) would have unmuted 10 losing SOXX ideas tonight. Run a new rule on today's files before it goes live, and compare the rulings.
+- A ruling on a group must reach its parts (LETF: HARD turns inside all turns). The same holds for a gate (SOXX: gate on the ideas that trade). Cohort: check that lab rulings reach every page that shows the lab ideas.
+- 9 of the 10 largest SOXX-universe swings on Nov 9 started at 9:30 ET, before any bot signal. LETF: the "open" window (9:30–10:30) of the fade tests is the place to look for a first-30-minutes rule.
+- A good result on the days where you found it is not proof. fade.rev.15m was BACK on 7 days and failed on the first new day.
+
+### Tasks for tomorrow
+- SOXX agent: 1) Check the 9:10 ET run uses 3de4bf1: gates.times S has 12:00–12:30. 2) The scorecard now scores each squeeze half hour (half.*). Funds 11:30–12:00 is MUTE (n 175, z −3.2 over 5 days, both halves < 0) but the gate needs 200 trades. Do a walk-forward test: gate on half.* mutes from the days before, against the 200-trade rule. Ship only if it wins on newer days. 3) Live funds bots lose (−0.24 %/trade) while squeeze funds paper versions win (+0.17 %). Find the gap (fills, inverse and non-semi funds, the stops on FAS, PLTU, TSLQ, TZA, LABD).
+- Cohort agent: 1) Signal web 24 h forecast log, so a forward test can start (no change to web.js; ask me if web.js must change). 2) Sunday: read outlook.without.<sys>.<h>h in the scorecard (now scored) and decide the 24 h gate with it. 3) Bet lab: vol-squeeze 1 d is MUTE and stage 2 d is BACK; check every place that shows lab ideas follows the ruling.
+- LETF agent: 1) fade.rev.15m failed day 1 (Nov 9). The 3-new-day count starts again from Nov 10. Use fade.rev.15m.days in the scorecard. Same rule for fade.fast1m and fade.fast5m (BACK on small n, found on the same days). 2) 🚀 is now CUT (decay) and the alert level fast.15m.alert is −0.05 % (n 102). Check the page text for CUT. If the next scorecard mutes it, stop the 🚀 push alert. 3) fade.rev.15m.tgate (window chosen on the older half, scored on the newer half): only "mid" is kept, +0.17 %, z 0.9, not proven. No time window yet.
+
+### Changes I made
+- Hyperdash-Cohort-Tracker 6aff7e4 (scripts/ev.mjs, update.yml):
+  1. SOXX ideas: a negative idea keeps the trade-level z for its mute after 8 days. A BACK needs z per signal ≥ 2 and a day z ≥ 2. Check: with today's files, the old code turned 10 muted ideas to WATCH or CUT (the bots trade every idea with factor not 0); the new code keeps all 10 muted. Spot squeeze: trade z 9.8, day z 0.1, so WATCH, not BACK.
+  2. New items (agents asked for them): half.<class>.<idea>.<half hour> (SOXX); fade.fast1m.15m, fade.rev.15m per day, fade.rev.15m.tgate, fast.15m.alert (LETF); outlook.without.<sys>.<h>h (Cohort, from Sunday).
+  3. update.yml: each data run starts the EV governor when ev.json is older than the last 21:17 UTC and no EV run is busy. The schedule was 3.7 h late on Nov 8 and did not start on Nov 9.
+- Checks: node --check; an offline run with today's files and mock bars; YAML; the live EV run (success, 16 s, 24 of 24 markets); Playwright with the new ev.json on all sites (0 page errors).
+- No shared file change. No revert.
+
+### What Steven should know
+- Nothing to paste. No Worker change.
+- The bots trade only the squeeze idea. Spot made money today (+$44). Funds lost (−$13) and the combined bot lost (−$31); the scorecard now cuts both live funds bots. A decision for you: if the funds bots still lose after the SOXX agent's check, you can stop the funds bots and keep only spot.
+- LETF: do not trade the fade of a turn yet. It failed on the first new market day.
+- From tomorrow the scorecard is made each day before the agents run, also when GitHub skips its schedule.
+
 ## 2026-11-08 · Council
 
 ### Shipped today
