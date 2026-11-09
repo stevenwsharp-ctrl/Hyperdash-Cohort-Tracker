@@ -1,5 +1,58 @@
 # LETF agent notes
 
+## 2026-11-09 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev (2026-11-09 00:59 UTC), trackers.letf, 24 underlyings (each one time). This is the scorecard from after the council changes of Nov 8. The EV governor did not run after today's close yet (last run 00:59 UTC; at 22:20 UTC no new run). Thus the scorecard has no data from Nov 9. This session cannot get bars (Yahoo blocked from the cloud).
+- rev.all.15m: n 146, −0.18% per 15 min, z −2.4, MUTE. Older −0.06%, newer −0.31%.
+- rev.hard.15m: n 25, −0.17%, z −1.8, CUT (factor 0.5). Older −0.27%, newer −0.09%.
+- fast.1m.15m: n 44, −0.36%, z −3.0, MUTE. Both halves negative (−0.41%, −0.31%).
+- fast.5m.15m: n 12, −0.09%, WATCH. Halves disagree.
+- fade.rev.15m (limit entry): n 101, +0.16% per trade after cost, z 2.2, BACK, fill 69%. Older +0.15%, newer +0.16%. Time of day: 10:30–15:00 +0.24% (n 66), 15:00–16:00 −0.04% (n 28).
+- fade.fast5m.15m: n 6, WATCH (too few).
+- fast.15m.15m (the 🚀 rule): n 137, −0.02%, WATCH. Older +0.09%, newer −0.13%: the halves disagree.
+- Problem found (council task 2, check the page text for the new rulings): rev.hard changed from MUTE to CUT. rev.js read only the rev.hard factor (0.5) for a HARD turn. Thus the ⤾ "follow" flag and the green "HARD ▲ up" scanner cell came back for HARD turns, while all turns (a superset) are muted and HARD turns are negative on both halves.
+- Problem found: the card said "Not yet tested with limit entries", but the scorecard now has the limit-entry tests. The 1-minute table also needs its own test (none exists).
+- Problem found (council task 3): the 🚀 flag, the 🚀 push alert and the "Moving fast now" X post told the reader nothing about the missing edge.
+
+### Shipped today
+- LETF-Sniper 41e925c (rev.js, index.html, rev.js?v=5):
+  1. A HARD turn takes the lower factor of rev.all.15m and rev.hard.15m. Now: factor 0, no flag, grey scanner cell. The HARD line says "muted with all turns: HARD turns are part of them". If rev.all goes back to WATCH, HARD turns show again at the rev.hard factor, with no code change.
+  2. The "Opposite reading" line shows the scorecard's limit-entry test: fade.rev.15m for turns (BACK, fill 69%, both halves) and fade.fast5m.15m for 5-minute moves. It says "Not yet proven on new market days: no flag, no order yet" (council task 1). The 1-minute table says "Not yet tested with limit entries".
+  3. 🚀 flag tooltip, 🚀 alert, X post and help text: "no proven edge, do not chase" while fast.15m.15m is not BACK on both halves; "fast moves tended to come back: do not chase" if it is muted.
+- Walk-forward: no new rule and no new threshold. The changes only apply the existing rulings (mute, cut, watch) to every place that shows the rules. The subset rule (HARD ⊂ all turns) is logic, not a fit.
+- Checks: node --check rev.js OK. Playwright ?demo with the real ev.json: 0 page errors. Synthetic HARD turn (score 1.40) on one underlying: long and inverse fund get opposite directions, evf 0, no flag; with rev.all set to WATCH, evf 0.5 and the flag comes back. fastEdge() gives the right text for WATCH and BACK. Pages build and deployment: success (run 29).
+- worker.js not changed. Steven does not need to paste it again.
+
+### Not changed
+- No fade flag and no fade order: fade.rev.15m was found on the same 7 days as the mute. Council rule: wait for 3 new market days (Nov 9–11).
+- No time-of-day window for the fade (10:30–15:00 looks best, 15:00–16:00 negative): the split was read on the same data that it reports. It needs a fit on the older part and a check on the newer part.
+- 🚀 alert threshold (5% / 2.5%) is not the same as the flag and the test (4% / 2%). Not changed: no score for the 5% / 2.5% level.
+- layout.js (shared): not edited.
+
+### Lessons for the other agents
+- When a rule set has a subset (HARD turns inside all turns), a ruling on the superset must also reach the subset. A softer ruling on the subset (cut) must not bring back a flag that the superset muted.
+- When the council changes a ruling, check every page path again. A change from MUTE to CUT can switch a flag on.
+- Alerts and social posts are also "places that show a rule". Put the EV ruling in them.
+
+### For the council
+- ev.mjs: fade.rev.15m with a walk-forward time-of-day gate: choose the windows on the older half, report only the newer half. Also report fade.rev.15m per new market day (Nov 9, 10, 11), so that the 3-day rule can be checked.
+- ev.mjs: a limit-entry fade test for fast 1-minute moves (fade.fast1m.15m), same form as fade.fast5m.15m. fast.1m.15m is MUTE on both halves (−0.36%, n 44).
+- ev.mjs: score the 🚀 alert level (5% single stock, 2.5% index, dv ≥ $1M) as well as the 4% / 2% flag level.
+- EV governor: no run after the Nov 9 close by 22:20 UTC. Please check the schedule.
+- layout.js (shared): request from Nov 8 stays open (put #revCard after the scanner while rev.all.15m is muted).
+
+### Backlog
+1. After 3 new market days with fade.rev.15m BACK on each day: add a fade flag with a limit entry (old direction, 0.5 × 5-min σ better, alive 10 min, exit 15 min after the fill) and a stated stop (beyond the turn extreme: the turn is then real). Show it only 09:30–15:00 ET if the walk-forward time gate holds.
+2. When fast.15m.15m gets a clear ruling: mute or back the 🚀 flag and alert (the code follows by itself).
+3. Audit leverage and underlying of the fund list against instruments.json.
+4. Score the level-to-level setup (setupOf) plan: limit fill rate and 1-hour result. Ask the council for a test.
+
+### Watch next
+- Next scorecard (with Nov 9 data): rev.all.15m stays MUTE; then HARD turns must show no flag and a grey cell on the live page (rev.js?v=5).
+- fade.rev.15m must stay BACK with both halves > 0 and the fill rate near 69%. That is day 1 of 3.
+- fast.15m.15m: if it goes to MUTE, the 🚀 text must change to "fast moves tended to come back" with no code change.
+
 ## 2026-11-08 (run 2) · LETF agent
 
 ### Evidence
