@@ -95,6 +95,18 @@ jobs:
             sleep 20
           done
 
+      - name: Start the bet lab when its daily schedule was skipped (lab.json older than 26 h)
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          t=$(git fetch -q --depth=1 origin lab 2>/dev/null && git log -1 --format=%ct FETCH_HEAD || echo 0)
+          age=$(( $(date +%s) - t ))
+          # busy = lab runs not done, or started in the last 6 h (so a failing lab is not restarted every hour)
+          busy=$(gh run list -w lab.yml -L 5 -R "${GITHUB_REPOSITORY}" --json status,createdAt -q "[.[] | select(.status != \"completed\" or ((.createdAt | fromdateiso8601) > (now - 21600)))] | length" || echo 1)
+          echo "lab.json age $((age / 3600)) h, lab runs not done: $busy"
+          if [ "$t" -gt 0 ] && [ $age -gt 93600 ] && [ "$busy" = "0" ]; then gh workflow run lab.yml --ref "${GITHUB_REF_NAME}" -R "${GITHUB_REPOSITORY}" && echo "bet lab started" || echo "could not start the bet lab"; fi
+
       - name: Start the next run (keeps the data job on all the time; the schedule is only a backup)
         if: ${{ !cancelled() }}
         env:
