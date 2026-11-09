@@ -4,7 +4,7 @@
 //   smart (cohort gap), mom (move over 2x the horizon in vol units), rev (stretch from the horizon's mean),
 //   pos (funding carry + fading the crowded side; trapped traders are not in the panel), flow (change of the gap).
 //   The signal web is not in the panel, so it is not tested here.
-// For each horizon (24 h, 48 h, 7 d), once a day: top 5 longs and top 5 shorts among markets with $1M+ daily volume;
+// For each horizon (24 h, 48 h, 7 d), every STEP hours (6 h; t-stats corrected for the overlap): top 5 longs and top 5 shorts among markets with $1M+ daily volume;
 // spread = long return - short return (each vs the universe average), rank IC (Spearman) of score vs the next move.
 // Weights for the consensus come from the first 60% of days; the consensus is checked on the last 40% (unseen).
 // Also writes outlook_lessons.json: every 4 h, the scores of the 40 most traded markets and their next 1 h / 4 h / 24 h
@@ -37,11 +37,12 @@ const fwd = (m, i, h) => i + h <= NH && m.px[i + h] > 0 && m.px[i] > 0 ? Math.lo
 function cons(o, W) { let s = 0, w = 0; SYS.forEach(k => { if (o[k] == null || !W[k]) return; s += o[k] * W[k]; w += W[k]; }); const raw = w ? s / w : 0; let ag = 0; SYS.forEach(k => { if (o[k] != null && W[k] && Math.sign(o[k]) === Math.sign(raw) && Math.abs(o[k]) >= 0.1) ag += W[k]; }); return raw * (0.4 + 0.6 * (w ? ag / w : 0)); }   // agreement counted by weight
 const rank = a => { const idx = a.map((v, i) => [v, i]).sort((x, y) => x[0] - y[0]), r = new Array(a.length); idx.forEach(([, i], k) => r[i] = k); return r; };
 const spear = (x, y) => { if (x.length < 8) return null; const rx = rank(x), ry = rank(y), n = x.length, mx = (n - 1) / 2; let a = 0, b = 0, c = 0; for (let i = 0; i < n; i++) { a += (rx[i] - mx) * (ry[i] - mx); b += (rx[i] - mx) ** 2; c += (ry[i] - mx) ** 2; } return a / Math.sqrt(b * c); };
+const STEP = +process.env.OL_STEP || 6;   // hours between evaluations (was 24 until 2026-11-09); t uses n × min(1, STEP / h) for the overlap
 const START = 24 * 15, FILL = { o: 0, f: 0 }; let XS = [];   // 15 days of warm-up (7-day momentum looks back 14 days)
 const stat = a => { const n = a.length; if (!n) return null; const m = a.reduce((s, v) => s + v, 0) / n, sd = n > 1 ? Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / (n - 1)) : 0; return { n, m, sd, hit: a.filter(v => v > 0).length / n }; };
 const out = { entry: "limit order 1/4 sigma of the horizon better than the signal price, alive for the first quarter of the horizon; a pick counts only if it fills; exit at market at the horizon end", t: new Date().toISOString(), from: new Date(T0).toISOString(), days: Math.round(NH / 24), markets: coins.length, hz: {} };
 for (const h of HZ) {
-  const steps = []; for (let i = START; i + h <= NH; i += 24) steps.push(i);
+  const steps = []; for (let i = START; i + h <= NH; i += STEP) steps.push(i);
   const rows = steps.map(i => { const U = coins.map(k => { const m = P.m[k]; if (vol24(m, i) < 1e6) return null; const S = scores(m, i, h), r = fwd(m, i, h); return S && r != null ? { k, o: S.o, r, m, i, sd: S.sd } : null; }).filter(Boolean); return { i, U }; }).filter(x => x.U.length >= 15);
   const evalK = (row, get) => { const v = row.U.map(u => ({ s: get(u), r: u.r, u })).filter(x => x.s != null), avg = row.U.reduce((s, u) => s + u.r, 0) / row.U.length;
     const Lg = v.filter(x => x.s > 0.1).sort((a, b) => b.s - a.s).slice(0, 5), Sh = v.filter(x => x.s < -0.1).sort((a, b) => a.s - b.s).slice(0, 5), mean = a => a.reduce((s, x) => s + x, 0) / a.length;
@@ -53,16 +54,23 @@ for (const h of HZ) {
     const sp = (lr.length ? mean(lr) - aL : 0) + (sr.length ? aS - mean(sr) : 0); return { sp: lr.length || sr.length ? sp : null, ic: spear(v.map(x => x.s), v.map(x => x.r)) }; };
   const cut = Math.floor(rows.length * 0.6), res = {}, W = {};
   for (const k of SYS) { XS = []; const E = rows.map(row => evalK(row, u => u.o[k])), sp = E.map(e => e.sp).filter(v => v != null), ic = E.map(e => e.ic).filter(v => v != null), tr = E.slice(0, cut).map(e => e.sp).filter(v => v != null), te = E.slice(cut).map(e => e.sp).filter(v => v != null);
-    const S = stat(sp), I = stat(ic), Tr = stat(tr), Te = stat(te), neff = S ? S.n * Math.min(1, 24 / h) : 0;
-    const xs = XS.filter(x => true); XS = []; res[k] = S ? { ex: (() => { if (xs.length < 8) return null; const q = (a, p) => { const z = a.slice().sort((x, y) => x - y); return z[Math.floor(p * (z.length - 1))]; }; return { n: xs.length, mae50: q(xs.map(x => x[0]), 0.5), mae90: q(xs.map(x => x[0]), 0.1), mfe50: q(xs.map(x => x[1]), 0.5), mfe90: q(xs.map(x => x[1]), 0.9) }; })(), n: S.n, m: S.m, hit: S.hit, t: S.sd ? S.m / S.sd * Math.sqrt(Math.max(1, neff)) : 0, ic: I ? I.m : null, icT: I && I.sd ? I.m / I.sd * Math.sqrt(Math.max(1, I.n * Math.min(1, 24 / h))) : 0, learnM: Tr ? Tr.m : null, unseenM: Te ? Te.m : null } : null;
-    const tL = Tr && Tr.n >= 5 && Tr.sd ? Tr.m / Tr.sd * Math.sqrt(Math.max(1, Tr.n * Math.min(1, 24 / h))) : 0; res[k].learnT = tL; W[k] = Math.max(0, Math.min(3, tL));   // weight = t-stat on the learning part; a system that lost there gets 0
+    const S = stat(sp), I = stat(ic), Tr = stat(tr), Te = stat(te), neff = S ? S.n * Math.min(1, STEP / h) : 0;
+    const xs = XS.filter(x => true); XS = []; res[k] = S ? { ex: (() => { if (xs.length < 8) return null; const q = (a, p) => { const z = a.slice().sort((x, y) => x - y); return z[Math.floor(p * (z.length - 1))]; }; return { n: xs.length, mae50: q(xs.map(x => x[0]), 0.5), mae90: q(xs.map(x => x[0]), 0.1), mfe50: q(xs.map(x => x[1]), 0.5), mfe90: q(xs.map(x => x[1]), 0.9) }; })(), n: S.n, m: S.m, hit: S.hit, t: S.sd ? S.m / S.sd * Math.sqrt(Math.max(1, neff)) : 0, ic: I ? I.m : null, icT: I && I.sd ? I.m / I.sd * Math.sqrt(Math.max(1, I.n * Math.min(1, STEP / h))) : 0, learnM: Tr ? Tr.m : null, unseenM: Te ? Te.m : null } : null;
+    const tL = Tr && Tr.n >= 5 && Tr.sd ? Tr.m / Tr.sd * Math.sqrt(Math.max(1, Tr.n * Math.min(1, STEP / h))) : 0; res[k].learnT = tL; W[k] = Math.max(0, Math.min(3, tL));   // weight = t-stat on the learning part; a system that lost there gets 0
   }
   if (!SYS.some(k => W[k] > 0)) SYS.forEach(k => W[k] = 1);
   {
   } const EQ = Object.fromEntries(SYS.map(k => [k, 1]));
+  const E0 = rows.slice(cut).map(row => evalK(row, u => cons(u.o, W)));
   for (const [name, w] of [["cons", W], ["consEq", EQ]]) { const E = rows.slice(cut).map(row => evalK(row, u => cons(u.o, w))), sp = E.map(e => e.sp).filter(v => v != null), S = stat(sp), I = stat(E.map(e => e.ic).filter(v => v != null));
-    res[name] = S ? { n: S.n, m: S.m, hit: S.hit, t: S.sd ? S.m / S.sd * Math.sqrt(Math.max(1, S.n * Math.min(1, 24 / h))) : 0, ic: I ? I.m : null, unseenOnly: true } : null; }
-  out.hz[h] = { steps: rows.length, res, w: W };
+    res[name] = S ? { n: S.n, m: S.m, hit: S.hit, t: S.sd ? S.m / S.sd * Math.sqrt(Math.max(1, S.n * Math.min(1, STEP / h))) : 0, ic: I ? I.m : null, unseenOnly: true } : null; }
+  // the blend WITHOUT each system (and without the 24 h reversion + momentum group), weights from the learning part, scored on the
+  // unseen part: d = blend without it minus the full blend, per pick (d > 0: the blend does better without it). For the scorecard.
+  const without = {}, cU = res.cons && res.cons.m;
+  for (const drop of [...SYS.map(k => [k]), ["rev", "mom"]]) { if (!drop.some(k => W[k] > 0)) continue; const w2 = { ...W }; drop.forEach(k => w2[k] = 0); if (!SYS.some(k => w2[k] > 0)) continue;
+    const E = rows.slice(cut).map(row => evalK(row, u => cons(u.o, w2))), S = stat(E.map(e => e.sp).filter(v => v != null)), D = stat(E.map((e, j) => e.sp != null && E0[j].sp != null ? e.sp - E0[j].sp : null).filter(v => v != null));
+    without[drop.join("+")] = S ? { n: S.n, m: S.m, hit: S.hit, d: cU != null ? S.m - cU : null, dT: D && D.sd ? D.m / D.sd * Math.sqrt(Math.max(1, D.n * Math.min(1, STEP / h))) : 0, dHit: D ? D.hit : null } : null; }
+  out.hz[h] = { steps: rows.length, step: STEP, res, w: W, without };
 }
 fs.mkdirSync(OUT, { recursive: true });
 out.fillRate = FILL.o ? FILL.f / FILL.o : null; fs.writeFileSync(path.join(OUT, "outlook_bt.json"), JSON.stringify(out));
