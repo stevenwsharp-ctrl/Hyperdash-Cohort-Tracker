@@ -107,6 +107,20 @@ jobs:
           echo "lab.json age $((age / 3600)) h, lab runs not done: $busy"
           if [ "$t" -gt 0 ] && [ $age -gt 93600 ] && [ "$busy" = "0" ]; then gh workflow run lab.yml --ref "${GITHUB_REF_NAME}" -R "${GITHUB_REPOSITORY}" && echo "bet lab started" || echo "could not start the bet lab"; fi
 
+      - name: Start the EV governor when its daily schedule is late or skipped (council, Nov 9 2026)
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # ev.yml is scheduled at 21:17 UTC; GitHub started it 3.7 h late on Nov 8 and not by 23:15 UTC on Nov 9, so the
+          # agents (about 22:10 UTC) read a scorecard without the day. Due = the last 21:17 UTC that is 25+ min ago.
+          now=$(date -u +%s); due=$(date -u -d "$(date -u +%F) 21:17" +%s); [ $now -lt $((due + 1500)) ] && due=$((due - 86400))
+          t=$(git fetch -q --depth=1 origin ev 2>/dev/null && git show FETCH_HEAD:ev.json 2>/dev/null | jq -r '.t // empty' || true)
+          et=$( [ -n "$t" ] && date -u -d "$t" +%s || echo 0 )
+          busy=$(gh run list -w ev.yml -L 5 -R "${GITHUB_REPOSITORY}" --json status,createdAt -q "[.[] | select(.status != \"completed\" or ((.createdAt | fromdateiso8601) > (now - 5400)))] | length" || echo 1)
+          echo "ev.json at ${t:-none}, due $(date -u -d @$due +%FT%TZ), ev runs busy: $busy"
+          if [ $et -lt $due ] && [ "$busy" = "0" ]; then gh workflow run ev.yml --ref "${GITHUB_REF_NAME}" -R "${GITHUB_REPOSITORY}" && echo "EV governor started" || echo "could not start the EV governor"; fi
+
       - name: Start the next run (keeps the data job on all the time; the schedule is only a backup)
         if: ${{ !cancelled() }}
         env:
