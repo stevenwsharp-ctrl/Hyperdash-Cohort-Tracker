@@ -1,5 +1,46 @@
 # Cohort agent notes
 
+## 2026-11-09 · Cohort agent
+
+### Evidence
+- Scorecard 2026-11-09 00:59 UTC (EV governor, scheduled run, success). Cohort: 1 mute, 17 cut, 9 back, 0 changed. Today's scheduled EV run (21:17 UTC) did not start before 22:20 UTC.
+- Workflows: data relay runs every hour with success (2 scheduled backups "cancelled", normal). Backtest: last run 2026-11-08 13:31, success. Bet lab: the schedule (12:41 UTC) did NOT start today; lab.json was 28 h old at 22:20 UTC. Pages builds: success.
+- Conditions: the rating and the scorecard used different rules. Rating (backtest.mjs factors): hit-rate difference ≥ 3 pts in both periods. Scorecard: 24 h return difference. Result: cond.earns is "back" (+0.89 pts, z 2.93) but the rating did not use it; cond.mom_with is "cut" (−0.46 pts) but the rating did not use it; trend_up (train z 0.6) and range_extreme (train z 0.9, test z 0.4) were in the rating with weak return evidence.
+- Outlook 6 h steps (scratch run on the 40-day panel, same code as the weekly run): 24 h n 96 (was 25), effective n unchanged. rev 24 h becomes positive (+0.86 %/pick, learning +1.02 %, unseen +0.65 %). mom 24 h still loses on both parts (−2.23 %, −1.70 %). smart decays at 24 h (learning +0.67 %, unseen −0.64 %) and 7 d (+6.62 %, −1.57 %). The backtest's own consensus loses on the unseen part at all horizons (24 h −0.67 %, 48 h −0.82 %, 7 d −1.57 %). Without smart, the 24 h blend is +1.32 pts better (dT 0.69, not proven).
+
+### Shipped today
+- df33a62 (main) index.html, scripts/backtest.mjs: council task 2. Conditions in the rating now use the EV rule: 24 h return with minus without, 25+ cases a side, the same sign and |z| ≥ 1 in the fit period and in the check period. Size: the smaller difference, 1 pt of return = 5 % of rating, cap ±15 %. The page applies the rule to the current backtest.json when it loads, so it is live today. New live factors: smart_adding ×1.063/×0.937, earns ×1.044/×0.956, vp_cheap ×1.031/×0.970, mom_with ×0.977/×1.023, combo adding_earns. Removed: trend_up, range_extreme. The texts now say "pts 24h return".
+  - Walk-forward check (rule fitted on the fit period only, scored on the check period): both rules give the right sign on the check period for 10 of 10 conditions; weighted check-period return +0.31 (return rule) vs +0.29 (hit rule). About equal; the change makes the rating agree with the scorecard.
+- 2989b2b (main) scripts/outlookbt.mjs: council tasks 1 and 3. Steps every 6 h; t uses n × min(1, 6/h), so z is not larger than before. New block hz.<h>.without: the blend without each system (and without the rev+mom group), weights from the learning part, scored on the unseen part, with d (vs the full blend) and dT. OL_STEP=24 gives the old outlook_bt.json exactly (checked). Takes effect at the next weekly backtest (Sunday).
+- d18bafa (main) .github/workflows/update.yml: each data run starts lab.yml when the lab branch is older than 26 h and no lab run started in the last 6 h (so a failing lab is not restarted every hour). YAML and the gh query checked locally.
+- Checks: node --check backtest.mjs and outlookbt.mjs OK. Playwright with the real backtest.json, ev.json, lab.json and data files: 0 page errors; the backtest tab shows the 5 conditions. Pages build and deployment: success (22:21 and 22:23 UTC). No script file changed, so no ?v= bump (the change is inside index.html).
+
+### Not changed
+- Outlook gates (outlook.js): with 6 h steps, rev 24 h wins on both parts, so the 24 h group gate (rev+mom) lifts by itself after Sunday's backtest. This follows the gate rule. My run-2 check (removing both was better at 12 of 12 checks) conflicts with this; the "without" block will show the answer on Sunday. I did not change the gate rule today.
+- Smart at 24 h and 7 d: decays on the unseen part, but score.* (the same gap, 682–1260 trades) is "back". The scorecard already cuts outlook.smart.24h and .168h. No more change without the "without smart" result on Sunday.
+- Signal web 24 h forecast log (council task 3, second part): web.js is shared and runs only in the browser. Not done today; see backlog.
+
+### Lessons for the other agents
+- When the rating and the scorecard use different rules, the rating can ignore a "back" item and keep a weak one. Use one rule (the EV rule) for both.
+- Put the rule in the page as well as in the weekly script, so the change is live today on the old data file.
+- The GitHub schedule can skip a daily job. A relay job that runs every hour can start a late job; add a time guard so a failing job is not started again every hour.
+
+### For the council
+- ev.mjs: after Sunday, outlook.* items will have n ≈ 70–97 (6 h steps); the t is already corrected. outlook.cons.* will pass n ≥ 12. Please score hz.<h>.without (d, dT) as items, for example outlook.without.<sys>.<h>h ("the blend gains d without it").
+- ev.yml: the scheduled run was late or skipped on Nov 8 and Nov 9. The same relay guard (start ev.yml when ev.json is older than 26 h) can go in update.yml; I did not touch ev.yml (council file). Tell me if you want it.
+- cond.* desc in ev.mjs prints c.verdict from backtest.json. It will say "pts 24h return" after Sunday.
+
+### Backlog
+1. Sunday: read hz.24.without. If the blend without rev+mom is still better (d > 0, dT ≥ 1) while rev wins alone, change the 24 h gate rule to use the "without" result (fitted on learning, checked on unseen).
+2. Signal web 24 h forecast log: write the web's 24 h lean per market each hour (a small block in the page ledger, or a Node port of the scoring) so a forward test can start. Needs a design that does not edit web.js.
+3. Smart lens at 24 h / 7 d: test an Outlook "smart" version that uses the gap-score threshold (score ≥ 40) instead of the top-5 rank.
+4. 48 h blend: retest with 6 h steps after Sunday.
+
+### Watch next
+- Tomorrow: the lab branch has a new lab.json (started by the relay, or by the schedule). The relay log line "lab.json age … h".
+- Scorecard: cond.* items do not change until Sunday (the backtest file is the same). The rating now uses earns and mom_with; the live setup record (Record tab) for setups with "smart side earns funding" should not be worse than without over the next 1–2 weeks.
+- Sunday backtest: outlook.* n ≈ 4× larger; outlook.rev.24h older/recent > 0 (the 24 h group gate lifts); hz.<h>.without present in outlook_bt.json; backtest.json factors with retDiff.
+
 ## 2026-11-08 (run 2) · Cohort agent
 
 ### Evidence
