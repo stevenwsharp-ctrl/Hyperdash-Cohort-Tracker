@@ -544,6 +544,22 @@ const BT_COND = {
   vp_break:      { name: "Value breakout", replaces: [], test: r => { const V = r.fl && r.fl.vp7, px = r.ctx && r.ctx.px; if (!V || !px) return null; const brk = r.dir > 0 ? px > V.vah : px < V.val, inside = px >= V.val && px <= V.vah; return brk ? 1 : inside ? 0 : null; }, txt: ["Price broke out of the 7-day value area in the smart direction", "Price is inside the 7-day value area"] },
   whale:         { name: "Whale-driven", replaces: ["Whale-driven"], test: r => r.whale ? 1 : 0, txt: ["Whale-driven smart side", "Broad smart side (count agrees with $)"] }
 };
+// The EV rule for conditions (the same rule as scripts/backtest.mjs section 7 and the scorecard cond.*): the 24 h return
+// WITH the condition minus WITHOUT it, in the fit and the check period, 25+ samples a side, same sign and |z| ≥ 1 in each.
+// Size: the smaller difference, 1 %-point = 5 % of rating, cap ±15 %. Applied on load, so an older backtest.json gets the same rule.
+function condFactors(conds){
+  if (!Array.isArray(conds)) return null;
+  const sdOf = x => x.t ? Math.abs(x.avg * Math.sqrt(x.n) / x.t) : NaN;
+  const dz = (y, o) => { if (!y || !o || !(y.n >= 25) || !(o.n >= 25) || y.avg == null || o.avg == null) return null; const se = Math.sqrt(sdOf(y) ** 2 / y.n + sdOf(o) ** 2 / o.n); return se > 0 ? { d: y.avg - o.avg, z: (y.avg - o.avg) / se } : null; };
+  const F = {};
+  for (const c of conds) { const Tr = dz(c.train && c.train.yes, c.train && c.train.no), Te = dz(c.test && c.test.yes, c.test && c.test.no);
+    if (!Tr || !Te || Math.sign(Tr.d) !== Math.sign(Te.d) || Math.abs(Tr.z) < 1 || Math.abs(Te.z) < 1) { c.verdict = "no stable effect"; continue; }
+    const eff = Math.sign(Te.d) * Math.min(Math.abs(Tr.d), Math.abs(Te.d)), k = Math.max(-0.15, Math.min(0.15, eff / 20)), r3 = x => Math.round(x * 1000) / 1000;
+    F[c.id] = { yes: r3(1 + k), no: r3(1 - k), retDiff: r3(eff) };
+    c.verdict = `${eff > 0 ? "helps" : "hurts"}: ${Math.abs(eff).toFixed(2)} pts 24h return`; }
+  return F;
+}
+const pct2 = x => (x > 0 ? "+" : "") + x.toFixed(2);
 function btOk(){ return S.useBT && BT && BT.factors && BT.samples24 >= 150; }
 function btTune(r, f){
   if (!btOk()) return f;
@@ -556,7 +572,7 @@ function btTune(r, f){
     const st = def.test(r); if (st == null) continue;
     const mult = st ? tf.yes : tf.no;
     if (Math.abs(mult - 1) < 0.005) continue;
-    f.push({ name: def.name + " · backtested", mult, why: `${def.txt[st ? 0 : 1]}. In the backtest, setups with this condition had a ${Math.abs(tf.hitDiff).toFixed(1)}-point ${tf.hitDiff > 0 === !!st ? "higher" : "lower"} 24h hit rate (same direction in both test periods).` });
+    f.push({ name: def.name + " · backtested", mult, why: `${def.txt[st ? 0 : 1]}. In the backtest, setups with this condition had a ${Math.abs(tf.retDiff).toFixed(2)}-point ${tf.retDiff > 0 === !!st ? "higher" : "lower"} 24h return than setups without it (same direction in both test periods).` });
   }
   return f;
 }
@@ -776,7 +792,7 @@ function keyPoints(r){
   if (ss) K.push({ c: ss > 0 ? "L" : "S", t: `Coin specialists ${ss > 0 ? "agree" : "disagree"} (${r.spx.agg.nS} specialists, ${r.spx.agg.nL} coin losers).` });
   // Backtest combos that held in both periods and apply now
   if (BT && BT.conditions && btOk()) { const t24b = r.tr["24h"]; const adding = t24b && t24b[3] != null && t24b[3] >= 5, earns = r.earn != null && r.earn >= 5, counter = r.cy && r.cy.vs50 != null && r.dir * r.cy.vs50 < -2;
-    for (const c of BT.conditions.filter(c => c.combo && BT.factors[c.id] && BT.factors[c.id].hitDiff > 0)) {
+    for (const c of BT.conditions.filter(c => c.combo && BT.factors[c.id] && BT.factors[c.id].retDiff > 0)) {
       const on = c.id === "adding_earns" ? adding && earns : c.id === "adding_counter" ? adding && counter : c.id === "earns_counter" ? earns && counter : false;
       if (on) K.push({ c: "L", t: `Backtest pattern: ${c.label.toLowerCase()} — ${c.test.yes.hit}% hit vs ${c.test.no.hit}% for other setups (check period).` }); } }
   // 7. Backtest edge
@@ -826,7 +842,7 @@ function lookFor(r){
   if (r.red.length) L.push({ c: "S", t: `Red flag: ${r.red.map(x => x.name).join(", ")} on the other side.` });
   // Backtest: conditions that hurt and apply now
   if (btOk()) for (const c of BT.conditions || []) { const tf = BT.factors[c.id], def = BT_COND[c.id]; if (!tf || !def) continue; const st = def.test(r); if (st == null) continue;
-    const m = st ? tf.yes : tf.no; if (m <= 0.97) L.push({ c: "S", t: `Backtest warning: ${def.txt[st ? 0 : 1].toLowerCase()} — such setups hit ${Math.abs(tf.hitDiff).toFixed(0)} pts less often.` }); }
+    const m = st ? tf.yes : tf.no; if (m <= 0.97) L.push({ c: "S", t: `Backtest warning: ${def.txt[st ? 0 : 1].toLowerCase()} — such setups returned ${Math.abs(tf.retDiff).toFixed(2)} pts less in 24h.` }); }
   return L;
 }
 const bullets = (arr, n) => arr.slice(0, n).map(x => `<li class="${x.c || ""}">${esc(x.t)}</li>`).join("");
@@ -1424,7 +1440,7 @@ function renderBT(){
   const U = BT.universe;
   const t20 = BT.thresholds.find(x => x.th === 30) || BT.thresholds[0], F = t20.train.r24, C = t20.test.r24;
   const live = BT.ic.find(x => /^Live score/.test(x.name)), plc = BT.ic.find(x => /^Placebo/.test(x.name));
-  const stable = BT.conditions.filter(c => BT.factors[c.id]).sort((a, b) => Math.abs(BT.factors[b.id].hitDiff) - Math.abs(BT.factors[a.id].hitDiff));
+  const stable = BT.conditions.filter(c => BT.factors[c.id]).sort((a, b) => Math.abs(BT.factors[b.id].retDiff) - Math.abs(BT.factors[a.id].retDiff));
   // "Higher bands do better" only if, in BOTH periods, the top band beats the bottom band and most steps go up
   const mono = ["train", "test"].every(p => { const a = BT.calib.map(b => b[p].r24.avg).filter(x => x != null); if (a.length < 3) return false; let ok = 0; for (let i = 1; i < a.length; i++) if (a[i] >= a[i - 1]) ok++; return a[a.length - 1] > a[0] && ok >= a.length - 2; });
   const verdict = [
@@ -1432,7 +1448,7 @@ function renderBT(){
     live ? `<li class="${live.train.ic > 0 && live.test.ic > 0 ? "L" : ""}">Ranking power (IC) of the live score: ${live.train.ic.toFixed(3)} then ${live.test.ic.toFixed(3)}${live.test.t != null ? ` (t ${live.test.t.toFixed(1)})` : ""}. ${Math.abs(live.test.t || 0) < 2 ? "Not statistically sure yet." : ""}</li>` : "",
     plc ? `<li>Placebo (neutral cohort instead of smart): ${plc.train.ic.toFixed(3)} / ${plc.test.ic.toFixed(3)} — ${Math.abs(plc.test.ic) < Math.abs(live ? live.test.ic : 0) / 2 ? "close to zero, so the edge is not just fading the fools." : "similar to the real signal, so much of it may be fading the fools."}</li>` : "",
     `<li class="${mono ? "L" : "S"}">${mono ? "Higher disparity bands did better, so the score ranks setups." : "Higher disparity bands did not reliably do better — the score's size matters less than the conditions below."}</li>`,
-    stable.length ? `<li class="L">Conditions that held in both periods (now used in the rating): ${stable.map(c => `${esc(c.label.toLowerCase())} (${BT.factors[c.id].hitDiff > 0 ? "+" : ""}${BT.factors[c.id].hitDiff} pts hit rate)`).join("; ")}.</li>` : `<li>No condition held in both periods.</li>`
+    stable.length ? `<li class="L">Conditions that held in both periods (now used in the rating): ${stable.map(c => `${esc(c.label.toLowerCase())} (${pct2(BT.factors[c.id].retDiff)} pts 24h return)`).join("; ")}.</li>` : `<li>No condition held in both periods.</li>`
   ].join("");
   el.innerHTML = `
     <div class="card" style="margin-bottom:12px"><h4>Verdict</h4><ul class="kl">${verdict}</ul></div>
@@ -1451,7 +1467,7 @@ function renderBT(){
     <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:18px 0 8px">What separates good setups from bad ones? (setups with score 30+, next 24h, smart side)</h3>
     <div class="card" style="overflow-x:auto"><table class="tr btt" style="min-width:980px"><thead><tr><th>Condition</th><th colspan="3">Fit · yes</th><th colspan="3">Fit · opposite / rest</th><th colspan="3">Check · yes</th><th colspan="3">Check · opposite / rest</th><th>Result</th><th>Live factor</th></tr></thead><tbody>
       ${BT.conditions.map(c => { const tf = BT.factors[c.id]; const c72 = c.test.yes72 && c.test.yes72.n ? `<div style="color:var(--faint);font-size:11px">72h check: ${f(c.test.yes72.avg)}% vs ${f(c.test.no72.avg)}%</div>` : ""; return `<tr><td style="text-align:left;white-space:normal;min-width:220px">${esc(c.label)}${c.combo ? ` <span class="tag">combo</span>` : ""}${c72}</td>${evc(c.train.yes)}${evc(c.train.no)}${evc(c.test.yes)}${evc(c.test.no)}<td style="text-align:left" class="${!tf ? "N" : tf.hitDiff > 0 ? "L" : "S"}">${esc(c.verdict || "")}</td><td>${c.combo ? (tf ? "shown in Key points" : "–") : tf ? `×${tf.yes} / ×${tf.no}` : "removed"}</td></tr>`; }).join("")}</tbody></table>
-      <div class="note" style="max-width:none;margin-top:6px">A condition changes the live rating only when it moved the hit rate the same way in both periods (25+ cases each side). The size is the smaller of the two effects, capped at ±15%. Conditions with no stable effect take out the hand-set factor of the same kind (momentum, funding, alignment trend, whale-driven). Turn this off in Settings.</div></div>
+      <div class="note" style="max-width:none;margin-top:6px">A condition changes the live rating only when it moved the 24h return the same way in both periods (25+ cases each side, |z| ≥ 1 in each; the same rule as the EV scorecard). The size is the smaller of the two effects (1 pt of return = 5% of rating), capped at ±15%. Conditions with no stable effect take out the hand-set factor of the same kind (momentum, funding, alignment trend, whale-driven). Turn this off in Settings.</div></div>
     <div class="card" style="margin-top:12px"><h4>Limits — read before trusting the numbers</h4><ul class="kl" style="color:var(--dim)">
       <li>The traders were picked by today's all-time PnL. Placing each one in their cohort at the time removes most of the look-ahead, but not all: traders who were bad before the window and then recovered are under-sampled, which can make "fade the fools" look better than it is. Compare with the placebo row: if the neutral cohort works almost as well as the smart one, much of the edge is just fading the crowd.</li>
       <li>The sample (${U.active} traders) is far smaller than Hyperdash's full cohorts, so the gap here is noisier than the live one. High-frequency traders and market makers (${U.hftSkipped}) cannot be rebuilt and are left out.</li>
@@ -1677,6 +1693,7 @@ async function loadBT(){
   const ri = repoInfo(); if (!ri) return;
   try { const r = await fetch(`https://raw.githubusercontent.com/${ri.owner}/${ri.repo}/backtest/backtest.json?t=${Math.floor(Date.now() / 36e5)}`); if (!r.ok) return;
     BT = await r.json();
+    { const F = condFactors(BT.conditions); if (F) BT.factors = F; }   // the EV rule (return difference), also for an older file
     const bw = BT.bestWeight, cur = BT.ic && BT.ic.find(x => /^Gap · 60%/.test(x.name));
     // Switch the $ weight only when the new weight beats the default in BOTH periods and is positive in both
     if (!S.wDUser && S.useBT && bw && bw.trainIC > 0 && bw.testIC > 0 && cur && bw.trainIC > cur.train.ic && bw.testIC > cur.test.ic) { S.wD = BT.bestWeight.w; $("wD").value = Math.round(S.wD * 100); $("wDv").textContent = Math.round(S.wD * 100) + "% (backtest)"; }

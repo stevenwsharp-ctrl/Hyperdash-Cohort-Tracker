@@ -151,6 +151,8 @@ async function funding(name) {
 function rank(a) { const idx = a.map((v, i) => [v, i]).sort((x, y) => x[0] - y[0]); const r = new Array(a.length); for (let i = 0; i < idx.length;) { let j = i; while (j + 1 < idx.length && idx[j + 1][0] === idx[i][0]) j++; const rr = (i + j) / 2; for (let k = i; k <= j; k++) r[idx[k][1]] = rr; i = j + 1; } return r; }
 function spearman(x, y) { const n = x.length; if (n < 8) return null; const rx = rank(x), ry = rank(y); let mx = 0, my = 0; for (let i = 0; i < n; i++) { mx += rx[i]; my += ry[i]; } mx /= n; my /= n; let sxy = 0, sxx = 0, syy = 0; for (let i = 0; i < n; i++) { const a = rx[i] - mx, b = ry[i] - my; sxy += a * b; sxx += a * a; syy += b * b; } return sxx && syy ? sxy / Math.sqrt(sxx * syy) : null; }
 function meanSd(a) { const n = a.length; if (!n) return { m: null, sd: null, n: 0 }; const m = a.reduce((s, x) => s + x, 0) / n; const sd = n > 1 ? Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / (n - 1)) : 0; return { m, sd, n }; }
+// with minus without (24 h return, % points) and its z, from two evStats; null when a side has < 25 samples
+function retDiff(y, o) { if (!y || !o || !(y.n >= 25) || !(o.n >= 25) || y.avg == null || o.avg == null) return null; const sdOf = x => x.t ? Math.abs(x.avg * Math.sqrt(x.n) / x.t) : NaN, se = Math.sqrt(sdOf(y) ** 2 / y.n + sdOf(o) ** 2 / o.n); return se > 0 ? { d: y.avg - o.avg, z: (y.avg - o.avg) / se } : null; }
 function evStats(list) { // list of direction-adjusted returns (fractions)
   const v = list.filter(x => x != null && isFinite(x));
   const { m, sd, n } = meanSd(v);
@@ -358,20 +360,22 @@ async function main() {
   // 6d. Out-of-sample test of a tuned score: factor sizes fitted on the FIT period only, judged on the CHECK period
   const condFn = Object.fromEntries(COND.filter(c => c[3]).map(([id, , yes, no]) => [id, [yes, no]]));
   const fitMult = {};
-  for (const c of conditions) { if (c.combo) continue; const d = c.train.yes.n >= 25 && c.train.no.n >= 25 ? c.train.yes.hit - c.train.no.hit : null; if (d != null && Math.abs(d) >= 3) fitMult[c.id] = Math.max(-0.15, Math.min(0.15, d / 200)); }
+  for (const c of conditions) { if (c.combo) continue; const D = retDiff(c.train.yes, c.train.no); if (D && Math.abs(D.z) >= 1) fitMult[c.id] = Math.max(-0.15, Math.min(0.15, D.d / 20)); }   // the EV rule (return difference), fit period only
   const tuned = r => { let m = 1; for (const [id, k] of Object.entries(fitMult)) { const [yes, no] = condFn[id]; if (yes(r)) m *= 1 + k; else if (no(r)) m *= 1 - k; } return m; };
   ICS.push(ic(r => r.g * r.score / Math.max(1e-9, Math.abs(r.g) * 100) * tuned(r), "Tuned score (factors fitted on the fit period)", `Live score × condition factors sized on the fit period only: ${Object.entries(fitMult).map(([k, v]) => k + " " + (v > 0 ? "+" : "") + Math.round(v * 100) + "%").join(", ") || "none"}.`));
   const tunedTh = TH.map(th => ({ th, test: ev(daily24.filter(r => part(r) === "test" && r.score * tuned(r) >= th)) }));
 
-  // 7. Tuned factor sizes for the live site: only when train and test agree in sign and each side has 25+ samples.
+  // 7. Tuned factor sizes for the live site, by the EV rule (the same rule as the scorecard, scripts/ev.mjs cond.*):
+  //    the 24 h return WITH the condition minus WITHOUT it, in both periods, each side 25+ samples, the same sign and |z| ≥ 1 in each.
+  //    Size: the smaller difference, 1 %-point of return = 5 % of rating, capped at ±15 %. (Before 2026-11-09: hit-rate difference ≥ 3 pts.)
+  //    The page (index.html condFactors) applies the same rule to backtest.json, so an old file gets the same factors.
   const factors = {};
   for (const c of conditions) {
-    const d = p => c[p].yes.n >= 25 && c[p].no.n >= 25 ? (c[p].yes.hit - c[p].no.hit) : null;
-    const dTr = d("train"), dTe = d("test");
-    if (dTr == null || dTe == null || Math.sign(dTr) !== Math.sign(dTe) || Math.abs(dTe) < 3) { c.verdict = "no stable effect"; continue; }
-    const eff = Math.sign(dTe) * Math.min(Math.abs(dTr), Math.abs(dTe));   // the smaller of the two
-    factors[c.id] = { yes: r3(1 + Math.max(-0.15, Math.min(0.15, eff / 200))), no: r3(1 - Math.max(-0.15, Math.min(0.15, eff / 200))), hitDiff: r3(eff) };
-    c.verdict = `${eff > 0 ? "helps" : "hurts"}: ${Math.abs(eff).toFixed(1)} pts hit rate`;
+    const Tr = retDiff(c.train.yes, c.train.no), Te = retDiff(c.test.yes, c.test.no);
+    if (!Tr || !Te || Math.sign(Tr.d) !== Math.sign(Te.d) || Math.abs(Tr.z) < 1 || Math.abs(Te.z) < 1) { c.verdict = "no stable effect"; continue; }
+    const eff = Math.sign(Te.d) * Math.min(Math.abs(Tr.d), Math.abs(Te.d)), k = Math.max(-0.15, Math.min(0.15, eff / 20));
+    factors[c.id] = { yes: r3(1 + k), no: r3(1 - k), retDiff: r3(eff), z: r3(Math.sign(Te.z) * Math.min(Math.abs(Tr.z), Math.abs(Te.z))), hitDiff: r3(c.test.yes.hit - c.test.no.hit) };
+    c.verdict = `${eff > 0 ? "helps" : "hurts"}: ${Math.abs(eff).toFixed(2)} pts 24h return`;
   }
   // best $ weight chosen on train IC
   const wIC = W.map((w, j) => ({ w, tr: ICS[j].train.ic, te: ICS[j].test.ic }));
