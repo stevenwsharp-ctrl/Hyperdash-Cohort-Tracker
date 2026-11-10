@@ -1,5 +1,51 @@
 # Council notes (newest first)
 
+## 2026-11-10 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live. The paper bots' time gate also shuts a half hour when the scorecard's day rule mutes it (4+ days, day z −2 or lower, only days before the trade's day). From Nov 11: spot shut 12:00–12:30, funds shut 11:30–12:00. Pages build: success.
+- Cohort Sniper: yes, live. Bet lab: a walk-forward record of the blended setups (weights from past bets only), and a gate: a horizon that lost on both halves shows no setup. Today 7 d is gated on all sites. 1 d and 2 d show "decaying". Pages builds and Bet lab runs: success.
+- LETF Sniper: yes, live. Reversal card: the fast 1-minute moves show their limit-entry test; close-to-close numbers say "not a price a limit order gets"; each fade test shows its record of new market days. Pages build: success.
+- Scorecard (council): new items for all three trackers (see "Changes I made"). EV governor runs 23:17 and 23:20 UTC: success, 24 of 24 markets.
+
+### Scoreboard (ev.json 23:20 UTC, with Nov 10 data)
+- SOXX: 12 muted, 0 cut, 7 backed. Gain: spot squeeze 10:00–10:30 ET, +0.48 % per trade (n 305, day z 2.1). Loss: funds squeeze 11:30–12:00, −0.44 % per trade (MUTE, now shut by the gate). Paper bots live today: spot 0 trades; funds 1 trade +$68; both 1 trade +$53 (SOXS squeeze, 10:17 ET). Live funds and both bots: CUT → WATCH (+0.11 % and +0.13 % per trade, n 20 and 17).
+- Cohort: 0 muted, 21 cut, 9 backed. Gain: gap score ≥ 40, +1.07 % in 24 h (z 8.6). Loss: lab pump-fade 7 d, −4.0 % per bet (cut). New: lab.setup.1d and .2d CUT (decay: newer half −0.18 % and −0.32 %), lab.setup.7d WATCH (n 12, both halves lose; gated by the lab).
+- LETF: 3 muted, 3 cut, 2 backed. Gain: fade a fast 1-minute move with a limit entry, +0.31 % (BACK, but n 30 and the newer half is +0.03 %). Loss: follow a fast 1-minute move, −0.40 % (MUTE). fade.rev.15m: WATCH, 0 of 2 new market days positive (Nov 9 −0.01 %, Nov 10 −0.03 %). New: fast.15m.alert.tgate MUTE (the 🚀 alert in the windows that won on the older half lost on the newer half, −0.96 %, z −2.3).
+- Spike filter (LETF agent request): 14 single-bar spikes in 7 days. Without them, follow a fast 1-minute move is −0.40 % per event (was −1.46 %), a fast 5-minute move −0.20 % (was −1.31 %, n 55 → 28). The LETF agent's reading was correct: the large numbers came from bad prints. fast.5m.15m is now CUT, not MUTE (still negative on both halves).
+
+### Agents
+- SOXX agent: ran, good work. It found the cause of the live funds loss (trades after 11:30 ET), and it used the scorecard's own rule in the gate, not a new threshold. Walk-forward (fit on the days before each test day): spot +$43 → +$77, funds +$210 → +$233. Weak point: only 1 test day changed. I checked the code: the gate uses only days before the trade's day. No revert.
+- Cohort agent: ran, good work. It found that the blended setups (shown on all three sites) had no score, and it replayed the blend day by day. It checked that the old output did not change. No revert.
+- LETF agent: ran, good work. It found that the page showed a fade edge about 60 times too large, and it found the bad-print cause. It made no new flag. No revert.
+- Checks by me: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright 0 page errors on SOXX, Mastermind, LETF (live and ?demo) and Cohort, with the new ev.json. Shared files: all the same in the repos that use them.
+- All agents kept the order rules (limit entries that count only when touched, no new stops, the same bet size, long-only bots).
+- Yesterday's tasks: all done, except the Signal web 24 h log (Cohort: see below, no web.js change is necessary). Yesterday's "Watch next": SOXX gate S = 12:00–12:30 (yes); fade.rev.15m day 2 (failed again, 0 of 2).
+
+### Lessons shared
+- Many large results are data errors. The LETF fast-move loss fell from −1.46 % to −0.40 % when 14 bad prints were removed. SOXX agent: check the big-swing and squeeze records for single-bar prints. Cohort agent: check Hyperliquid candles for the same.
+- A data filter can change what a test counts. My first spike filter removed bars, shifted the 3- and 5-minute steps of the tests, and lifted the rev.all.15m mute. I changed it in 3 minutes (the bar stays, its close is flattened). Run every change on the live data and compare the rulings before you finish.
+- A blend of good ideas can lose (Cohort, lab setups). The same holds for the SOXX bot versions and the LETF 🚀 rule: replay the choice day by day.
+- The live loss came in the same half hours as the paper loss (SOXX). LETF: the 🚀 rule wins on the older half and loses on the newer half in every window. That is decay, not a time-of-day effect.
+
+### Tasks for tomorrow
+- SOXX agent: 1) bots.json keeps only the last 60 trades per bot, so the new live.<bot>.<half hour> items have only 3–5 trades. Add the LIVE trades to dated.json (for example `live|<bot>@<half hour>` with n, sum, sum of squares) so the record does not roll; tell me the key and I will score it by day. 2) Watch live.letf.late and live.both.late (from Nov 11): if they are below 0 after 5 days, the gate is not enough. 3) Check that no live funds trade started 11:30–12:00 ET on Nov 11.
+- Cohort agent: 1) Signal web log: Web.forecast(asset, 24) is already public in web.js (it returns p and ph per horizon). Use it from outlook.js; no shared-file change is necessary. 2) lab.setup.1d and .2d are now CUT (decay). Do the walk-forward test of backlog item 1 (keep only ideas whose own newer half wins) before the Sunday backtest. 3) Lab load stability (backlog 2): the universe changed from 205 to 190 markets between two runs.
+- LETF agent: 1) The spike filter is live (extra.spikes 14). fast.5m.15m is now CUT, not MUTE. Check that the page does not show a follow flag for fast 5-minute moves (a negative EV on both halves). 2) fast.15m.alert.tgate is MUTE and fast.15m.15m is decaying (newer half −0.52 %). If the next scorecard keeps the newer half below 0, stop the 🚀 push alert. 3) New items: fade.15m.15m (limit fade of 🚀, −0.07 %, WATCH) and fade.fast1m/5m .days. Use them on the card; no fade flag before 3 positive new days.
+
+### Changes I made
+- Hyperdash-Cohort-Tracker 2006261 (scripts/ev.mjs): lab.setup.<h>d (Cohort request); live.<bot>.<half hour>, live.<bot>.early / .late from Nov 11 only (SOXX request); LETF: spike filter, trim (5 % trimmed mean) on fast.*, the 5 largest fast-move results in the log, per-day records for fade.fast1m, fade.fast5m and fade.15m, fade.15m.15m, fast.15m.15m.tgate, fast.15m.alert.tgate (LETF requests). No ruling rule changed.
+- Hyperdash-Cohort-Tracker de1b3d5 (scripts/ev.mjs): fix of my own change. The first run with the filter moved rev.all.15m from MUTE to CUT, because removed bars shifted the test steps. Now the filter flattens the bar in place and acts only on the fast-move tests. Check: with the filter off, all old LETF items are the same as before (n and EV). The live run after the fix: rev.all.15m MUTE again (n 157, z −2.4, as at 22:02).
+- Checks: node --check; offline runs with mocked fetch and today's files; two live EV runs (success); Playwright 0 page errors on all sites.
+- Not done: layout.js move of the LETF reversal card (the card already closes to one line when muted; small value). web.js hook: not necessary (Web.forecast is public).
+- No revert of agent work.
+
+### What Steven should know
+- Nothing to paste. No Worker change.
+- The live funds bots made money today (+$68 and +$53, one SOXS trade each). From tomorrow they do not trade 11:30–12:00 ET, where they lost on 5 of 5 days.
+- LETF: the large "fade the fast move" numbers were bad prints. Do not trade fast moves in either direction. Do not trade the fade of a turn: it failed on 2 of 2 new days.
+- Cohort: the 7-day lab setups are hidden on all sites (they lost in the walk-forward test). The 1-day and 2-day setups lose on the newer half: do not use them alone.
+
 ## 2026-11-09 · Council
 
 ### Shipped today
