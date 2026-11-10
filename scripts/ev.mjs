@@ -132,29 +132,34 @@ const splits = a => { const o = {}; for (const p of ["open", "mid", "close"]) { 
 function limitTrade(D, S, i, d, k, alive, cost = COST_U) { const L = S.c[i] * Math.exp(-d * k);
   for (let j = i + 1; j <= Math.min(i + alive, D.length - 16); j++) if (d > 0 ? S.l[j] <= L : S.h[j] >= L) return { t: D[i][0], v: d * Math.log(S.c[j + 15] / L) - cost, p: tod(D[i][0]) };
   return null; }
-// Council, Nov 10 2026 (LETF agent request, data quality): drop a single-bar spike, a 1-minute bar whose close is more than
-// 10σ (robust σ of that day's 1-minute returns) away from BOTH neighbour closes, on the same side. On Nov 10 the fast-move
-// follow tests moved by −3 to −4.5% per event while the limit fades of the same events got ≈ 0: the size came from prints
-// that came back inside one bar. Also on the fund bars of the 🚀 test. The mute rule is not changed; the counts of dropped
-// bars are in extra.spikes (underlyings) and extra.spikesF (funds).
+// Council, Nov 10 2026 (LETF agent request, data quality): for the FAST-MOVE tests only (fast.1m/5m and their limit fades),
+// a single-bar spike is flattened: a 1-minute bar whose close is more than 10σ (robust σ of that day's 1-minute returns) away
+// from BOTH neighbour closes, on the same side, gets the close of the bar before it (the bar stays, so the 3- and 5-minute
+// sampling of the tests is not shifted). On Nov 10 the follow tests moved by −3 to −4.5% per event while the limit fades of
+// the same events got ≈ 0: the size came from prints that came back inside one bar. The turn tests (rev.*, fade.rev) and the
+// 🚀 tests read the raw bars, as before: a first run with the filter on all tests moved rev.all.15m from mute (z −2.4) to cut
+// (z −2.0), and a data change must not lift a mute that nobody asked to review. The count of flattened bars is extra.spikes.
 function despike(D) { if (D.length < 10) return { D, n: 0 }; const r = []; for (let i = 1; i < D.length; i++) r.push(Math.log(D[i][4] / D[i - 1][4]));
   const v = r.map(Math.abs).filter(x => x > 0).sort((a, b) => a - b), sg = v.length >= 8 ? Math.max(0.0004, v[Math.floor(v.length / 2)] * 1.4826) : 0; if (!sg) return { D, n: 0 };
-  const out = [D[0]]; let n = 0; for (let i = 1; i < D.length - 1; i++) { const a = Math.log(D[i][4] / D[i - 1][4]), b = Math.log(D[i][4] / D[i + 1][4]);
-    if (Math.abs(a) > 10 * sg && Math.abs(b) > 10 * sg && Math.sign(a) === Math.sign(b)) { n++; continue; } out.push(D[i]); } out.push(D[D.length - 1]); return { D: out, n }; }
-async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [], ff5: [], ff1: [], f15: [], f15a: [], ff15: [] }, tried = { frev: 0, ff5: 0, ff1: 0, ff15: 0 }; let got = 0, gotF = 0, spikes = 0, spikesF = 0;
+  const out = D.slice(); let n = 0; for (let i = 1; i < D.length - 1; i++) { const a = Math.log(D[i][4] / D[i - 1][4]), b = Math.log(D[i][4] / D[i + 1][4]);
+    if (Math.abs(a) > 10 * sg && Math.abs(b) > 10 * sg && Math.sign(a) === Math.sign(b)) { n++; const c = out[i - 1][4]; out[i] = [D[i][0], c, c, c, c, D[i][5]]; } } return { D: out, n }; }
+async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [], ff5: [], ff1: [], f15: [], f15a: [], ff15: [] }, tried = { frev: 0, ff5: 0, ff1: 0, ff15: 0 }; let got = 0, gotF = 0, spikes = 0;
   const byDay = B => { const days = new Map(); B.forEach(b => { const d = new Date(b[0] - 5 * 36e5).toISOString().slice(0, 10); if (!days.has(d)) days.set(d, []); days.get(d).push(b); }); return days; };
   for (let k = 0; k < LETF_U.length; k += 3) { await Promise.all(LETF_U.slice(k, k + 3).map(async s => { const B = await bars(s); if (!B || B.length < 200) return; got++;
-    for (const D0 of byDay(B).values()) { if (D0.length < 60) continue; const X = despike(D0), D = X.D; spikes += X.n; const S = { c: D.map(b => b[4]), h: D.map(b => b[2]), l: D.map(b => b[3]), v: D.map(b => b[5]) }; let skip = -1;
-      const r1 = [0]; for (let i = 1; i < D.length; i++) r1.push(Math.log(S.c[i] / S.c[i - 1]));
+    for (const D of byDay(B).values()) { if (D.length < 60) continue; const S = { c: D.map(b => b[4]), h: D.map(b => b[2]), l: D.map(b => b[3]), v: D.map(b => b[5]) }; let skip = -1;
+      const X = despike(D), D2 = X.D, S2 = { c: D2.map(b => b[4]), h: D2.map(b => b[2]), l: D2.map(b => b[3]) }; spikes += X.n;
+      const r1 = [0], r2 = [0]; for (let i = 1; i < D.length; i++) { r1.push(Math.log(S.c[i] / S.c[i - 1])); r2.push(Math.log(S2.c[i] / S2.c[i - 1])); }
       for (let i = 20; i < D.length - 16; i++) { const f15 = Math.log(S.c[i + 15] / S.c[i]);
         const sg = Math.max(0.0004, rsd(r1.slice(Math.max(1, i - 119), i + 1)) || 0);   // the last 120 minutes only (before: the whole day, a look-ahead)
         if (i >= skip) { const x = detect(S, i); if (x && x.score >= 0.6) { skip = i + 15; R.rev.push({ t: D[i][0], v: x.side * f15 }); if (x.score >= 1) R.hard.push({ t: D[i][0], v: x.side * f15 });
           tried.frev++; const y = limitTrade(D, S, i, -x.side, 0.5 * x.sg * Math.sqrt(5), 10); if (y) R.frev.push(y); } }
-        const m5 = Math.log(S.c[i] / S.c[i - 5]), m1 = Math.log(S.c[i] / S.c[i - 1]);
-        if (Math.abs(m5) >= 4 * sg * Math.sqrt(5) && i % 5 === 0) { R.f5.push({ t: D[i][0], v: Math.sign(m5) * f15, s, m: m5 }); tried.ff5++; const y = limitTrade(D, S, i, -Math.sign(m5), 0.5 * sg * Math.sqrt(5), 5); if (y) R.ff5.push(y); }
-        if (Math.abs(m1) >= 4 * sg && i % 3 === 0) { R.f1.push({ t: D[i][0], v: Math.sign(m1) * f15, s, m: m1 }); tried.ff1++; const y = limitTrade(D, S, i, -Math.sign(m1), 0.5 * sg * Math.sqrt(5), 5); if (y) R.ff1.push(y); } } } })); }
+        // fast moves: on the bars with single-bar spikes flattened (S2, r2)
+        const sg2 = Math.max(0.0004, rsd(r2.slice(Math.max(1, i - 119), i + 1)) || 0), g15 = Math.log(S2.c[i + 15] / S2.c[i]);
+        const m5 = Math.log(S2.c[i] / S2.c[i - 5]), m1 = Math.log(S2.c[i] / S2.c[i - 1]);
+        if (Math.abs(m5) >= 4 * sg2 * Math.sqrt(5) && i % 5 === 0) { R.f5.push({ t: D[i][0], v: Math.sign(m5) * g15, s, m: m5 }); tried.ff5++; const y = limitTrade(D2, S2, i, -Math.sign(m5), 0.5 * sg2 * Math.sqrt(5), 5); if (y) R.ff5.push(y); }
+        if (Math.abs(m1) >= 4 * sg2 && i % 3 === 0) { R.f1.push({ t: D[i][0], v: Math.sign(m1) * g15, s, m: m1 }); tried.ff1++; const y = limitTrade(D2, S2, i, -Math.sign(m1), 0.5 * sg2 * Math.sqrt(5), 5); if (y) R.ff1.push(y); } } } })); }
   for (const [s, th] of Object.entries(LETF_F)) { const B = await bars(s); if (!B || B.length < 200) continue; gotF++;
-    for (const D0 of byDay(B).values()) { if (D0.length < 60) continue; const X = despike(D0), D = X.D; spikesF += X.n; const c = D.map(b => b[4]), SF = { c, h: D.map(b => b[2]), l: D.map(b => b[3]) }; let skip = -1, skipA = -1, dv = 0;
+    for (const D of byDay(B).values()) { if (D.length < 60) continue; const c = D.map(b => b[4]), SF = { c, h: D.map(b => b[2]), l: D.map(b => b[3]) }; let skip = -1, skipA = -1, dv = 0;
       const r1 = [0]; for (let i = 1; i < D.length; i++) r1.push(Math.log(c[i] / c[i - 1]));
       for (let i = 0; i < D.length - 15; i++) { dv += D[i][4] * D[i][5]; if (i < 15 || i % 5) continue; const m15 = c[i] / c[i - 15] - 1;
         // the 🚀 ALERT level (index.html): 5% single-stock / 2.5% index fund, and $1M+ traded so far today (council, Nov 9 2026)
@@ -191,7 +196,7 @@ async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [],
   add("fade.15m.15m", "Fade the 🚀 move: LIMIT entry against the move 0.5 × the fund's 5-min σ past the close, alive 5 min, counts only when touched; exit 15 min after the fill; cost 0.05%", R.ff15, { fill: tried.ff15 ? +(R.ff15.length / tried.ff15).toFixed(3) : null, tod: splits(R.ff15) });
   perDay("fade.15m.15m", R.ff15);
   tgate("fast.15m.15m", R.f15, "🚀 rule (as fast.15m.15m)"); tgate("fast.15m.alert", R.f15a, "🚀 alert level (as fast.15m.alert)");
-  return { at: new Date().toISOString(), items, extra: { markets: got, of: LETF_U.length, funds: gotF, fundsOf: Object.keys(LETF_F).length, spikes, spikesF } }; }
+  return { at: new Date().toISOString(), items, extra: { markets: got, of: LETF_U.length, funds: gotF, fundsOf: Object.keys(LETF_F).length, spikes } }; }
 
 async function main() {
   fs.mkdirSync(OUT, { recursive: true }); const prev = rd(`${OUT}/ev.json`);
