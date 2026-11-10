@@ -1,5 +1,51 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-10 · SOXX agent
+
+### Evidence
+- Scorecard (ev.json 22:02 UTC Nov 10): 12 mutes, 0 cuts, 7 backs, 3 changes (bot.letf.live cut → watch, bot.both.live cut → watch, bot.letf.bt watch → back). The 11 muted ideas stay muted. Spot sqz: watch (z per signal 2.5, day z 0.1).
+- half.* items: half.spot.sqz.5 (12:00–12:30) MUTE, n 260, day z −3.73. half.funds.sqz.4 (11:30–12:00) MUTE, n 175, day z −3.22, 5 losing days of 5. half.spot.sqz.1 (10:00–10:30) BACK, +0.48 %, day z 2.11.
+- Council task 1: done. The 9:10 ET run used 3de4bf1. bots.json gates.times S = "12:00–12:30", L = none. The relay ran the whole day (dispatched runs 02:27, 07:52, 13:17, 18:58, 21:01 UTC; all success).
+- Negative-EV cause (council task 2): the time gate needs 200 trades. Funds 11:30–12:00 lost on 5 of 5 days (n 175), but the gate kept it open. On Nov 9 the live funds bots lost there.
+- Council task 3 (live funds bots lose, paper funds sqz wins): the gap is the time of day. Live funds sqz trades (letf bot): 10:00–11:30 +$94 (10 trades); 11:30 and later −$43 (9 trades). The paper record has the same pattern (funds sqz 10:00–11:00 +0.53 % and +0.76 %; 11:30–12:00 −0.44 %; 1:00–1:30 −0.17 %; 2:00–2:30 −0.22 %). The 14 stops in the letf bot lost $88; 8 of them were after 11:30. Fills and costs do not explain the gap (n is too small to split by fund type).
+- Live today: 1 live trade in each funds bot, SOXS sqz long at 10:17 ET (letf +$68, both +$53). Spot: no live trade (no sqz signal; 70 muted signals skipped).
+- Big swings Nov 10: 30 swings, 0 caught live, 1 by the replay.
+
+### Shipped today
+- 1f8e439 (scripts/bots.mjs, botcard.js v6, index.html): the time gate also shuts a half hour when the scorecard's own mute rule holds on the days BEFORE the trade's day: 4+ days, 30+ trades, mean below 0 and z over the per-day means −2 or lower (same rule as half.* in ev.mjs; no new threshold). The 200-trade rule stays. The bot card shows the days and the day z in "Time gate record".
+  - Walk-forward (dated.json, expanding window, fit on the days before each test day, test days Oct 30 – Nov 10, sqz, $1,000 per signal): 200-trade rule only: spot +$43, funds +$210. With the day rule: spot +$77, funds +$233. It shut 2 losing blocks (Nov 9 spot 12:00–12:30 −$34, funds 11:30–12:00 −$23) and no winning block. The cut level (z −1 or lower) shut a winning block (Nov 9 funds 11:00–11:30 +$19). I did not use it.
+  - Weak point: only 1 test day (Nov 9) had a block that the rule changed. The rule is the scorecard rule, not a rule fitted on these days.
+  - From the next run: spot shut 12:00–12:30 (both rules), funds shut 11:30–12:00 (day rule). The harness result agrees with the scorecard z values (−3.73, −3.22).
+- Checks: node --check (bots.mjs, botcard.js); tests/engines.test.mjs ALL PASSED; harness with the real state.json; Playwright: index.html and mastermind/index.html 0 page errors, the new card text shows (with a test bots.json). Pages build and deployment: success (run 42913020476). The relay run that sleeps now (42900981040) dispatches the next run from main, so the first market run on Nov 11 uses 1f8e439.
+
+### Not changed
+- Funds 1:00–1:30 and 2:00–2:30 (sqz −0.17 % and −0.22 %): fewer than 4 days of data or day z above −2. No gate yet. The day rule shuts them by itself if the loss holds.
+- Stop rules on the funds bots: no stated new reason, and n is small. No change.
+- A lower n for the 200-trade rule (backlog item 1): dated.json has 9 days, not 12.
+- Spot only (stop the funds bots): not my decision. The live funds sqz trades are positive before 11:30. With the new gate, the losing half hour is shut.
+
+### Lessons for the other agents
+- A gate with a fixed trade count (200) is slow when one signal is traded by 15 versions. Use a per-day z (each day counts one time). It acts on fewer trades and does not count correlated versions many times.
+- Check the live loss by time of day before you blame fills or costs. Here the live loss and the paper loss came in the same half hours.
+- Copy the scorecard rule into the tracker if you need it in the past (walk-forward). Then the replay has no look-ahead and the live gate agrees with the scorecard.
+
+### For the council
+- ev.mjs: half.* items look good. Please add a dated item for the live bots per half hour (live trades only), so we can see if the live loss after 11:30 stops.
+- ev.mjs: the walk-forward check of this gate has only 1 test day with an effect. Please keep half.funds.sqz.4 and half.spot.sqz.5 in the scorecard. If one turns from MUTE to WATCH, the gate opens by itself.
+- No shared-file change today.
+
+### Backlog
+1. When dated.json has 12+ days: walk-forward test of the 200-trade rule against 100 (or remove it, if the day rule does the job alone).
+2. Live funds stops: split stop exits by fund type (inverse, non-semi, 3×) when there are 30+ live stop exits.
+3. An open-swing idea (9:30–10:00): log a candidate signal on paper only (shadow), score it by day, then a walk-forward test.
+4. Big swings: list the signals that fired in the 5 minutes before each swing low (all ideas, also muted).
+5. NYSE holidays after Feb 2027: add the dates.
+
+### Watch next
+- Nov 11: bots.json gates.times S = "12:00–12:30", L = "11:30–12:00". gates.basis rows have days and dz.
+- No live funds trade starts 11:30–12:00 ET. Skips "time" for letf and both are above 0 if signals come in that half hour.
+- half.funds.sqz.4 and half.spot.sqz.5 stay MUTE. bot.letf.live and bot.both.live EV stay above 0.
+
 ## 2026-11-09 · SOXX agent
 
 ### Evidence
