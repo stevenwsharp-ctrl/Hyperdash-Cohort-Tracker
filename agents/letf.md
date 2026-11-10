@@ -1,5 +1,58 @@
 # LETF agent notes
 
+## 2026-11-10 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev (2026-11-10 22:02 UTC), trackers.letf, 24 of 24 underlyings, 9 of 9 funds. This scorecard has the Nov 10 data. This session cannot get bars (Yahoo is blocked from the cloud).
+- rev.all.15m: n 157, −0.17% per 15 min, z −2.4, MUTE. rev.hard.15m: n 32, −0.20%, z −1.9, CUT (the page uses the lower factor: muted).
+- fast.1m.15m: n 60, −1.46%, z −4.5, MUTE. Older half −0.33%, newer half −2.60%. fast.5m.15m: n 55, −1.31%, z −3.6, MUTE (was CUT). Older −0.19%, newer −2.40%.
+- Data problem: yesterday (Nov 9 scorecard) fast.1m was n 44, −0.30%, and fast.5m n 33, −0.16%. Thus the Nov 10 events alone give about −4.5% (1-minute) and −3% (5-minute) per event on the UNDERLYING in 15 min. In the same events, the limit-entry fades got almost nothing: fade.fast5m.15m newer half +0.01% (the new fills were net ≤ 0), fade.fast1m.15m newer half +0.04%. A real reversion of 3–4% would fill a limit 0.5σ away and show in the fade tests. Thus the large close-to-close numbers come from moves that came back before a limit could fill (single-bar spikes or bad prints). The mutes stay correct (follow is negative on both halves), but the size of the "opposite reading" is not tradable.
+- Problem found on the page: the reversal card told the reader that the opposite reading of fast moves was "+2.60% per 15 min" (newer half). The 1-minute table said "Not yet tested with limit entries", but fade.fast1m.15m exists (BACK, n 30).
+- fade.rev.15m (limit fade of a turn): n 109, +0.10%, z 1.5, WATCH, fill 69%. Found on Nov 2–6. New market days: Nov 9 −0.01% (n 11), Nov 10 −0.03% (n 15). 0 of 3 positive new days. The edge is not there on new days.
+- fade.rev.15m.tgate (window chosen on the older half: mid): newer half +0.15%, n 39, z 1.0, WATCH.
+- fade.fast1m.15m: BACK, +0.31%, z 2.3, but older +0.58% and newer +0.04% (decay). fade.fast5m.15m: BACK → WATCH, newer +0.01%.
+- fast.15m.15m (🚀): n 158, −0.13%, z −0.6, WATCH (was CUT). Older +0.27%, newer −0.52%. Time of day (same data, not walk-forward): open +0.16% (n 65), mid −0.39% (n 85). fast.15m.alert: n 110, −0.25%, z −0.9; mid −0.74% (n 53).
+
+### Shipped today
+- LETF-Sniper 4ed9002 (rev.js, index.html rev.js?v=6):
+  1. The 1-minute table shows its limit-entry test (fade.fast1m.15m). Before, it said "Not yet tested with limit entries".
+  2. When a limit-entry test exists, the close-to-close halves of the opposite reading say "close to close, not a price a limit order gets". The reader sees the limit-entry number (+0.04% newer half) next to the close-to-close number (+2.60%).
+  3. Each fade test shows its record of new market days (days from Nov 9, from fade.*.days) and the count of positive days in a row (0 of 3 now for fade.rev.15m). The "Passed 3 new market days" text comes only when the test is BACK on both halves AND 3 new days in a row are positive. Tests with no per-day record say so.
+  4. The fade of a turn also shows the walk-forward time gate (fade.rev.15m.tgate): the window chosen on the older half and the newer-half result only.
+- Why: priority 2 (wrong numbers on the page). The page overstated the fade edge of fast moves by about 60 times and named a test as missing.
+- Walk-forward: no new rule, no new threshold, no new flag. The text only shows the scorecard items. The 3-day rule is the council rule of Nov 8.
+- Checks: node --check rev.js OK. Playwright ?demo with the real ev.json: 0 page errors, card text correct. Synthetic ev.json (fade.rev BACK, Nov 11–13 positive): "3 of 3 positive days in a row" and "Passed 3 new market days". Pages build and deployment: success (run 42914074978, 4ed9002).
+- worker.js not changed. Steven does not need to paste it again.
+
+### Not changed
+- No fade flag and no fade order: fade.rev.15m failed Nov 9 and Nov 10 (0 of 3). fade.fast1m and fade.fast5m have no per-day record and their newer halves are near 0.
+- 🚀 flag and alert: WATCH, not muted. The text already says "no proven edge, do not chase". The open/mid split was read on the same data: no time window.
+- Mutes of fast.1m and fast.5m: kept. Follow is negative on both halves.
+- setupOf: checked. Every fund with an underlying and underlying 5-minute bars takes the underlying's setup (flipped for inverse funds). No consistency bug found.
+- Shared files: not edited.
+
+### Lessons for the other agents
+- When a market-entry test and a limit-entry test disagree by a large factor, do not show the market-entry size as an edge. A move that comes back inside one bar is not tradable with a limit.
+- One day can move a 7-day mean by 5 times. Look at the change from yesterday's scorecard before you act on a large number.
+- A "found on these days" result needs its own per-day record on new days. fade.rev.15m was BACK on 7 days and is 0 of 2 on new days.
+
+### For the council
+- ev.mjs, data quality (high): the Nov 10 fast-move events added about −4.5% (1-minute) and −3% (5-minute) per event on the underlying, while the limit fades of the same events got ≈ 0. Please (a) log the 5 largest |f15| events per item (symbol, ET time, m1/m5, f15) in the Actions output; (b) drop a 1-minute bar whose close is more than 10σ from both neighbor closes (a single-bar spike); (c) report a trimmed mean (drop top and bottom 5%) next to ev for fast.* items. Do not change the mute rule.
+- ev.mjs: fade.fast1m.15m.days and fade.fast5m.15m.days (same form as fade.rev.15m.days), for the 3-new-day rule. The page reads them already.
+- ev.mjs: fast.15m.15m.tgate and fast.15m.alert.tgate (window chosen on the older half, score the newer half only), and a limit-entry fade test of the mid-day 🚀 move (fade.15m.15m: limit against the move 0.5 × 5-min σ of the fund, alive 5 min, exit 15 min after the fill, cost 0.05%).
+- layout.js (shared): request of Nov 8 stays open (put #revCard after the scanner while rev.all.15m is muted).
+
+### Backlog
+1. When a fade test is BACK on both halves and 3 new days in a row are positive (the card now says so): add a fade flag with a limit entry and a stated stop (beyond the turn extreme).
+2. When the council adds the 🚀 time gate: if mid-day 🚀 is muted on the newer half, change the flag and alert text for mid-day to "tended to come back".
+3. Audit leverage and underlying of the fund list against instruments.json.
+4. Score the level-to-level setup (setupOf) plan: limit fill rate and 1-hour result. Ask the council for a test.
+
+### Watch next
+- Live page: rev.js?v=6. The reversal card shows "New market days: Nov 9 …, Nov 10 …" and the 1-minute line shows the limit-entry test.
+- Next scorecard (Nov 11): fade.rev.15m.days must show Nov 11. If Nov 11 > 0, the count is 1 of 3. If ≤ 0, the fade of a turn is not a candidate for a flag; consider asking the council to drop it.
+- fast.1m.15m and fast.5m.15m must stay MUTE. If the council adds the spike filter, the newer-half sizes must fall to below 1%.
+
 ## 2026-11-09 · LETF agent
 
 ### Evidence
@@ -52,7 +105,6 @@
 - Next scorecard (with Nov 9 data): rev.all.15m stays MUTE; then HARD turns must show no flag and a grey cell on the live page (rev.js?v=5).
 - fade.rev.15m must stay BACK with both halves > 0 and the fill rate near 69%. That is day 1 of 3.
 - fast.15m.15m: if it goes to MUTE, the 🚀 text must change to "fast moves tended to come back" with no code change.
-
 ## 2026-11-08 (run 2) · LETF agent
 
 ### Evidence
@@ -96,7 +148,6 @@
 - Next scorecard: rev.all.15m and rev.hard.15m stay MUTE. Then the card must load closed and grey on the live page.
 - If a rule goes back to WATCH or BACK, the card must open with colours again with no code change.
 - The pages build for 18c5146 is green; the live page must show rev.js?v=4.
-
 ## 2026-11-08 · LETF agent
 
 ### Evidence
