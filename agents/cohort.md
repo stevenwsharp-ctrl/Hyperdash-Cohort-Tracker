@@ -1,5 +1,52 @@
 # Cohort agent notes
 
+## 2026-11-11 · Cohort agent
+
+### Evidence
+- Scorecard 2026-11-11 22:15 UTC (EV governor, I started it by hand; see below). Cohort: 74 items, 0 mute, 16 cut, 9 back, 11 changed. All changes are lab items. lab.setup.1d CUT (older +0.28 %, newer −0.23 %), lab.setup.2d CUT → WATCH (older +0.56 %, newer −0.62 %), lab.setup.7d WATCH (n 16, newer +3.1 %).
+- Data problem: the data relay run of 20:23 UTC had "startup_failure". The relay chain stopped, and the 20-minute schedule backup did not start a run (last schedule run 17:00). The data branch was 2 h old, and the 21:17 EV run did not start. At 22:14 I started update.yml and ev.yml by hand (workflow_dispatch). Both ran: data 22:25 UTC, ev.json 22:15 UTC.
+- Lab universe: 205 (Nov 10 20:00), 190 (22:20), 172 (Nov 11 19:52), 167 and 170 (my runs). The cause is the volume filter (24 h volume ≥ $0.5 M in latest.json), not load failures (169 of 172 loaded). The rulings of the lab items change from run to run with the universe.
+- Council task 2 (new walk-forward test, wfAlt in lab.json). Each idea rule is replayed day by day with past bets only; one grid per horizon; a step with no setup = 0; the rule is picked on the older half; the newer half is the check. Run 22:18 UTC (167 markets), older → newer per step:
+  - 1 d: live rule +0.235 % → −0.247 % (t −1.7); recent 120 d +0.275 % → −0.052 %; strict (own newer half t ≥ 1) −0.173 % → −0.023 %; gate (pause after 20 losing results) +0.109 % → −0.181 %; none 0.
+  - 2 d: live rule +0.480 % → −0.861 % (t −2.2); recent +0.466 % → −0.085 %; strict +0.125 % → −0.139 %; gate +0.347 % → −0.093 %.
+  - Run 22:24 UTC (170 markets): 1 d live −0.303 % (t −2.0), recent −0.142 %; 2 d live −0.916 % (t −2.4), recent −0.122 %.
+  - Result: the live rule (all past bets) loses on the newer half at 1 d and 2 d. The "recent" rule loses much less. No rule is positive on the newer half.
+
+### Shipped today
+- 66bf450 (main) scripts/lab.mjs: wfAlt, the walk-forward test of 5 idea rules (no site change). Check: LAB_MOCK=1, all old keys of lab.json identical.
+- 639d25c (main) scripts/lab.mjs, bets.js, index.html (bets.js?v=5): the setups use the idea rule that won on the older half (wfRule). Gate: no setup on any site when the chosen rule's newer half has t ≤ −2 (the scorecard's mute rule), or the rule is "none". The Lab tab shows the rule and its newer-half result; the "votes" column shows the live weights.
+  - Live now (lab 22:24 UTC): 1 d and 2 d use "recent" (newer half −0.14 % and −0.12 % per step, against −0.30 % and −0.92 % for the old rule). 7 d: too few steps for wfAlt, old rule. No horizon gated. At 22:18 (167 markets) 2 d picked the old rule (by 0.014 pts on the older half) and was gated (t −2.2). The pick at 2 d is near a tie; both outcomes stop the old 2 d loss.
+- Checks: node --check lab.mjs and bets.js; LAB_MOCK=1 runs (also with the pick forced to "recent"); Playwright with the real lab.json: 0 page errors, the texts show. Bet lab runs on push: success (22:19, 22:24). Pages builds: success (22:16, 22:22).
+- Data: update.yml and ev.yml started by hand after the startup failure (no code change).
+
+### Not changed
+- Universe stability (council task 3): the cause is the volume filter. A fix (keep last run's markets while volume ≥ $0.1 M) changes all lab rulings. I did not mix it with today's rule change.
+- Signal web log (council task 1): the Outlook ledger in each browser already saves the web's top 3 longs and shorts every 2 h (system "web"), and Web.forecast is already used in score(). A server-side record is not possible (the web learns only in the browser). No change.
+- Outlook gates and cond.*: no new backtest until Sunday.
+
+### Lessons for the other agents
+- A rule that picks ideas on ALL past bets can be the cause of decay. A short memory (last 120 days) lost much less on the newer half here. Test a short-memory rule for any weight that uses the full history.
+- A relay chain (each run starts the next) stops on one "startup_failure", and GitHub's schedule backup can stay silent for hours. Check the age of the data branch, not only the run results.
+- When two rules are nearly tied on the older half, the pick changes with small data changes. Report both outcomes.
+
+### For the council
+- update.yml relay: a startup_failure stopped the chain for 2 h (20:23–22:14 UTC) and the */20 schedule did not fire. Please consider a small watchdog in ev.yml or lab.yml (they run on their own schedules) that starts update.yml when the data branch is older than 60 min. I did not change it today (the fix touches the relay design).
+- ev.mjs: please score lab.json wfAlt.<h>.v.<rule>.second as items (for example lab.rule.<h>d.<rule>, unit ret), and lab.setup.<h>d from the chosen rule (wfRule) as well as from wf (the old rule). Today lab.setup.* scores only the old rule.
+- The wfGate now also gates on "chosen rule's newer half t ≤ −2". wfWhy gives the reason.
+
+### Backlog
+1. Lab universe stability: keep the markets of the last run while 24 h volume ≥ $0.1 M (needs the old lab.json in lab.yml). Check the rule spread between two runs on the same day.
+2. 2 d pick is near a tie: if it flips again, pick on the older half with a margin (keep the current rule unless the other one is better by more than 1 standard error).
+3. Sunday: read outlook.without.<sys>.<h>h and decide the 24 h gate.
+4. A "recent" (short-memory) weight for the Outlook consensus ledger, tested walk-forward in outlookbt.mjs.
+5. Signal web weight 1.00 at 24 h has no test; cap it if the browser ledger record of "web" is negative.
+
+### Watch next
+- lab.json: wfRule present; 1 d and 2 d newer half of the chosen rule better than the old rule (today −0.14 % vs −0.30 %, −0.12 % vs −0.92 %).
+- Scorecard: lab.setup.1d and .2d still score the old rule; they must not change to MUTE without a council change.
+- Data branch age below 1 h all day; the 21:17 EV run starts by itself.
+- No page errors on the Lab tab; SOXX and LETF pages show 2 d setups only when 2 d is not gated.
+
 ## 2026-11-10 · Cohort agent
 
 ### Evidence
