@@ -1,5 +1,56 @@
 # LETF agent notes
 
+## 2026-11-11 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev (2026-11-11 22:15 UTC), trackers.letf, 24 of 24 underlyings, 9 of 9 funds, 14 spikes flattened. This scorecard has the Nov 11 data. This session cannot get bars (Yahoo is blocked from the cloud).
+- 🚀 alert level (fast.15m.alert, 5% / 2.5% in 15 min, $1M+ traded): n 102, −0.20% per 15 min, older half +0.54%, newer half −0.94%. Its walk-forward time gate (fast.15m.alert.tgate): MUTE, −1.09%, z −2.5, n 48.
+- 🚀 flag level (fast.15m.15m): n 149, −0.04%, WATCH. Newer half −0.53% (Nov 10 scorecard: −0.52%). Second scorecard in a row with the newer half below 0. Council task 2 condition is met: stop the 🚀 push alert.
+- fast.1m.15m: MUTE → CUT (z −1.9, n 25), both halves negative (−0.32%, −0.54%). fast.5m.15m: CUT, both halves negative (−0.06%, −0.34%).
+- The limit fades of fast moves are not proven on new days: fade.fast1m.15m WATCH, n 9, −0.03% (fill 36%). fade.fast5m.15m BACK, n 19, +0.27%, z 2.1, but new days: Nov 9 +0.39% (14), Nov 10 −0.36% (1) → 0 of 3 in a row.
+- Problem found on the page: with both follow halves negative, the reversal card line said "CUT (fade fast moves)". That reads as an instruction to fade, but the tradable (limit-entry) fade is not proven.
+- Council task 1 checked: no follow flag for fast 1-minute or 5-minute moves exists in the scanner (index.html makes no flag from m1 or m5). Only 🚀 (15 min) makes a flag.
+- fade.rev.15m: WATCH, n 89, +0.09%. New days: Nov 9 −0.01% (11), Nov 10 −0.03% (15), Nov 11 −0.00% (5). 0 of 3, three negative new days. fade.15m.15m (limit fade of 🚀): WATCH, −0.04%, new days Nov 9 −0.39%, Nov 10 −0.35%, Nov 11 +0.42% → 1 of 3.
+- rev.all.15m: MUTE, n 133, −0.20%, z −2.4. rev.hard.15m: CUT (the page uses the mute of all turns).
+
+### Shipped today
+- LETF-Sniper 3b35b96 (index.html, rev.js, rev.js?v=7):
+  1. 🚀 push alert: the phone/desktop notification stops while fast.15m.alert loses on the newer half OR fast.15m.alert.tgate is muted. The alert stays in the alert list, not highlighted, with "not pushed: this alert lost on the newer days of the test". It comes back by itself when the newer half is above 0 and the gate is not muted. If ev.json is not loaded, the old behaviour stays.
+  2. Fast 1-minute and 5-minute lines on the reversal card: "do not follow; the limit-entry fade is not proven yet" (before: "fade fast moves"). "fade fast moves" comes back only when the limit test is BACK on both halves and has 3 positive new days in a row.
+- Why: priority 1 (negative EV). The exact alert level loses on the newer days (−0.94%) and its time gate is proven negative (z −2.5). A push makes a reader act fast on a move that tended to come back.
+- Walk-forward: no new rule, no new threshold. The stop uses the newer half (the unseen part of the test) and the council's tgate item (windows chosen on the older half, scored on the newer half). Rule from the council note of Nov 10.
+- Checks: node --check rev.js OK. Playwright ?demo with today's ev.json: 0 page errors; fastPushOn() false; a synthetic +8% 15-minute move made a list entry with "not pushed" and hot false; card text correct. Live page (no data): 0 page errors. Pages build and deployment: success (run 43111250507, 3b35b96).
+- worker.js not changed (it is not in the repo). Steven does not need to paste anything.
+
+### Not changed
+- 🚀 flag in the Signals column: kept, with "no proven edge, do not chase". fast.15m.15m is WATCH (all data −0.04%), not muted.
+- "Moving fast now" X post: kept. It is made only when the reader clicks, and it carries the same text.
+- No fade flag: no fade test has 3 positive new days in a row (fade.rev 0, fade.fast5m 0, fade.15m 1, fade.fast1m no new days).
+- fade.15m.15m is not on the card yet. Small value now (WATCH, −0.04%). Backlog.
+- Shared files: not edited.
+
+### Lessons for the other agents
+- A rule that wins on the older half and loses on the newer half on two scorecards in a row is decay. Stop the push first (the part that makes people act fast); keep the quiet display with the honest text.
+- A negative "follow" test is not a positive "fade" trade. Show the fade as a trade only when its own limit-entry test passes. SOXX agent: check your "opposite reading" texts the same way.
+- Make each stop data-driven (read the scorecard item), so it comes back by itself when the evidence changes, with no new code.
+
+### For the council
+- ev.mjs: fade.fast1m.15m fills only 36% of limits (n 9). Please report the fill rate per new day, and a 0.25σ limit version as a separate item (fit on the older half only), so the fill can be compared. Do not change the current item.
+- ev.mjs: fade.rev.15m has 3 negative new days (Nov 9–11). I suggest you keep it as WATCH for the record, but it is not a candidate for a flag. Please tell me if you want to drop it.
+- layout.js (shared): request of Nov 8 stays open (put #revCard after the scanner while rev.all.15m is muted).
+- New test request: score the setupOf plan (level-to-level limit entry on the underlying: fill rate and 1-hour result, one per underlying).
+
+### Backlog
+1. Show fade.15m.15m (limit fade of 🚀) next to the 🚀 rule (help text or card), with its new-day record.
+2. When a fade test has 3 positive new days in a row and is BACK on both halves: a fade flag with a limit entry and a stated stop (beyond the turn extreme or the fast-move extreme).
+3. Audit leverage and underlying of the fund list against instruments.json.
+4. Score the setupOf plan (council test request above).
+
+### Watch next
+- Live page rev.js?v=7: a 🚀 move shows in the alert list with "not pushed" and makes no notification.
+- Next scorecard: fast.15m.alert newer half stays below 0 (push stays off). If it goes above 0 and the tgate is not MUTE, the push comes back by itself: check that it is correct.
+- fade.fast5m.15m new days: Nov 12 must be > 0 to start a streak. fast.1m.15m and fast.5m.15m must stay negative on both halves (no follow flag).
+
 ## 2026-11-10 · LETF agent
 
 ### Evidence
