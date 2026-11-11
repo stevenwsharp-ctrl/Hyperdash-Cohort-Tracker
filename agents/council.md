@@ -1,5 +1,57 @@
 # Council notes (newest first)
 
+## 2026-11-11 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live. The paper bots now keep every LIVE trade in the dated record (`live|<bot>@<half hour>`), so the live record does not roll after 60 trades. The bot card shows live results before 11:30 ET and from 11:30 on. Pages build: success. The new record starts when the waiting Paper bots run (push of 15f1538) runs, after the current run ends.
+- Cohort Sniper: yes, live. Bet lab: the setups use the idea rule that won on the older half of a walk-forward replay. 1 d and 2 d now use "recent" (last 120 days of bets). Newer half: −0.14 % and −0.12 % per step, against −0.30 % and −0.92 % for the old rule. Pages builds and Bet lab runs: success.
+- LETF Sniper: yes, live. The 🚀 phone/desktop push is off while its exact alert level loses on the newer days (−0.94 %) or its time gate is muted. The alert stays in the list with "not pushed". Fast-move lines now say "do not follow; the limit-entry fade is not proven yet" (before: "fade fast moves"). Pages build: success.
+- Scorecard and data job (council): see "Changes I made". EV governor run 23:17 UTC: success, 24 of 24 markets, 9 of 9 funds.
+
+### Scoreboard (ev.json 23:17 UTC, with Nov 11 data)
+- SOXX: 12 muted, 3 cut, 8 backed. Gain: funds squeeze, limit 1 ATR, plan t6a, +0.40 % per trade (n 155, z 3.7). Loss: funds squeeze 11:30–12:00 ET, −0.44 % per trade (MUTE, shut by the gate). Paper bots live today: spot 7 trades +$12.15; funds 1 trade −$6.35 (TECS squeeze, 1:03 PM, stop); both 6 trades +$15.23. bot.spot.live is BACK (+0.38 %, n 15, z 2.1). Funds and both: WATCH (+0.10 %, +0.16 %).
+- Cohort: 0 muted, 23 cut, 9 backed. Gain: signal condition "smart money adding", +1.71 % in 24 h (z 3.4). Loss: condition "momentum with", −0.46 % (cut). Lab setups: 1 d −0.01 % (WATCH, decay), 2 d −0.25 % (WATCH), 7 d gated. New: lab.setup.1d.chosen −0.14 % and lab.setup.2d.chosen −0.12 % (newer half only; both WATCH, both still below 0).
+- LETF: 2 muted, 6 cut, 1 backed. Gain: fade a fast 5-minute move with a limit entry, +0.27 % (BACK, n 19; new days 0 of 3 in a row). Loss: 🚀 alert in its walk-forward time windows, −1.09 % (MUTE). Now the push is off.
+- Data: the Hyperdash data relay stopped from 20:23 to 22:14 UTC (one startup failure; the */20 schedule did not start a run). The Cohort agent started it by hand. It runs again (23:11 UTC).
+
+### Agents
+- SOXX agent: ran, good work. It did all 3 tasks. It found why the live record rolled, and fixed it from the full memory (no double count on a replay). It did not unmute the funds "pull" pocket at 10:00–10:30: correct, it came from a scan of 24 cells. No revert.
+- Cohort agent: ran, good work. It did the walk-forward test of 5 idea rules and picked on the older half only. It found and fixed the data relay stop. Weak point: the chosen rule still loses on the newer half (−0.14 %, t −0.9), and "none" (no setup) beat every rule there. That is less loss, not yet a gain. No revert, but see tasks.
+- LETF agent: ran, good work. It stopped the push only after the second scorecard with a negative newer half (the rule set on Nov 10). It found a wrong text ("fade fast moves" from a negative follow test). The stop reads the scorecard, so it comes back by itself. No revert.
+- Checks by me: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright 0 page errors on SOXX, Mastermind, LETF (live and ?demo) and Cohort. Shared files: all the same in the repos that use them.
+- All agents kept the order rules (limit entries that count only when touched, no new stops, the same bet size, Schwab-only and long-only bots).
+- Yesterday's "Watch next": SOXX gate S = 12:00–12:30 and no live funds trade 11:30–12:00 (yes). LETF 🚀 newer half below 0 again (yes, so the push stopped). fade.rev.15m: failed again (0 of 3 new days). Cohort lab.setup 1 d / 2 d: decay confirmed, rule changed.
+
+### Lessons shared
+- A long memory can cause decay. Cohort: weights from ALL past bets lost on the newer half; the last 120 days lost much less. SOXX agent: the bots choose versions on all their paper trades. Test a short-memory choice the same way. LETF agent: the 🚀 rule wins on older days and loses on newer days; it is the same pattern.
+- A scan finds false winners. I now score pockets of muted SOXX ideas as shadow items (watch only). 31 pockets have EV > 0, and 6 of them would be "back" by the rule. With about 150 pockets tested, some z ≥ 2 by chance is normal. Only new days count.
+- Check the age of the data, not only the run result. Cohort: a relay stopped for 2 h with no red run. SOXX: the Paper bots relay has the same design (one run starts the next); check bots.json age each day.
+- A negative follow test is not a positive fade trade (LETF). SOXX agent: check that no "opposite reading" text on the bot card or Mastermind tells a reader to trade the other side.
+- 10 of 30 big swings on Nov 11 started 10:20–10:30 ET (SOXX). LETF agent: check if 🚀 moves also cluster at 10:20–10:30, and how they end.
+
+### Tasks for tomorrow
+- SOXX agent: 1) Check that dated.json has `live|…` keys after the push run, and that live.<bot>.* in ev.json now show "src: dated.json" (more trades than before). 2) half.funds.pull.1 now has a newDays record from Nov 12: report it each day; no unmute before 3+ new winning days and your walk-forward test. 3) Test a short-memory version choice (for example the last 5 market days of paper trades) walk-forward against the current choice, on dated.json.
+- Cohort agent: 1) lab.setup.1d.chosen and .2d.chosen are the out-of-sample record of what the sites show. If one stays below 0 on the next 2 scorecards, gate that horizon ("none" beat every rule on the newer half). 2) Check the new Data watchdog workflow: it must log "relay OK" when the data is fresh, and start update.yml only when the data is 60+ min old. 3) Backlog 1 (universe stability) before Sunday's backtest.
+- LETF agent: 1) Read the new items: fade.fast1m.15m.k25 (limit 0.25σ: fill 52 %, n 13, +0.03 %, CUT for decay) and the fill per day in fade.fast1m.15m.days. A closer limit gets more fills but no edge yet. 2) Check that the 🚀 push stays off on the live page and that the alert list shows "not pushed". 3) Check if 🚀 moves cluster 10:20–10:30 ET (SOXX swing lesson) on the scorecard's tod split.
+
+### Changes I made
+- Hyperdash-Cohort-Tracker 4ad7a8a (scripts/ev.mjs, new .github/workflows/watchdog.yml):
+  - SOXX request: live.<bot>.<half hour> and live.<bot>.early / .late read the new dated `live|…` keys (all live trades, z over the days). Until the keys are there, the old source (bots.json) stays.
+  - SOXX request: half.<class>.<idea>.<b> for MUTED ideas, pockets with EV > 0 only, always WATCH (shadow; "ruling" shows what the rule would say). half.funds.pull.1 has a record of new days from Nov 12.
+  - Cohort request: lab.rule.<h>d.<rule> (each idea rule of wfAlt) and lab.setup.<h>d.chosen (the newer half of the rule picked on the older half).
+  - LETF request: fill rate per market day for fade.fast1m.15m, and fade.fast1m.15m.k25 (a fixed comparison, not a fit). fade.fast1m.15m is unchanged.
+  - Cohort request: Data watchdog (every 30 min): it starts update.yml only when the data branch is 60+ min old and no update run is running or waiting. It does not call Hyperliquid.
+- Hyperdash-Cohort-Tracker 308a73c (scripts/ev.mjs): no z for a live record of one trade (it showed z −6,350,000).
+- Checks: node --check; offline run with mocked fetch and today's files: every old item has the same ruling, n and EV, except live.* (more trades, as intended). Live EV run 23:17 UTC: success.
+- Not done: layout.js move of the LETF reversal card (small value). setupOf plan test (LETF request): next council run.
+- No revert of agent work.
+
+### What Steven should know
+- Nothing to paste. No Worker change. No decision is necessary.
+- The Cohort data stopped for about 2 hours tonight (20:23–22:14 UTC). It runs again, and a new watchdog restarts it if it stops again.
+- The LETF 🚀 alert no longer sends a phone or desktop push. It lost on the newer days of the test. It comes back by itself when the test turns positive.
+- Cohort 1-day and 2-day setups still lose a little on new data (−0.14 % and −0.12 % per bet). Do not use them alone.
+
 ## 2026-11-10 · Council
 
 ### Shipped today
