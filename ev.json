@@ -1,5 +1,5 @@
 {
- "t": "2026-11-11T23:17:39.431Z",
+ "t": "2026-11-11T23:18:59.132Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; agents read this file every market day",
  "trackers": {
   "soxx": {
@@ -586,7 +586,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.brk.1",
@@ -602,7 +604,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.pull.1",
@@ -618,7 +622,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.pull.7",
@@ -634,7 +640,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.pull.10",
@@ -650,7 +658,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.vrev.1",
@@ -666,7 +676,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be cut): watch only",
-     "ruling": "cut"
+     "ruling": "cut",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.vrev.4",
@@ -682,7 +694,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.vrev.6",
@@ -698,7 +712,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.vrev.10",
@@ -714,7 +730,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.rsi.2",
@@ -730,7 +748,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.rsi.4",
@@ -746,7 +766,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.rsi.6",
@@ -762,7 +784,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.rsi.7",
@@ -778,7 +802,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.rsi.10",
@@ -794,7 +820,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be back): watch only",
-     "ruling": "back"
+     "ruling": "back",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.mom.10",
@@ -810,7 +838,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be cut): watch only",
-     "ruling": "cut"
+     "ruling": "cut",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.brk.1",
@@ -826,7 +856,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.brk.3",
@@ -842,7 +874,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be back): watch only",
-     "ruling": "back"
+     "ruling": "back",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.brk.9",
@@ -858,7 +892,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.pull.1",
@@ -875,7 +911,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be back): watch only",
-     "ruling": "back"
+     "ruling": "back",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.pull.7",
@@ -891,7 +929,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.pull.8",
@@ -907,7 +947,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be cut): watch only",
-     "ruling": "cut"
+     "ruling": "cut",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.vrev.1",
@@ -923,7 +965,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be cut): watch only",
-     "ruling": "cut"
+     "ruling": "cut",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.vrev.3",
@@ -939,7 +983,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.vrev.10",
@@ -955,7 +1001,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be back): watch only",
-     "ruling": "back"
+     "ruling": "back",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.rsi.2",
@@ -971,7 +1019,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.rsi.3",
@@ -987,7 +1037,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.rsi.6",
@@ -1003,7 +1055,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.rsi.7",
@@ -1019,7 +1073,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.rsi.10",
@@ -1035,7 +1091,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be back): watch only",
-     "ruling": "back"
+     "ruling": "back",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.mom.3",
@@ -1051,7 +1109,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be cut): watch only",
-     "ruling": "cut"
+     "ruling": "cut",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.mom.10",
@@ -1067,7 +1127,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "live.spot.2",
@@ -2477,8 +2539,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.rs-peer.2d",
@@ -2557,8 +2619,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.group-mom.1d",
@@ -2669,8 +2731,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.ath.2d",
@@ -2733,8 +2795,8 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.pump-fade.7d",
@@ -2749,8 +2811,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.beta-tide.1d",
@@ -2813,8 +2875,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.vol-squeeze.2d",
@@ -2911,8 +2973,8 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.setup.2d",
@@ -2963,7 +3025,9 @@
      "live": false,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.rule.1d.strict",
@@ -2978,7 +3042,9 @@
      "live": false,
      "status": "cut",
      "factor": 0.5,
-     "why": "negative EV, not yet proven"
+     "why": "negative EV, not yet proven",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.rule.1d.recent",
@@ -2993,7 +3059,9 @@
      "live": true,
      "status": "cut",
      "factor": 0.5,
-     "why": "decay: the recent half lost"
+     "why": "decay: the recent half lost",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.rule.1d.gate",
@@ -3008,7 +3076,9 @@
      "live": false,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.setup.1d.chosen",
@@ -3022,7 +3092,9 @@
      "gated": false,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.rule.2d.cur",
@@ -3037,7 +3109,9 @@
      "live": false,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.rule.2d.strict",
@@ -3052,7 +3126,9 @@
      "live": false,
      "status": "cut",
      "factor": 0.5,
-     "why": "decay: the recent half lost"
+     "why": "decay: the recent half lost",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.rule.2d.recent",
@@ -3067,7 +3143,9 @@
      "live": true,
      "status": "cut",
      "factor": 0.5,
-     "why": "decay: the recent half lost"
+     "why": "decay: the recent half lost",
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.rule.2d.gate",
@@ -3082,7 +3160,9 @@
      "live": false,
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.setup.2d.chosen",
@@ -3096,7 +3176,9 @@
      "gated": false,
      "status": "watch",
      "factor": 1,
-     "why": "negative, weak evidence"
+     "why": "negative, weak evidence",
+     "prev": "watch",
+     "changed": false
     }
    ],
    "summary": {
@@ -3104,7 +3186,7 @@
     "mute": 0,
     "cut": 23,
     "back": 9,
-    "changed": 7
+    "changed": 0
    },
    "rules": {
     "outlook.smart.24h": 0.5,
@@ -3142,7 +3224,7 @@
    }
   },
   "letf": {
-   "at": "2026-11-11T23:17:39.429Z",
+   "at": "2026-11-11T23:18:59.131Z",
    "items": [
     {
      "id": "rev.all.15m",
@@ -3198,11 +3280,11 @@
      "desc": "Fast 1-minute move (4σ+) of the underlying: follow it, next 15 min (negative EV = fade it)",
      "unit": "ret",
      "n": 25,
-     "ev": -0.004363989871547024,
-     "z": -1.9170247689217883,
+     "ev": -0.004363989871547023,
+     "z": -1.917024768921788,
      "hit": 0.36,
      "older": -0.003198284910730836,
-     "recent": -0.005440025219992735,
+     "recent": -0.005440025219992734,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -3279,8 +3361,8 @@
      "ev": 0.0027052211351537856,
      "z": 2.1470659015465325,
      "hit": 0.7368421052631579,
-     "older": 0.0010806694034231233,
-     "recent": 0.004167317693711381,
+     "older": 0.00164572639840292,
+     "recent": 0.003658766398229564,
      "status": "back",
      "factor": 1.25,
      "why": "proven positive EV",
@@ -3370,8 +3452,8 @@
       "2026-11-05": 5,
       "2026-11-09": 6,
       "2026-11-11": 2,
-      "2026-11-10": 3,
       "2026-11-03": 4,
+      "2026-11-10": 3,
       "2026-11-06": 4,
       "2026-11-04": 1
      },
@@ -3437,11 +3519,13 @@
       "2026-11-05": 5,
       "2026-11-09": 6,
       "2026-11-11": 2,
-      "2026-11-10": 3,
       "2026-11-03": 4,
+      "2026-11-10": 3,
       "2026-11-06": 4,
       "2026-11-04": 1
-     }
+     },
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "fade.rev.15m.tgate",
