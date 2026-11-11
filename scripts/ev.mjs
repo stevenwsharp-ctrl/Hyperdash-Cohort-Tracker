@@ -82,7 +82,7 @@ async function soxx() { const B = await getJ("https://raw.githubusercontent.com/
     ((LV[m[1]] || (LV[m[1]] = {}))[d] || (LV[m[1]][d] = {}))[+m[2]] = v; }
   const fromDays = (id, desc, rows, ex, min = 3) => { const n = rows.reduce((p, v) => p + v[0], 0); if (n < min) return; const S1 = rows.reduce((p, v) => p + v[1], 0), S2 = rows.reduce((p, v) => p + v[2], 0), m = S1 / n;
     const sdT = Math.sqrt(Math.max(0, (S2 - n * m * m) / Math.max(1, n - 1))) || 1e-9, dm = rows.map(v => v[1] / v[0]), D = dm.length, h = Math.floor(D / 2);
-    const z = D >= 3 ? mean(dm) / ((sd(dm) || 1e-9) / Math.sqrt(D)) : m / (sdT / Math.sqrt(n));
+    const z = D >= 3 ? mean(dm) / ((sd(dm) || 1e-9) / Math.sqrt(D)) : n >= 2 ? m / (sdT / Math.sqrt(n)) : NaN;   // one trade: no z
     items.push(rule({ id, desc, unit: "ret", n, ev: m, z, zTrades: m / (sdT / Math.sqrt(n)), hit: rows.reduce((p, v) => p + v[3], 0) / n, days: D, ...(D >= 2 ? { older: mean(dm.slice(0, h)), recent: mean(dm.slice(h)) } : {}), src: "dated.json", ...(ex || {}) })); };
   for (const [k, b] of Object.entries(B.bots || {})) { if (!LV[k]) continue; const ds = Object.keys(LV[k]).sort(), sum = (d, f) => { const o = [0, 0, 0, 0]; for (const [bb, v] of Object.entries(LV[k][d])) if (f(+bb)) v.forEach((x, i) => o[i] += x); return o; };
     for (let bb = 0; bb < 13; bb++) fromDays(`live.${k}.${bb}`, `${b.name}: LIVE trades started ${HH(bb)}–${HH(bb + 1)} ET (all live trades, dated record, by day)`, ds.map(d => LV[k][d][bb]).filter(v => v && v[0] > 0));
