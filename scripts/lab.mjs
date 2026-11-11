@@ -171,6 +171,17 @@ for (const h of [1, 2, 7]) { const steps = []; for (let d = days[0] + 150; d + h
 // (side 0) on any site; it comes back by itself when either half turns positive. First run (2026-11-10): 7 d lost on both
 // halves (−1.12% → −2.38% per bet, n 12); 1 d and 2 d won on the older half and lost on the newer half (decay, not gated).
 const WFG = Object.fromEntries([1, 2, 7].map(h => { const w = WF[h]; return [h, !!(w && w.all && w.all.n >= 10 && w.first && w.second && w.first.m < 0 && w.second.m < 0)]; }));
+// The rule used live (EV agent, 2026-11-11): per horizon, the idea rule that did best on the OLDER half of wfAlt (cur when there
+// is no wfAlt). Gate: the horizon shows no setup when that rule's NEWER half (unseen when it was picked) is a proven loss, the
+// scorecard's mute rule (t <= -2), or when the rule is "none", or when the rule is "gate" and the last 20 ended results lost.
+// First run (Nov 11): 1 d picks "recent" (newer half -0.05% vs -0.25% for the live rule); 2 d picks the live rule, whose
+// newer half lost -0.86% per step (t -2.2), so 2 d is gated.
+const WRULE = {}, WWHY = {};
+for (const h of [1, 2, 7]) { const A = WFALT[h], pick = A ? A.pick : "cur"; WRULE[h] = pick;
+  if (WFG[h]) { WWHY[h] = "the setups lost on both halves"; continue; }
+  if (pick === "none") { WFG[h] = true; WWHY[h] = "no idea rule beat 0 on the older half"; continue; }
+  if (A && A.pickSecond && A.pickSecond.t <= -2) { WFG[h] = true; WWHY[h] = `the chosen rule (${pick}) lost on the newer half, ${(A.pickSecond.m * 100).toFixed(2)}% per step, t ${A.pickSecond.t.toFixed(1)}`; continue; }
+  if (pick === "gate") { const past = WROWS[h].slice(-20).map(q => q.v); if (past.length >= 10 && mean(past) < 0) { WFG[h] = true; WWHY[h] = "the setups' last 20 results lost"; } } }
 // ---------- today: profiles and the current bets ----------
 const F0 = crossAt(lastDay), prof = {}, picks = {};
 for (const c in F0) { const f = F0[c], t = M[c].tg; prof[c] = { s: M[c].s, cls: t.cls, sec: t.sec, ind: t.ind, cap: t.cap, yr: t.yr, ageHL: f.ageHL != null ? Math.round(f.ageHL) : null, src: M[c].src, px: f.px, stage: f.stage, slope: r4(f.slope), d150: r4(f.d150), d50: r4(f.d50),
@@ -183,13 +194,15 @@ for (const c in F0) { const B = M[c].B, n = B.length, P = prof[c]; P.ex = {};
 // setups for every market and every horizon: the hypotheses that held up there (positive overall and on the second half),
 // each weighted by its t-stat, blended into one lean, with a limit entry, a limit target and a "wrong if" price
 const WH = Object.fromEntries([1, 2, 7].map(h => [h, Object.fromEntries(Object.entries(RES).map(([k, R]) => { const x = R.h[h]; return [k, x && x.all && x.second && x.all.t > 0.5 && x.second.m > 0 ? Math.min(3, x.all.t) : 0]; }))]));
+// the live weights follow the chosen rule (cur and gate: the old weights above, unchanged)
+for (const h of [1, 2, 7]) if (WRULE[h] === "recent" || WRULE[h] === "strict") for (const k in HYP) { const R = (ROWS[k] || {})[h] || []; WH[h][k] = R.length >= 20 ? SEL[WRULE[h]](R.map(r => r.v), R, lastDay) : 0; }
 for (const c in F0) { const f = F0[c], P = prof[c]; P.setups = {};
   for (const h of [1, 2, 7]) { if (WFG[h]) { P.setups[h] = { side: 0, gated: 1 }; continue; } const W = WH[h]; let s = 0, w = 0; const why = []; for (const k in HYP) { const v = P.sc[k]; if (!W[k] || v == null) continue; w += W[k]; s += v * W[k]; if (Math.abs(v) >= 0.3) why.push([k, r4(v)]); }
     const lean = w ? s / Object.values(W).reduce((a, b) => a + b, 0) : 0, side = Math.sign(lean), sH = f.sdD * Math.sqrt(h); if (!side || Math.abs(lean) < 0.05) { P.setups[h] = { side: 0 }; continue; }
     const EXh = P.ex && P.ex[h] && P.ex[h][side > 0 ? "L" : "S"], exP = v => v == null ? null : r4(f.px * (1 + v * side));   // excursion prices for this side (drawdown below a long, above a short)
     P.setups[h] = { dd50: EXh ? exP(EXh.mae50) : null, dd90: EXh ? exP(EXh.mae90) : null, up50: EXh ? exP(EXh.mfe50) : null, up90: EXh ? exP(EXh.mfe90) : null, winStop: EXh && EXh.winMae80 != null ? exP(EXh.winMae80) : null, side, lean: r4(lean), lim: r4(f.px * Math.exp(-side * 0.25 * sH)), tgt: r4(f.px * Math.exp(side * (0.5 + Math.min(1, Math.abs(lean) * 2)) * sH)), wrong: r4(f.px * Math.exp(-side * 0.75 * sH)), why: why.filter(([k, v]) => Math.sign(v) === side && W[k]).sort((a, b) => Math.abs(b[1]) * WH[h][b[0]] - Math.abs(a[1]) * WH[h][a[0]]).map(x => x[0]).slice(0, 3) }; } }
 for (const [name, H] of Object.entries(HYP)) { const S = Object.keys(F0).map(c => ({ c, s: H.f(F0[c], M[c]) })).filter(x => Math.abs(x.s) >= 0.3); picks[name] = { L: S.filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 6).map(x => x.c), S: S.filter(x => x.s < 0).sort((a, b) => a.s - b.s).slice(0, 6).map(x => x.c) }; }
-const out = { weights: WH, wf: WF, wfGate: WFG, wfAlt: WFALT, t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
+const out = { weights: WH, wf: WF, wfGate: WFG, wfAlt: WFALT, wfRule: WRULE, wfWhy: WWHY, t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
 fs.writeFileSync(path.join(OUT, "lab.json"), JSON.stringify(out));
 for (const [k, R] of Object.entries(RES)) log(k.padEnd(12), [1, 2, 7].map(h => { const a = R.h[h] && R.h[h].all, s = R.h[h] && R.h[h].second; return a ? `${h}d n${a.n} ${(a.m * 100).toFixed(2)}% t${a.t.toFixed(1)} 2nd ${s ? (s.m * 100).toFixed(2) : "-"}% fill ${(R.h[h].fill * 100).toFixed(0)}%` : h + "d -"; }).join(" | "));
 log("done", Object.keys(prof).length, "profiles");
