@@ -1,5 +1,5 @@
 {
- "t": "2026-11-10T23:20:20.186Z",
+ "t": "2026-11-11T01:17:57.596Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; agents read this file every market day",
  "trackers": {
   "soxx": {
@@ -2300,7 +2300,7 @@
    }
   },
   "letf": {
-   "at": "2026-11-10T23:20:20.185Z",
+   "at": "2026-11-11T01:17:57.595Z",
    "items": [
     {
      "id": "rev.all.15m",
@@ -2315,8 +2315,8 @@
      "status": "mute",
      "factor": 0,
      "why": "proven negative EV",
-     "prev": "cut",
-     "changed": true
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "rev.hard.15m",
@@ -2331,8 +2331,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "fast.5m.15m",
@@ -2360,7 +2360,7 @@
      "z": -3.1250859889263305,
      "hit": 0.2608695652173913,
      "older": -0.003723100940558612,
-     "recent": -0.004362411215279085,
+     "recent": -0.004362411215279086,
      "status": "mute",
      "factor": 0,
      "why": "proven negative EV",
@@ -2484,10 +2484,10 @@
      "desc": "Fade a fast 1-minute move (4σ+): LIMIT entry against the move 0.5 × 5-min σ past the close, alive 5 min, counts only when touched; exit 15 min after the fill; cost 0.02% of the underlying",
      "unit": "ret",
      "n": 30,
-     "ev": 0.0031153189988285383,
+     "ev": 0.0031153189988285374,
      "z": 2.316520180182508,
      "hit": 0.7666666666666667,
-     "older": 0.00592116678525254,
+     "older": 0.0059211667852525395,
      "recent": 0.00030947121240453625,
      "status": "back",
      "factor": 1.25,
@@ -2525,8 +2525,8 @@
        "m": 0.00059
       }
      },
-     "prev": "cut",
-     "changed": true
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "fade.rev.15m.tgate",
@@ -2545,8 +2545,8 @@
       "mid"
      ],
      "of": 55,
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "fast.15m.15m",
@@ -2576,8 +2576,8 @@
        "m": 0.0024
       }
      },
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "fast.15m.alert",
@@ -2710,8 +2710,8 @@
       "mid"
      ],
      "of": 55,
-     "prev": "cut",
-     "changed": true
+     "prev": "mute",
+     "changed": false
     }
    ],
    "extra": {
@@ -2726,7 +2726,7 @@
     "mute": 3,
     "cut": 3,
     "back": 2,
-    "changed": 6
+    "changed": 0
    },
    "rules": {
     "rev.all.15m": 0,
