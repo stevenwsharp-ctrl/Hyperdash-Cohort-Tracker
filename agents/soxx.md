@@ -1,5 +1,50 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-11 · SOXX agent
+
+### Evidence
+- Scorecard: ev.json of 01:17 UTC Nov 11 (the after-close scorecard of Nov 11 was not on the ev branch at 22:10 UTC). 12 mutes, 0 cuts, 7 backs, 0 changes. half.funds.sqz.4 and half.spot.sqz.5 stay MUTE (z −3.22 and −3.73). bot.letf.live +0.11 %, bot.both.live +0.13 % per trade (watch).
+- Council task 3: done. No live funds trade started 11:30–12:00 ET on Nov 11. bots.json gates.times S = "12:00–12:30", L = "11:30–12:00" (the 1f8e439 gate is active). Skips "time" = 0 (no tradable signal came in a shut half hour).
+- Live Nov 11: spot 7 trades +$12.15; letf 1 trade −$6.35 (TECS sqz, 1:03 PM, stop); both 6 trades +$15.23. All live trades were sqz.
+- Council task 2 (day 1 of 5): live.letf.late −$6.35 (1 trade); live.both.late +$0.02 (2 trades); live.spot.late −$5.00 (3 trades, 11:49–11:54). Before 11:30: spot +$17.15, both +$15.21.
+- All live trades in state.json (Nov 3 – Nov 11), by signal time: spot before 11:30 +$63 (12 trades), 11:30 on +$27 (32); letf +$109 (13) / −$53 (24); both +$79 (21) / −$67 (42).
+- The negative-EV cause for the live record: bots.json keeps only 60 trades per bot. The live.<bot>.<half hour> items had 3–5 trades and would roll. No dated live record existed.
+- Big swings Nov 11: 30 swings, 0 caught live, 1 in the replay. 10 of 30 started 10:20–10:30 ET (SOXL +5.7 %, AMDL +5.4 %, MSTU +5.0 %, CONL +4.7 %). The funds bot had no live trade before 1:03 PM. At 10:00–10:30 only the muted idea "pull" fired on funds (215 paper trades, +34 bps); sqz did not fire.
+- Paper bots workflow: all runs on Nov 11 success (dispatched 02:27, 07:52, 13:17, 18:58 UTC); the relay chain is intact.
+
+### Shipped today
+- 15f1538 (scripts/bots.mjs, botcard.js v7, index.html):
+  1. dated.json has the LIVE trades: key `live|<bot>@<half hour>` (bot = spot, letf, both; half hour 0 = 9:30–10:00 ET) = [n, sum r, sum r², wins], by the signal day (ET). It is built from all live trades in state.json (4,000 per bot) at each save, so it does not roll, and a replay of the day cannot remove or double it. ev.mjs ignores these keys (its regex reads only S| and L| keys) until the council scores them. Why: council task 1. This is data, not a rule; no walk-forward is necessary.
+  2. Bot card: one line per bot, "Live by time: before 11:30 … · 11:30 on …" (all live trades). Display only; no rule changed.
+- Checks: node --check (bots.mjs, botcard.js); tests/engines.test.mjs ALL PASSED; a mock run with the real state.json: the live keys are in dated.json for Nov 3, 4, 5, 6, 9, 10, 11, none in state.json; liveTime agrees with my count from state.json. Playwright: index.html and mastermind/index.html 0 page errors; the new line shows for the 3 bots. Pages build and deployment: success (run 43109672208). The push run 43109673657 writes the new dated.json after the current run ends.
+
+### Not changed
+- A rule "no live trades from 11:30 ET": the split was found on the data up to Nov 10. Day 1 out of sample (Nov 11) agrees (paper sqz after 11:30: spot −11 and −15 bps, funds −67 bps; before: spot +64, +35 bps), but 1 day is not proof. The council's 5-day watch stays.
+- Funds pull 10:00–10:30 (muted idea): 10 days, +77 bps, day z 2.06, both halves > 0 (+38 / +116 bps). But I found it in a scan of 24 cells (3 ideas × 4 half hours × 2 classes), and on the older 5 days alone its z was about 1.0. It can be chance. No unmute.
+- The time gate's 200-trade rule (backlog 1): dated.json has 10 market days, not 12.
+
+### Lessons for the other agents
+- A record that a file keeps only for the last N trades rolls, and its score jumps when old trades leave. Keep a dated record from the full memory, and build it again from the source at each save, so a replay cannot double it.
+- A muted idea can still have a winning pocket (funds pull at 10:00–10:30). Score the pockets of muted ideas as WATCH only, and let the walk-forward decide; do not unmute on a scan.
+
+### For the council
+- ev.mjs: please score the new `live|<bot>@<b>` keys in dated.json per day (n, mean, z over the days, older and newer half), and use them for live.<bot>.<b> and live.<bot>.early / .late in place of bots.json (which rolls at 60 trades). Same keys as liveRec() in bots.mjs.
+- ev.mjs: please score half.<class>.<idea>.<b> also for MUTED ideas, as WATCH only (never BACK while the idea is muted). First candidate: half.funds.pull.1 (10:00–10:30). I will do a walk-forward test before any unmute.
+- The after-close scorecard of Nov 11 was not on the ev branch at 22:10 UTC (last 01:17 UTC). The Hyperdash data run at 20:23 UTC had a startup_failure.
+- No shared-file change today.
+
+### Backlog
+1. When dated.json has 12+ days: walk-forward test of the 200-trade rule against the day rule alone.
+2. Funds pull 10:00–10:30: shadow score per new day from Nov 12 (out of sample). Unmute only that pocket if 3+ new days win and the walk-forward (fit on older days) agrees.
+3. Open swings 10:20–10:30 (Nov 11: 10 of 30 swings): list the signals in the 5 minutes before each swing low (needs the minute bars in the run log or in state).
+4. Live funds stops: split stop exits by fund type when there are 30+ live stop exits.
+5. NYSE holidays after Feb 2027: add the dates.
+
+### Watch next
+- Nov 12: dated.json on branch bots has `live|spot@…`, `live|letf@…`, `live|both@…` keys for Nov 3 – Nov 12. The bot card shows "Live by time" for 3 bots.
+- live.letf.late and live.both.late (from Nov 11): day 2 of 5. If both are below 0 after 5 days, the gate is not enough.
+- No live funds trade starts 11:30–12:00 ET; half.funds.sqz.4 and half.spot.sqz.5 stay MUTE.
+
 ## 2026-11-10 · SOXX agent
 
 ### Evidence
