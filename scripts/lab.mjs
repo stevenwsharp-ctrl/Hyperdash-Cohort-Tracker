@@ -128,11 +128,12 @@ for (const h of [1, 2, 7]) for (const [name, H] of Object.entries(HYP)) {
 // own record was never tested. This replays the same rule day by day: on day d the weights use only bets that had ENDED by d
 // (20+ of them per idea); the blended lean (live formula) picks the top 6 longs and top 6 shorts with |lean| >= 0.05; the same
 // limit order, the same baseline (that limit on every market) and the same 0.1% costs. First half vs second half = older vs newer.
-const WF = {};
-for (const h of [1, 2, 7]) { const rows = []; let orders = 0, fills = 0, nI = 0;
+const WF = {}, WROWS = {};
+// one walk-forward replay: sel(P, Prows) gives an idea's weight on day d from its bets that had ENDED by d (0 = not used)
+function wfReplay(h, sel) { const rows = []; let orders = 0, fills = 0, nI = 0;
   for (let d = days[0] + 150; d + h <= lastDay; d += h) {
     const W = {}; let tw = 0;
-    for (const k in HYP) { const P = ((ROWS[k] || {})[h] || []).filter(r => r.d + h <= d).map(r => r.v); if (P.length < 20) continue; const x = st(P), sec = P.slice(Math.floor(P.length / 2)); if (x.t > 0.5 && mean(sec) > 0) { W[k] = Math.min(3, x.t); tw += W[k]; } }
+    for (const k in HYP) { const R = ((ROWS[k] || {})[h] || []).filter(r => r.d + h <= d), P = R.map(r => r.v); if (P.length < 20) continue; const w = sel(P, R, d); if (w > 0) { W[k] = w; tw += w; } }
     if (!tw) continue;
     const F = crossAt(d), U = Object.keys(F).filter(c => (M[c].B[F[c].j][5] * F[c].px > 0)); if (U.length < 25) continue;
     const base = baseAt(F, U, d, h);
@@ -140,9 +141,32 @@ for (const h of [1, 2, 7]) { const rows = []; let orders = 0, fills = 0, nI = 0;
     const Lg = S.filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 6), Sh = S.filter(x => x.s < 0).sort((a, b) => a.s - b.s).slice(0, 6); if (!Lg.length && !Sh.length) continue;
     const res = (x, side) => { orders++; const b = bet(M[x.c], F[x.c], d, side, h); if (b.open || !b.fill || b.r == null) return null; fills++; return side * b.r - base[side] - 0.001; };
     const all = Lg.map(x => res(x, 1)).concat(Sh.map(x => res(x, -1))).filter(v => v != null); if (all.length) { rows.push({ d, v: mean(all), n: all.length }); nI += Object.keys(W).length; } }
+  return { rows, orders, fills, nI }; }
+const SEL = { cur: P => { const x = st(P), sec = P.slice(Math.floor(P.length / 2)); return x.t > 0.5 && mean(sec) > 0 ? Math.min(3, x.t) : 0; } };
+for (const h of [1, 2, 7]) { const { rows, orders, fills, nI } = wfReplay(h, SEL.cur); WROWS[h] = rows;
   const v = rows.map(r => r.v), half = Math.floor(v.length / 2);
   WF[h] = { all: st(v), first: st(v.slice(0, half)), second: st(v.slice(half)), bets: rows.reduce((s, r) => s + r.n, 0), fill: orders ? fills / orders : null, ideas: rows.length ? Math.round(nI / rows.length * 10) / 10 : null, from: rows.length ? new Date(rows[0].d * D).toISOString().slice(0, 10) : null };
   log("setups walk-forward", h + "d", WF[h].all ? `n${WF[h].all.n} ${(WF[h].all.m * 100).toFixed(2)}% t${WF[h].all.t.toFixed(1)} 1st ${WF[h].first ? (WF[h].first.m * 100).toFixed(2) : "-"}% 2nd ${WF[h].second ? (WF[h].second.m * 100).toFixed(2) : "-"}% ideas ${WF[h].ideas}` : "-"); }
+// ---------- other ways to choose the ideas, each replayed walk-forward (EV agent, 2026-11-11; council task) ----------
+// The live rule decays at 1 d and 2 d (older half wins, newer half loses). Candidates, all from past bets only:
+//   strict  the idea's own newer half of past bets wins with t >= 1 (and t > 0.5 overall)
+//   recent  only the idea's bets of the last 120 days (t > 0.5 and a positive mean)
+//   gate    the live rule, but no setup on a day when the live setups' own last 20 ended results average below 0
+//   none    no setup (0)
+// Every variant is scored per step (a step with no setup = 0) on the same grid. The rule to use is chosen on the OLDER half
+// of the steps only (best mean); its NEWER half is the unseen check. Nothing on the sites uses this block yet.
+SEL.strict = P => { const x = st(P), sec = st(P.slice(Math.floor(P.length / 2))); return x.t > 0.5 && sec && sec.t >= 1 ? Math.min(3, x.t) : 0; };
+SEL.recent = (P, R, d) => { const Q = R.filter(r => r.d >= d - 120).map(r => r.v); if (Q.length < 10) return 0; const x = st(Q); return x.t > 0.5 && x.m > 0 ? Math.min(3, x.t) : 0; };
+const WFALT = {};
+for (const h of [1, 2, 7]) { const steps = []; for (let d = days[0] + 150; d + h <= lastDay; d += h) steps.push(d);
+  const toMap = rows => Object.fromEntries(rows.map(r => [r.d, r.v]));
+  const S = { cur: toMap(WROWS[h]), strict: toMap(wfReplay(h, SEL.strict).rows), recent: toMap(wfReplay(h, SEL.recent).rows), gate: {}, none: {} };
+  for (const r of WROWS[h]) { const past = WROWS[h].filter(q => q.d + h <= r.d).slice(-20).map(q => q.v); if (past.length >= 10 && mean(past) >= 0) S.gate[r.d] = r.v; }
+  const first = WROWS[h].length ? WROWS[h][0].d : null, grid = steps.filter(d => first != null && d >= first); if (grid.length < 20) { WFALT[h] = null; continue; }
+  const half = Math.floor(grid.length / 2), o = { steps: grid.length, split: new Date(grid[half] * D).toISOString().slice(0, 10), v: {} };
+  for (const k in S) { const a = grid.map(d => S[k][d] || 0); o.v[k] = { all: st(a), first: st(a.slice(0, half)), second: st(a.slice(half)), days: grid.filter(d => S[k][d] != null).length }; }
+  o.pick = Object.keys(o.v).sort((a, b) => o.v[b].first.m - o.v[a].first.m)[0]; o.pickSecond = o.v[o.pick].second; WFALT[h] = o;
+  log("idea rules", h + "d", Object.entries(o.v).map(([k, x]) => `${k} 1st ${(x.first.m * 100).toFixed(3)}% 2nd ${(x.second.m * 100).toFixed(3)}% t2 ${x.second.t.toFixed(1)} days ${x.days}`).join(" | "), "-> pick", o.pick); }
 // Gate (same rule as the Outlook gates): a horizon whose walk-forward setups lost on BOTH halves (10+ days) gets no setup
 // (side 0) on any site; it comes back by itself when either half turns positive. First run (2026-11-10): 7 d lost on both
 // halves (−1.12% → −2.38% per bet, n 12); 1 d and 2 d won on the older half and lost on the newer half (decay, not gated).
@@ -165,7 +189,7 @@ for (const c in F0) { const f = F0[c], P = prof[c]; P.setups = {};
     const EXh = P.ex && P.ex[h] && P.ex[h][side > 0 ? "L" : "S"], exP = v => v == null ? null : r4(f.px * (1 + v * side));   // excursion prices for this side (drawdown below a long, above a short)
     P.setups[h] = { dd50: EXh ? exP(EXh.mae50) : null, dd90: EXh ? exP(EXh.mae90) : null, up50: EXh ? exP(EXh.mfe50) : null, up90: EXh ? exP(EXh.mfe90) : null, winStop: EXh && EXh.winMae80 != null ? exP(EXh.winMae80) : null, side, lean: r4(lean), lim: r4(f.px * Math.exp(-side * 0.25 * sH)), tgt: r4(f.px * Math.exp(side * (0.5 + Math.min(1, Math.abs(lean) * 2)) * sH)), wrong: r4(f.px * Math.exp(-side * 0.75 * sH)), why: why.filter(([k, v]) => Math.sign(v) === side && W[k]).sort((a, b) => Math.abs(b[1]) * WH[h][b[0]] - Math.abs(a[1]) * WH[h][a[0]]).map(x => x[0]).slice(0, 3) }; } }
 for (const [name, H] of Object.entries(HYP)) { const S = Object.keys(F0).map(c => ({ c, s: H.f(F0[c], M[c]) })).filter(x => Math.abs(x.s) >= 0.3); picks[name] = { L: S.filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 6).map(x => x.c), S: S.filter(x => x.s < 0).sort((a, b) => a.s - b.s).slice(0, 6).map(x => x.c) }; }
-const out = { weights: WH, wf: WF, wfGate: WFG, t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
+const out = { weights: WH, wf: WF, wfGate: WFG, wfAlt: WFALT, t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
 fs.writeFileSync(path.join(OUT, "lab.json"), JSON.stringify(out));
 for (const [k, R] of Object.entries(RES)) log(k.padEnd(12), [1, 2, 7].map(h => { const a = R.h[h] && R.h[h].all, s = R.h[h] && R.h[h].second; return a ? `${h}d n${a.n} ${(a.m * 100).toFixed(2)}% t${a.t.toFixed(1)} 2nd ${s ? (s.m * 100).toFixed(2) : "-"}% fill ${(R.h[h].fill * 100).toFixed(0)}%` : h + "d -"; }).join(" | "));
 log("done", Object.keys(prof).length, "profiles");
