@@ -60,13 +60,34 @@ async function soxx() { const B = await getJ("https://raw.githubusercontent.com/
     for (let b = 0; b < 13; b++) { const ds = Object.keys(DT.days).sort().map(d => DT.days[d][`${cl}|${idea}@${b}`]).filter(v => Array.isArray(v) && v[0] > 0); const n = ds.reduce((p, v) => p + v[0], 0); if (ds.length < 4 || n < 30) continue;
       const dm = ds.map(v => v[1] / v[0]), h = Math.floor(dm.length / 2);
       items.push(rule({ id: `half.${cn}.${idea}.${b}`, desc: `${cn} ${idea}: trades started ${HH(b)}–${HH(b + 1)} ET (dated record, all versions, z over ${dm.length} days)`, unit: "ret", n, ev: ds.reduce((p, v) => p + v[1], 0) / n, z: mean(dm) / ((sd(dm) || 1e-9) / Math.sqrt(dm.length)), days: dm.length, older: mean(dm.slice(0, h)), recent: mean(dm.slice(h)) })); } }
+  // Council, Nov 11 2026 (SOXX agent request): the same half-hour record for the MUTED ideas (the bots do not trade them),
+  // as WATCH only (shadow: true, factor 1), and only pockets with EV > 0: a pocket of a muted idea is never backed here. The agent unmutes a pocket only after
+  // its own walk-forward test on days after the pocket was found (first candidate: half.funds.pull.1, found Nov 11).
+  if (DT && DT.days) for (const it of items.filter(i => /^idea\./.test(i.id) && !(i.status !== "mute" && i.ev > 0))) { const [, cn, idea] = it.id.split("."), cl = cn === "funds" ? "L" : "S";
+    for (let b = 0; b < 13; b++) { const dd = Object.keys(DT.days).sort().filter(d => Array.isArray(DT.days[d][`${cl}|${idea}@${b}`]) && DT.days[d][`${cl}|${idea}@${b}`][0] > 0), ds = dd.map(d => DT.days[d][`${cl}|${idea}@${b}`]); const n = ds.reduce((p, v) => p + v[0], 0); if (ds.length < 4 || n < 30) continue;
+      const dm = ds.map(v => v[1] / v[0]), h = Math.floor(dm.length / 2), r = rule({ id: `half.${cn}.${idea}.${b}`, desc: `${cn} ${idea} (idea muted): trades started ${HH(b)}–${HH(b + 1)} ET (dated record, all versions, z over ${dm.length} days) — shadow, watch only`, unit: "ret", n, ev: ds.reduce((p, v) => p + v[1], 0) / n, z: mean(dm) / ((sd(dm) || 1e-9) / Math.sqrt(dm.length)), days: dm.length, older: mean(dm.slice(0, h)), recent: mean(dm.slice(h)), shadow: true, ...(cn === "funds" && idea === "pull" && b === 1 ? { newDays: Object.fromEntries(dd.map((d, i) => [d, i]).filter(([d]) => d >= "2026-11-12").map(([d, i]) => [d, { n: ds[i][0], m: +(ds[i][1] / ds[i][0]).toFixed(5) }])) } : {}) });
+      if (r.ev > 0) items.push({ ...r, ruling: r.status, status: "watch", factor: 1, why: `shadow of a muted idea (would be ${r.status}): watch only` }); } }
   // Council, Nov 10 2026 (SOXX agent request): the LIVE bot trades per half hour of the signal (ET), so the page and the agents
   // can see if the live loss after 11:30 stops. Per half hour: all live trades in bots.json (the file keeps the last 60 trades
   // per bot, so this record rolls). live.<bot>.late / .early: the 11:30 ET split was found on the trades up to Nov 10, so these
   // two items count ONLY live trades from Nov 11 on (out of sample for the split and for the Nov 10 day-rule gate).
   const etF = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
   const etP = t => { const o = Object.fromEntries(etF.formatToParts(new Date(t)).map(x => [x.type, x.value])); return { d: `${o.year}-${o.month}-${o.day}`, m: +o.hour * 60 + +o.minute }; };
-  for (const [k, b] of Object.entries(B.bots || {})) { const lv = (b.trades || []).filter(x => !x.bt && isFinite(x.r) && x.t0).map(x => ({ ...etP(x.t0), r: x.r, t: x.t0 })).sort((x, y) => x.t - y.t);
+  // Council, Nov 11 2026 (SOXX agent request): bots.mjs now writes every LIVE trade to dated.json ("live|<bot>@<half hour>"
+  // → [n, sum r, sum r², wins] per signal day, from all live trades in state.json, so it does not roll). When these keys are
+  // there, live.<bot>.<b> and live.<bot>.early / .late read them: n and EV over all trades, z over the days (each day counts
+  // one time) with 3+ days, else the trade-level z from the sums; older / newer half of the days. early = before 11:30 ET
+  // (half hours 0–3), late = 11:30 on; early / late still count only days from Nov 11 2026 (out of sample for the split).
+  const LV = {}; if (DT && DT.days) for (const [d, X] of Object.entries(DT.days)) for (const [kk, v] of Object.entries(X || {})) { const m = /^live\|([a-z]+)@(\d+)$/.exec(kk); if (!m || !Array.isArray(v) || !(v[0] > 0)) continue;
+    ((LV[m[1]] || (LV[m[1]] = {}))[d] || (LV[m[1]][d] = {}))[+m[2]] = v; }
+  const fromDays = (id, desc, rows, ex, min = 3) => { const n = rows.reduce((p, v) => p + v[0], 0); if (n < min) return; const S1 = rows.reduce((p, v) => p + v[1], 0), S2 = rows.reduce((p, v) => p + v[2], 0), m = S1 / n;
+    const sdT = Math.sqrt(Math.max(0, (S2 - n * m * m) / Math.max(1, n - 1))) || 1e-9, dm = rows.map(v => v[1] / v[0]), D = dm.length, h = Math.floor(D / 2);
+    const z = D >= 3 ? mean(dm) / ((sd(dm) || 1e-9) / Math.sqrt(D)) : m / (sdT / Math.sqrt(n));
+    items.push(rule({ id, desc, unit: "ret", n, ev: m, z, zTrades: m / (sdT / Math.sqrt(n)), hit: rows.reduce((p, v) => p + v[3], 0) / n, days: D, ...(D >= 2 ? { older: mean(dm.slice(0, h)), recent: mean(dm.slice(h)) } : {}), src: "dated.json", ...(ex || {}) })); };
+  for (const [k, b] of Object.entries(B.bots || {})) { if (!LV[k]) continue; const ds = Object.keys(LV[k]).sort(), sum = (d, f) => { const o = [0, 0, 0, 0]; for (const [bb, v] of Object.entries(LV[k][d])) if (f(+bb)) v.forEach((x, i) => o[i] += x); return o; };
+    for (let bb = 0; bb < 13; bb++) fromDays(`live.${k}.${bb}`, `${b.name}: LIVE trades started ${HH(bb)}–${HH(bb + 1)} ET (all live trades, dated record, by day)`, ds.map(d => LV[k][d][bb]).filter(v => v && v[0] > 0));
+    for (const [nm, f, tx] of [["early", bb => bb < 4, "before 11:30"], ["late", bb => bb >= 4, "11:30 and later"]]) fromDays(`live.${k}.${nm}`, `${b.name}: LIVE trades started ${tx} ET, from Nov 11 2026 only (split fixed before these trades; dated record, by day)`, ds.filter(d => d >= "2026-11-11").map(d => sum(d, f)).filter(v => v[0] > 0), { from: "2026-11-11" }, 1); }
+  for (const [k, b] of Object.entries(B.bots || {})) { if (LV[k]) continue; const lv = (b.trades || []).filter(x => !x.bt && isFinite(x.r) && x.t0).map(x => ({ ...etP(x.t0), r: x.r, t: x.t0 })).sort((x, y) => x.t - y.t);
     for (let bb = 0; bb < 13; bb++) { const a = lv.filter(x => Math.floor((x.m - 570) / 30) === bb); if (a.length < 3) continue;
       items.push({ ...fromList(`live.${k}.${bb}`, `${b.name}: LIVE trades started ${HH(bb)}–${HH(bb + 1)} ET (last 60 trades in the file)`, "ret", a.map(x => x.r)), days: new Set(a.map(x => x.d)).size }); }
     for (const [nm, f, ds] of [["early", x => x.m < 690, "before 11:30"], ["late", x => x.m >= 690, "11:30 and later"]]) { const a = lv.filter(x => x.d >= "2026-11-11" && f(x));
@@ -95,6 +116,13 @@ function cohort() { const items = [], O = rd("outlook_bt.json"), K = rd("backtes
   // already sets side 0 for a horizon that lost on both halves; this item puts the same record on the scorecard.
   if (L && L.wf) for (const [h, W] of Object.entries(L.wf)) { const a = W && W.all; if (!a || !a.n) continue;
     items.push(rule({ id: `lab.setup.${h}d`, desc: `Bet lab: the blended setups shown on the sites (top 6 long + 6 short, limit entry, vs the same order on every market), walk-forward, ${h} d`, unit: "ret", n: a.n, ev: a.m, z: a.t, hit: a.hit, older: W.first && W.first.m, recent: W.second && W.second.m, fill: W.fill, gated: !!(L.wfGate && L.wfGate[h]) })); }
+  // Council, Nov 11 2026 (Cohort agent request): lab.json wfAlt replays 5 idea rules walk-forward (past bets only, one grid per
+  // horizon). lab.rule.<h>d.<rule>: each rule's record (older half = first, newer = second). lab.setup.<h>d.chosen: ONLY the
+  // newer half of the rule that the lab picked on the older half (wfRule) — the out-of-sample record of what the sites show.
+  if (L && L.wfAlt) for (const [h, A] of Object.entries(L.wfAlt)) { if (!A || !A.v) continue;
+    for (const [r, W] of Object.entries(A.v)) { const a = W && W.all; if (r === "none" || !a || !a.n) continue;
+      items.push(rule({ id: `lab.rule.${h}d.${r}`, desc: `Bet lab idea rule "${r}" (walk-forward, past bets only), ${h} d, per step`, unit: "ret", n: a.n, ev: a.m, z: a.t, hit: a.hit, older: W.first && W.first.m, recent: W.second && W.second.m, live: L.wfRule && L.wfRule[h] === r })); }
+    const P = A.pickSecond, pk = A.pick || (L.wfRule && L.wfRule[h]); if (P && P.n) items.push(rule({ id: `lab.setup.${h}d.chosen`, desc: `Bet lab: the setups with the rule picked on the older half ("${pk}"), ${h} d, scored on the newer half only (from ${A.split})`, unit: "ret", n: P.n, ev: P.m, z: P.t, hit: P.hit, rule: pk, gated: !!(L.wfGate && L.wfGate[h]) })); }
   return { at: (O && O.t) || (L && L.t), items }; }
 
 // ---------- LETF Sniper: hard reversals and fast moves (7 days of 1-minute bars) ----------
@@ -143,7 +171,7 @@ function despike(D) { if (D.length < 10) return { D, n: 0 }; const r = []; for (
   const v = r.map(Math.abs).filter(x => x > 0).sort((a, b) => a - b), sg = v.length >= 8 ? Math.max(0.0004, v[Math.floor(v.length / 2)] * 1.4826) : 0; if (!sg) return { D, n: 0 };
   const out = D.slice(); let n = 0; for (let i = 1; i < D.length - 1; i++) { const a = Math.log(D[i][4] / D[i - 1][4]), b = Math.log(D[i][4] / D[i + 1][4]);
     if (Math.abs(a) > 10 * sg && Math.abs(b) > 10 * sg && Math.sign(a) === Math.sign(b)) { n++; const c = out[i - 1][4]; out[i] = [D[i][0], c, c, c, c, D[i][5]]; } } return { D: out, n }; }
-async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [], ff5: [], ff1: [], f15: [], f15a: [], ff15: [] }, tried = { frev: 0, ff5: 0, ff1: 0, ff15: 0 }; let got = 0, gotF = 0, spikes = 0;
+async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [], ff5: [], ff1: [], f15: [], f15a: [], ff15: [], ff1q: [], tf1: [] }, tried = { frev: 0, ff5: 0, ff1: 0, ff15: 0 }; let got = 0, gotF = 0, spikes = 0;
   const byDay = B => { const days = new Map(); B.forEach(b => { const d = new Date(b[0] - 5 * 36e5).toISOString().slice(0, 10); if (!days.has(d)) days.set(d, []); days.get(d).push(b); }); return days; };
   for (let k = 0; k < LETF_U.length; k += 3) { await Promise.all(LETF_U.slice(k, k + 3).map(async s => { const B = await bars(s); if (!B || B.length < 200) return; got++;
     for (const D of byDay(B).values()) { if (D.length < 60) continue; const S = { c: D.map(b => b[4]), h: D.map(b => b[2]), l: D.map(b => b[3]), v: D.map(b => b[5]) }; let skip = -1;
@@ -157,7 +185,8 @@ async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [],
         const sg2 = Math.max(0.0004, rsd(r2.slice(Math.max(1, i - 119), i + 1)) || 0), g15 = Math.log(S2.c[i + 15] / S2.c[i]);
         const m5 = Math.log(S2.c[i] / S2.c[i - 5]), m1 = Math.log(S2.c[i] / S2.c[i - 1]);
         if (Math.abs(m5) >= 4 * sg2 * Math.sqrt(5) && i % 5 === 0) { R.f5.push({ t: D[i][0], v: Math.sign(m5) * g15, s, m: m5 }); tried.ff5++; const y = limitTrade(D2, S2, i, -Math.sign(m5), 0.5 * sg2 * Math.sqrt(5), 5); if (y) R.ff5.push(y); }
-        if (Math.abs(m1) >= 4 * sg2 && i % 3 === 0) { R.f1.push({ t: D[i][0], v: Math.sign(m1) * g15, s, m: m1 }); tried.ff1++; const y = limitTrade(D2, S2, i, -Math.sign(m1), 0.5 * sg2 * Math.sqrt(5), 5); if (y) R.ff1.push(y); } } } })); }
+        if (Math.abs(m1) >= 4 * sg2 && i % 3 === 0) { R.f1.push({ t: D[i][0], v: Math.sign(m1) * g15, s, m: m1 }); tried.ff1++; R.tf1.push(D[i][0]); const y = limitTrade(D2, S2, i, -Math.sign(m1), 0.5 * sg2 * Math.sqrt(5), 5); if (y) R.ff1.push(y);
+          const y2 = limitTrade(D2, S2, i, -Math.sign(m1), 0.25 * sg2 * Math.sqrt(5), 5); if (y2) R.ff1q.push(y2); } } } })); }
   for (const [s, th] of Object.entries(LETF_F)) { const B = await bars(s); if (!B || B.length < 200) continue; gotF++;
     for (const D of byDay(B).values()) { if (D.length < 60) continue; const c = D.map(b => b[4]), SF = { c, h: D.map(b => b[2]), l: D.map(b => b[3]) }; let skip = -1, skipA = -1, dv = 0;
       const r1 = [0]; for (let i = 1; i < D.length; i++) r1.push(Math.log(c[i] / c[i - 1]));
@@ -180,6 +209,9 @@ async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [],
   add("fade.rev.15m", "Fade a turn (score ≥ 0.6): LIMIT entry in the old direction 0.5 × 5-min σ better than the signal close, alive 10 min, counts only when touched; exit 15 min after the fill; cost 0.02% of the underlying", R.frev, { fill: tried.frev ? +(R.frev.length / tried.frev).toFixed(3) : null, tod: splits(R.frev) });
   add("fade.fast5m.15m", "Fade a fast 5-minute move (4σ+): LIMIT entry against the move 0.5 × 5-min σ past the close, alive 5 min, counts only when touched; exit 15 min after the fill; cost 0.02% of the underlying", R.ff5, { fill: tried.ff5 ? +(R.ff5.length / tried.ff5).toFixed(3) : null, tod: splits(R.ff5) });
   add("fade.fast1m.15m", "Fade a fast 1-minute move (4σ+): LIMIT entry against the move 0.5 × 5-min σ past the close, alive 5 min, counts only when touched; exit 15 min after the fill; cost 0.02% of the underlying", R.ff1, { fill: tried.ff1 ? +(R.ff1.length / tried.ff1).toFixed(3) : null, tod: splits(R.ff1) });
+  // Council, Nov 11 2026 (LETF agent request): the same fade of a fast 1-minute move with a limit only 0.25 × 5-min σ past the
+  // close (a fixed comparison, not a fit: it shows what a closer limit gains in fills and loses in price). fade.fast1m.15m is unchanged.
+  add("fade.fast1m.15m.k25", "Fade a fast 1-minute move (4σ+): as fade.fast1m.15m, but the LIMIT is 0.25 × 5-min σ past the close (comparison of fill rate)", R.ff1q, { fill: tried.ff1 ? +(R.ff1q.length / tried.ff1).toFixed(3) : null, tod: splits(R.ff1q) });
   // Council, Nov 9 2026 (LETF agent requests). (1) fade.rev.15m per market day (ET), for the "3 new market days" rule.
   // (2) A walk-forward time-of-day gate: keep the windows (open / mid / close) whose mean was > 0 on the OLDER half of the
   // trades (8+ trades), and report ONLY the newer half, in the kept windows. No window is picked on the reported trades.
@@ -189,7 +221,10 @@ async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [],
     const it = items.find(i => i.id === id); if (it) it.days = Object.fromEntries(Object.entries(byD).sort().map(([d, v]) => [d, { n: v.length, m: +mean(v).toFixed(5) }])); };
   const tgate = (id, list, desc) => { const a = list.slice().sort((x, y) => x.t - y.t), h = Math.floor(a.length / 2), old = a.slice(0, h), keep = ["open", "mid", "close"].filter(p => { const v = old.filter(x => x.p === p).map(x => x.v); return v.length >= 8 && mean(v) > 0; });
     const nw = a.slice(h).filter(x => keep.includes(x.p)); if (nw.length) items.push({ ...fromList(`${id}.tgate`, `${desc}, only in the times of day that won on the older half (${keep.join(", ")}); scored on the newer half only`, "ret", nw.map(x => x.v)), keep, of: a.length - h }); };
-  perDay("fade.rev.15m", R.frev); perDay("fade.fast1m.15m", R.ff1); perDay("fade.fast5m.15m", R.ff5);
+  perDay("fade.rev.15m", R.frev); perDay("fade.fast1m.15m", R.ff1); perDay("fade.fast5m.15m", R.ff5); perDay("fade.fast1m.15m.k25", R.ff1q);
+  // fill rate per market day of the fast 1-minute fades (council, Nov 11 2026): tried signals per day from R.tf1
+  { const tD = {}; R.tf1.forEach(t => { const d = new Date(t - 5 * 36e5).toISOString().slice(0, 10); tD[d] = (tD[d] || 0) + 1; });
+    for (const id of ["fade.fast1m.15m", "fade.fast1m.15m.k25"]) { const it = items.find(i => i.id === id); if (it && it.days) for (const [d, x] of Object.entries(it.days)) x.fill = tD[d] ? +(x.n / tD[d]).toFixed(3) : null; it && (it.tried = tD); } }
   tgate("fade.rev.15m", R.frev, "Fade a turn (as fade.rev.15m)");
   add("fast.15m.15m", "🚀 rule: the fund moved 4%+ (single-stock fund) or 2%+ (index fund) in 15 min: follow it, next 15 min, cost 0.05% (one long fund per underlying)", R.f15, { tod: splits(R.f15) });
   add("fast.15m.alert", "🚀 ALERT level: the fund moved 5%+ (single-stock fund) or 2.5%+ (index fund) in 15 min with $1M+ traded today: follow it, next 15 min, cost 0.05%", R.f15a, { tod: splits(R.f15a) });
