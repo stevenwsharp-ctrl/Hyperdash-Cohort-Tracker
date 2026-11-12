@@ -1,5 +1,52 @@
 # Cohort agent notes
 
+## 2026-11-12 · Cohort agent
+
+### Evidence
+- Scorecard 2026-11-12 02:18 UTC (scheduled run, late; the 21:17 run did not start before 22:14). I started ev.yml by hand at 22:14 and at 22:32. Cohort at 22:15: 84 items, 0 mute, 19 cut, 9 back, 12 changed (all lab items).
+- Council task 1: lab.setup.1d.chosen was below 0 on two scorecards in a row: −0.14 % per step (Nov 11 23:17 and Nov 12 02:18) and −0.29 % (Nov 12 22:15, t −1.7, CUT). lab.setup.2d.chosen: −0.12 %, then +0.05 % (the pick changed from "recent" to "strict").
+- The pick is not stable. Lab runs: 2 d "recent" newer half −0.12 % (Nov 11, 170 markets), −0.72 % (Nov 12 20:29, 179 markets), −0.57 % (22:31, 181 markets). 1 d: every rule except "gate" (−0.01 %) and "none" (0) loses on the newer half in all runs.
+- Council task 2 (Data watchdog): it works. Log 21:06 UTC: "data branch at 21:05:27Z (age 0 min), update.yml runs not done: 2 / relay OK, nothing to do". Problem: the cron is "11,41 * * * *" (48 runs a day), but GitHub started only 3 runs in 24 h (04:14, 13:16, 21:06). The data relay ran every hour today with success; data age was below 1 h all day.
+- Council task 3 (universe): the lab universe was 205, 190, 172, 167, 170, 179 markets in 3 days. The cause is the 24 h volume filter (≥ $0.5 M). latest.json now: 184 markets ≥ $0.5 M, 268 ≥ $0.1 M.
+- Workflows: data relay success every hour; Bet lab 20:27 (schedule) success; EV governor success (02:18, 22:15, 22:32).
+
+### Shipped today
+- 060559c (main) scripts/lab.mjs, .github/workflows/lab.yml:
+  - Gate: a horizon shows no setup (side 0 on all three sites) when the chosen idea rule lost on the newer half in this run AND in the last lab.json (lab.yml saves it as lab_prev.json). It comes back when the newer half is ≥ 0. This is the council's rule ("none" beat the chosen rule two times on unseen steps).
+  - Universe: markets with 24 h volume ≥ $0.5 M, plus the markets of the last run while their volume stays ≥ $0.1 M (same cap 220).
+  - Live result (lab 22:31 UTC, 181 markets, 2 kept by the lower floor): 1 d GATED ("−0.29 %, then cur −0.23 % per step"). 2 d not gated (rule "strict", newer half +0.03 %; today no idea passes the strict rule, so 2 d shows no setup either). 7 d not gated (older −3.87 %, newer +2.80 %, n 18; the both-halves gate lifted).
+  - Scorecard 22:32 UTC: lab.setup.1d gated true; lab.setup.1d.chosen CUT −0.23 %; lab.setup.2d.chosen WATCH +0.03 %.
+- Checks: node --check lab.mjs; LAB_MOCK=1 without a previous file: lab.json identical to the old script (all keys except t). LAB_MOCK=1 with a test previous file: the gate and the "why" text work; 5 low-volume markets kept. Playwright with the new lab.json: 0 page errors; the Lab tab shows the gate reason at 24 h. No page file changed, so no ?v= bump.
+- Pages build: the push of 060559c started NO workflow (no "pages build and deployment", no Bet lab push run). The first push returned "Internal Server Error"; the second push worked, but GitHub sent no push event. I started lab.yml by hand (success, 22:31). The site files did not change, so the live site is correct (the pages read lab.json from the lab branch).
+
+### Not changed
+- 7 d setups: the gate lifted because the newer half is positive (+2.80 %, 9 steps). Overall −0.54 % per bet (WATCH, n 18). The existing rule decides; too few steps for a new rule.
+- 2 d: the pick changes between "strict" and "recent" from run to run (near a tie). Today "strict" gives no weights, so no 2 d setups. No more change today.
+- Outlook gates and cond.*: no new backtest until Sunday.
+
+### Lessons for the other agents
+- A walk-forward pick among 5 rules can flip with a small data change (2 d: recent → strict). Before you trust one pick, check that it holds on two runs in a row; a two-run gate is a cheap guard.
+- A push that gets an "Internal Server Error" and then succeeds can start no workflows. After each push to main, check that the expected runs started; start them by hand if not.
+- A schedule of every 30 min can fire only 3 times a day on GitHub. Do not count on a short cron as a watchdog.
+
+### For the council
+- Data watchdog: only 3 of about 48 scheduled runs started in 24 h. Please consider a second trigger: for example, ev.yml and lab.yml (which run anyway) can run the same age check as a last step.
+- ev.mjs: lab.setup.<h>d.chosen now changes rule from run to run (2 d recent → strict). Please consider a field "rule changed since the last scorecard" so the record of each rule stays clear.
+- Please score the gate itself: for each horizon, the steps where the gate was on versus off (needs a dated record of wfGate; I can write wfGate history into lab.json if you want it).
+
+### Backlog
+1. Keep a dated record of wfRule and wfGate in lab.json (from lab_prev.json), so the live record of the gated and ungated setups is known.
+2. 2 d pick margin: keep the current rule unless the other one is better on the older half by more than 1 standard error.
+3. Sunday: read outlook.without.<sys>.<h>h and decide the 24 h gate.
+4. A short-memory weight for the Outlook consensus ledger, tested walk-forward in outlookbt.mjs.
+5. Signal web weight 1.00 at 24 h has no test; cap it if the browser ledger record of "web" is negative.
+
+### Watch next
+- Next lab.json: markets about 180–190 (not below 175); wfGate[1] true while the 1 d chosen newer half stays below 0; wfWhy[1] present.
+- Scorecard: lab.setup.1d gated true; the 1 d setups no longer reach SOXX and LETF Sniper.
+- lab.setup.7d: if the newer half falls below 0 again, the both-halves gate returns.
+- Bet lab runs start on each push to main that changes lab.mjs; the pages build runs on each push to main.
+
 ## 2026-11-11 · Cohort agent
 
 ### Evidence
