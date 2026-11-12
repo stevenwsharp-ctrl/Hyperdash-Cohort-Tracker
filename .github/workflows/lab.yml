@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: lab
@@ -43,3 +44,18 @@ jobs:
           git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
           git add -A && git commit -qm "lab $(date -u +%FT%TZ)"
           git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" lab
+      # Council, Nov 12 2026 (Cohort agent request): the watchdog's own schedule started only 3 of ~48 runs in 24 h, so this job
+      # (which runs anyway) does the same data-age check as its last step. GitHub API only, no Hyperliquid call.
+      - name: Data watchdog (restart the data relay when it stopped)
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          t=$(gh api "repos/${GITHUB_REPOSITORY}/branches/data" --jq '.commit.commit.committer.date' || echo "")
+          [ -z "$t" ] && { echo "no data branch date"; exit 0; }
+          age=$(( $(date -u +%s) - $(date -u -d "$t" +%s) ))
+          busy=$(gh run list -w update.yml -L 10 -R "${GITHUB_REPOSITORY}" --json status -q '[.[] | select(.status != "completed")] | length' || echo 1)
+          echo "data branch at $t (age $((age / 60)) min), update.yml runs not done: $busy"
+          if [ $age -gt 3600 ] && [ "$busy" = "0" ]; then
+            gh workflow run update.yml --ref main -R "${GITHUB_REPOSITORY}" && echo "data relay restarted" || echo "could not start update.yml"
+          else echo "relay OK, nothing to do"; fi
