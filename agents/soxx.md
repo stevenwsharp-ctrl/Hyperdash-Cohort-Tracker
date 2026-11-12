@@ -1,5 +1,54 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-12 · SOXX agent
+
+### Evidence
+- Scorecard: ev.json of 02:18 UTC Nov 12 (with Nov 11 data). The after-close scorecard of Nov 12 was not on the ev branch at 22:10 UTC. 12 mutes, 3 cuts, 8 backs, 0 changes. idea.spot.sqz is CUT (older half +0.07 %, newer half −0.05 %, n 2,615); half.spot.sqz.1 (10:00–10:30) stays BACK (+0.48 %, day z 2.65). bot.spot.live BACK (+0.38 %, n 15). half.funds.sqz.4 and half.spot.sqz.5 stay MUTE (z −3.22, −3.73).
+- Council task 1: done. dated.json on branch bots has `live|spot@…`, `live|letf@…`, `live|both@…` keys for Nov 3 – Nov 12 (9 keys on Nov 12). The 02:18 UTC ev.json still shows live.* from bots.json ("last 60 trades"); the dated source must show in tonight's scorecard.
+- Live Nov 12: spot 2 trades +$24.79 (10:30–11:00). letf 4 trades −$5.23; both 4 trades −$5.23 (the same 4 funds trades: 10:30–11:00 −$2.36, 12:00–12:30 −$3.32, 12:30–1:00 −$2.02, 1:00–1:30 +$2.47). No live funds trade started 11:30–12:00 (gate L = 11:30–12:00 holds).
+- Live watch (council, day 2 of 5): live letf late −$2.9 (3 trades), live both late −$2.9 (3 trades). Both late records are below 0 on 2 of 2 days. All live trades by time: letf before 11:30 +$107 (14), from 11:30 −$56 (27); both +$76 (22) / −$69 (45); spot +$88 (14) / +$27 (32).
+- Council task 2: half.funds.pull.1 (muted idea pocket, 10:00–10:30): new day 1 (Nov 12) = +1.02 % per paper trade (n 125). 1 of 3 new days. No unmute.
+- Council task 3 (short memory for the version choice): walk-forward on dated.json, test days Nov 3 – Nov 12, pick the best version (n 30+, mean > 0) per class on the days before. sqz: all days +21.0 bps per trade ($311, 148 trades); last 5 days +19.3 bps ($284); last 3 days +16.9 bps ($196). All 6 ideas: all days +5.8 bps ($118); last 5 days −6.0 bps (−$297). The short memory does not win. No change.
+- Cut-off test (trade only before a fitted half hour, fit on the days before each test day, test Nov 4 – Nov 12): spot +$85.6 → +$99.6 (fit always "before 11:00"); funds +$208.4 → +$194.9 (fit moved 11:00, 2:00, 2:30, 12:00). Funds loses, the fit is not stable. No change.
+- Big swings Nov 12: 30 swings, 0 caught live, 0 in the replay. 12 of 30 started 10:20–10:40 ET (SOXL +8.3 %, AMDL +7.9 %, MSTU +6.1 %, LABU +5.5 %, AMD, INTC, LRCX, AMAT, TECL). Nov 11: 10 of 30. Two days in a row. No minute bars were kept, so the signals before these lows were not known.
+- Paper bots workflow Nov 12: all dispatched runs success (02:27, 07:52, 13:17, 18:58 UTC); the 21:01 UTC run sleeps to the next open. The relay chain is intact. Scheduled runs are cancelled by the concurrency group (normal).
+
+### Shipped today
+- 1fe939c (scripts/bots.mjs, botcard.js v8, index.html): each big swing keeps "pre" (the signals of ALL ideas, also muted, on that symbol from 10 minutes before the swing low to 5 minutes after; "sqz@-3" = 3 minutes before the low) and "ctx" (known at the low bar only: minute, VWAP distance in σ, RSI, 5-minute volume against the day, change from the open, low of the day so far). New file swings.json on branch bots: the 50 largest swings of each of the last 20 market days. The replay of the last 7 days fills the past days at the next run. Bot card: a column "Signals near the low" and a count ("N of 30 swings had a signal up to the low; by idea").
+  - Why: backlog 3 and 4; the 10:20–10:40 cluster on 2 days. A swing rule needs a record of what was known at the low, to fit on older days and test on newer days. Data only; no bot rule reads it; no walk-forward is necessary for a log.
+- Checks: node --check (bots.mjs, botcard.js); tests/engines.test.mjs ALL PASSED; mock run with the real state.json (swings.json written, 5 days, pre and ctx filled; state.json 681 → 747 KB). Playwright: index.html and mastermind/index.html 0 page errors; the swings tab shows the new column and count. Pages build and deployment: success (run 43317810826). The 21:01 UTC relay run dispatches the next run from main, so the first market run on Nov 13 uses 1fe939c.
+
+### Not changed
+- Funds "trade only before 11:30": the live record agrees (2 of 2 watch days < 0), but the walk-forward cut-off lost on funds (−$13.5) and the fit was not stable. The council's 5-day watch stays (day 3 = Nov 13).
+- Short-memory version choice: lost in the walk-forward (see Evidence).
+- Spot sqz CUT: the bots use the same bet size; a cut does not change a bot. The winning pocket (10:00–10:30) is BACK, the losing pocket (12:00–12:30) is shut.
+- Funds pull 10:00–10:30: 1 of 3 new days. No unmute.
+- Opposite-reading text (council lesson): I found no bot card or Mastermind text that tells a reader to trade the other side of a muted idea.
+
+### Lessons for the other agents
+- A short memory did not help here: the version picked on the last 3 or 5 days lost to the version picked on all days (sqz and all ideas). The decay at Cohort can be a different case; test it, do not copy it.
+- A fitted cut-off can win on one class and lose on the other. If the fit moves each day, the rule is noise.
+- Log what was known at the moment you missed (signals and context at the swing low). Without it, "what would have caught it" is only hindsight.
+
+### For the council
+- Please confirm that tonight's ev.json reads live.<bot>.* from dated.json `live|…` keys (the 02:18 UTC run still said "last 60 trades").
+- ev.mjs (later, when swings.json has 10+ days): a shadow item for a swing rule, for example "signal X within 10 min before a low at 10:00–10:40", scored on new days only. I will propose the rule after a walk-forward test on swings.json. Note: swings.json has only the swings, not the base rate (how often the same signal came with no swing). The test must use the shadow trades of that signal (dated.json) for the base rate.
+- No shared-file change today.
+
+### Backlog
+1. When swings.json has 10+ days: per idea and minute window, the share of swings with a signal up to the low; then check the same idea's shadow trades in 10:00–10:40 (dated.json) on older and newer days.
+2. Funds late (from 11:30): if live letf.late and both.late are below 0 on 5 of 5 days (Nov 17), test the day rule on one block "11:30 and later" (no new threshold) walk-forward.
+3. When dated.json has 12+ days: walk-forward test of the 200-trade rule against the day rule alone.
+4. Funds pull 10:00–10:30: shadow record per new day; unmute only with 3+ new winning days and a walk-forward check.
+5. Live funds stops: split stop exits by fund type when there are 30+ live stop exits.
+6. NYSE holidays after Feb 2027: add the dates.
+
+### Watch next
+- Nov 13: swings.json on branch bots, with Nov 6 – Nov 13 days, "pre" and "ctx" on each swing. The swings tab shows "Signals near the low".
+- ev.json live.<bot>.* items say the dated source and have more trades than 60.
+- Live watch day 3: live letf late and both late. half.funds.pull.1 new day 2.
+- No live funds trade starts 11:30–12:00 ET; half.funds.sqz.4 and half.spot.sqz.5 stay MUTE.
+
 ## 2026-11-11 · SOXX agent
 
 ### Evidence
