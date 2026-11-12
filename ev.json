@@ -1,5 +1,5 @@
 {
- "t": "2026-11-12T22:33:04.424Z",
+ "t": "2026-11-12T23:19:06.694Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; agents read this file every market day",
  "trackers": {
   "soxx": {
@@ -3260,8 +3260,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.vol-squeeze.1d",
@@ -3276,8 +3276,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.vol-squeeze.2d",
@@ -3308,8 +3308,8 @@
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.young-small.1d",
@@ -3495,7 +3495,9 @@
      "factor": 0.5,
      "why": "negative EV, not yet proven",
      "prev": "cut",
-     "changed": false
+     "changed": false,
+     "rulePrev": "cur",
+     "ruleChanged": false
     },
     {
      "id": "lab.rule.2d.cur",
@@ -3579,7 +3581,9 @@
      "factor": 1,
      "why": "positive, not proven",
      "prev": "watch",
-     "changed": false
+     "changed": false,
+     "rulePrev": "strict",
+     "ruleChanged": false
     }
    ],
    "summary": {
@@ -3587,7 +3591,7 @@
     "mute": 0,
     "cut": 20,
     "back": 9,
-    "changed": 3
+    "changed": 0
    },
    "rules": {
     "outlook.smart.24h": 0.5,
@@ -3622,7 +3626,7 @@
    }
   },
   "letf": {
-   "at": "2026-11-12T22:33:04.423Z",
+   "at": "2026-11-12T23:19:06.693Z",
    "items": [
     {
      "id": "rev.all.15m",
@@ -3856,70 +3860,6 @@
      "changed": false
     },
     {
-     "id": "fade.fast1m.15m.k25",
-     "desc": "Fade a fast 1-minute move (4σ+): as fade.fast1m.15m, but the LIMIT is 0.25 × 5-min σ past the close (comparison of fill rate)",
-     "unit": "ret",
-     "n": 17,
-     "ev": -0.002748823816318967,
-     "z": -0.644305282640459,
-     "hit": 0.6470588235294118,
-     "older": 0.0003967741891572161,
-     "recent": -0.005544910932297797,
-     "status": "watch",
-     "factor": 1,
-     "why": "negative, weak evidence",
-     "fill": 0.586,
-     "tod": {
-      "open": null,
-      "mid": {
-       "n": 9,
-       "m": -0.00885
-      },
-      "close": {
-       "n": 8,
-       "m": 0.00412
-      }
-     },
-     "days": {
-      "2026-11-04": {
-       "n": 1,
-       "m": 0.00115,
-       "fill": 1
-      },
-      "2026-11-05": {
-       "n": 1,
-       "m": 0.00665,
-       "fill": 0.2
-      },
-      "2026-11-06": {
-       "n": 3,
-       "m": -0.00113,
-       "fill": 0.75
-      },
-      "2026-11-09": {
-       "n": 4,
-       "m": -0.0002,
-       "fill": 0.667
-      },
-      "2026-11-12": {
-       "n": 8,
-       "m": -0.00629,
-       "fill": 1
-      }
-     },
-     "tried": {
-      "2026-11-05": 5,
-      "2026-11-09": 6,
-      "2026-11-11": 2,
-      "2026-11-12": 8,
-      "2026-11-10": 3,
-      "2026-11-06": 4,
-      "2026-11-04": 1
-     },
-     "prev": "watch",
-     "changed": false
-    },
-    {
      "id": "fade.rev.15m.tgate",
      "desc": "Fade a turn (as fade.rev.15m), only in the times of day that won on the older half (mid, close); scored on the newer half only",
      "unit": "ret",
@@ -3966,6 +3906,28 @@
       "close": {
        "n": 6,
        "m": 0.00498
+      }
+     },
+     "open10": {
+      "10:00": {
+       "n": 16,
+       "m": 0.00041
+      },
+      "10:10": {
+       "n": 7,
+       "m": 0.00027
+      },
+      "10:20": {
+       "n": 9,
+       "m": 0.00262
+      },
+      "9:40": {
+       "n": 27,
+       "m": 0.01393
+      },
+      "9:50": {
+       "n": 6,
+       "m": -0.02028
       }
      },
      "prev": "cut",
@@ -4102,6 +4064,299 @@
      "of": 56,
      "prev": "watch",
      "changed": false
+    },
+    {
+     "id": "plan.setup.60m",
+     "desc": "Fund page trade plan (setupOf on the underlying's 5-min bars, LONG/SHORT SETUP and LEAN): LIMIT entry 0.5 × 5-min ATR, alive 60 min, counts only when touched; exit at the plan's stop or target or 60 min after the fill; cost 0.02% of the underlying; one per underlying per hour",
+     "unit": "ret",
+     "n": 466,
+     "ev": 0.0002094091941903409,
+     "z": 0.41680300287707917,
+     "hit": 0.5214592274678111,
+     "older": 0.001667868339230814,
+     "recent": -0.0012490499508501318,
+     "status": "cut",
+     "factor": 0.5,
+     "why": "decay: the recent half lost",
+     "tod": {
+      "open": {
+       "n": 129,
+       "m": 0.00062
+      },
+      "mid": {
+       "n": 337,
+       "m": 0.00005
+      },
+      "close": null
+     },
+     "days": {
+      "2026-10-21": {
+       "n": 19,
+       "m": -0.00013
+      },
+      "2026-10-22": {
+       "n": 33,
+       "m": 0.0034
+      },
+      "2026-10-23": {
+       "n": 29,
+       "m": 0.00006
+      },
+      "2026-10-26": {
+       "n": 29,
+       "m": 0.00453
+      },
+      "2026-10-27": {
+       "n": 32,
+       "m": 0.00133
+      },
+      "2026-10-28": {
+       "n": 29,
+       "m": 0.00419
+      },
+      "2026-10-29": {
+       "n": 22,
+       "m": -0.00065
+      },
+      "2026-10-30": {
+       "n": 21,
+       "m": 0.00197
+      },
+      "2026-11-02": {
+       "n": 35,
+       "m": 0.00201
+      },
+      "2026-11-03": {
+       "n": 19,
+       "m": -0.00436
+      },
+      "2026-11-04": {
+       "n": 31,
+       "m": 0.00122
+      },
+      "2026-11-05": {
+       "n": 41,
+       "m": -0.00211
+      },
+      "2026-11-06": {
+       "n": 24,
+       "m": 0.00339
+      },
+      "2026-11-09": {
+       "n": 20,
+       "m": -0.00071
+      },
+      "2026-11-10": {
+       "n": 25,
+       "m": -0.00672
+      },
+      "2026-11-11": {
+       "n": 24,
+       "m": -0.00092
+      },
+      "2026-11-12": {
+       "n": 33,
+       "m": -0.00462
+      }
+     },
+     "fill": 0.69,
+     "tried": 675,
+     "exits": {
+      "tgt": 26,
+      "stop": 68,
+      "time": 372
+     },
+     "markets": 24
+    },
+    {
+     "id": "plan.setup.full.60m",
+     "desc": "Fund page trade plan, only LONG / SHORT SETUP (all three filters agree): as plan.setup.60m",
+     "unit": "ret",
+     "n": 97,
+     "ev": 0.0011599860324232006,
+     "z": 1.285772066540447,
+     "hit": 0.5567010309278351,
+     "older": 0.000972963541395336,
+     "recent": 0.0013431917379198837,
+     "status": "watch",
+     "factor": 1,
+     "why": "positive, not proven",
+     "tod": {
+      "open": {
+       "n": 38,
+       "m": 0.00085
+      },
+      "mid": {
+       "n": 59,
+       "m": 0.00136
+      },
+      "close": null
+     },
+     "days": {
+      "2026-10-21": {
+       "n": 3,
+       "m": -0.00734
+      },
+      "2026-10-22": {
+       "n": 7,
+       "m": 0.00322
+      },
+      "2026-10-23": {
+       "n": 11,
+       "m": 0.00099
+      },
+      "2026-10-26": {
+       "n": 4,
+       "m": 0.00526
+      },
+      "2026-10-27": {
+       "n": 2,
+       "m": -0.00068
+      },
+      "2026-10-28": {
+       "n": 8,
+       "m": 0.00165
+      },
+      "2026-10-29": {
+       "n": 5,
+       "m": -0.00438
+      },
+      "2026-10-30": {
+       "n": 1,
+       "m": -0.00309
+      },
+      "2026-11-02": {
+       "n": 11,
+       "m": 0.00685
+      },
+      "2026-11-03": {
+       "n": 1,
+       "m": -0.00389
+      },
+      "2026-11-04": {
+       "n": 11,
+       "m": -0.00119
+      },
+      "2026-11-05": {
+       "n": 8,
+       "m": -0.0006
+      },
+      "2026-11-06": {
+       "n": 6,
+       "m": 0.00204
+      },
+      "2026-11-09": {
+       "n": 3,
+       "m": 0.0013
+      },
+      "2026-11-10": {
+       "n": 5,
+       "m": -0.00472
+      },
+      "2026-11-11": {
+       "n": 3,
+       "m": 0.01618
+      },
+      "2026-11-12": {
+       "n": 8,
+       "m": -0.00018
+      }
+     }
+    },
+    {
+     "id": "plan.setup.lean.60m",
+     "desc": "Fund page trade plan, only LEAN LONG / LEAN SHORT (2 of 3 filters): as plan.setup.60m",
+     "unit": "ret",
+     "n": 369,
+     "ev": -0.000040471438082253185,
+     "z": -0.0687861035276986,
+     "hit": 0.5121951219512195,
+     "older": 0.0017110127847705606,
+     "recent": -0.001782488178649375,
+     "status": "watch",
+     "factor": 1,
+     "why": "negative, weak evidence",
+     "tod": {
+      "open": {
+       "n": 91,
+       "m": 0.00053
+      },
+      "mid": {
+       "n": 278,
+       "m": -0.00023
+      },
+      "close": null
+     },
+     "days": {
+      "2026-10-21": {
+       "n": 16,
+       "m": 0.00122
+      },
+      "2026-10-22": {
+       "n": 26,
+       "m": 0.00345
+      },
+      "2026-10-23": {
+       "n": 18,
+       "m": -0.00051
+      },
+      "2026-10-26": {
+       "n": 25,
+       "m": 0.00441
+      },
+      "2026-10-27": {
+       "n": 30,
+       "m": 0.00146
+      },
+      "2026-10-28": {
+       "n": 21,
+       "m": 0.00516
+      },
+      "2026-10-29": {
+       "n": 17,
+       "m": 0.00045
+      },
+      "2026-10-30": {
+       "n": 20,
+       "m": 0.00222
+      },
+      "2026-11-02": {
+       "n": 24,
+       "m": -0.00021
+      },
+      "2026-11-03": {
+       "n": 18,
+       "m": -0.00438
+      },
+      "2026-11-04": {
+       "n": 20,
+       "m": 0.00254
+      },
+      "2026-11-05": {
+       "n": 33,
+       "m": -0.00248
+      },
+      "2026-11-06": {
+       "n": 18,
+       "m": 0.00384
+      },
+      "2026-11-09": {
+       "n": 17,
+       "m": -0.00107
+      },
+      "2026-11-10": {
+       "n": 20,
+       "m": -0.00723
+      },
+      "2026-11-11": {
+       "n": 21,
+       "m": -0.00336
+      },
+      "2026-11-12": {
+       "n": 25,
+       "m": -0.00604
+      }
+     }
     }
    ],
    "extra": {
@@ -4109,12 +4364,13 @@
     "of": 24,
     "funds": 9,
     "fundsOf": 9,
-    "spikes": 14
+    "spikes": 14,
+    "planMarkets": 24
    },
    "summary": {
-    "n": 14,
+    "n": 16,
     "mute": 1,
-    "cut": 4,
+    "cut": 5,
     "back": 0,
     "changed": 0
    },
@@ -4123,7 +4379,8 @@
     "rev.hard.15m": 0.5,
     "fade.rev.15m": 0.5,
     "fade.fast5m.15m": 0.5,
-    "fast.15m.15m": 0.5
+    "fast.15m.15m": 0.5,
+    "plan.setup.60m": 0.5
    }
   }
  }
