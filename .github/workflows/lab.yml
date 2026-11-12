@@ -30,6 +30,7 @@ jobs:
         run: |
           mkdir -p lab
           git fetch --depth=1 origin data && git show origin/data:latest.json > latest.json
+          git fetch --depth=1 origin lab && git show origin/lab:lab.json > lab_prev.json || true
       - name: Run the bet lab
         run: node scripts/lab.mjs lab latest.json
       - name: Push results to the lab branch

@@ -25,8 +25,14 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 const ctxT = { window: {}, console }; vm.createContext(ctxT); vm.runInContext(fs.readFileSync(new URL("../tax.js", import.meta.url), "utf8"), ctxT); const Tax = ctxT.window.Tax;
 const L = JSON.parse(fs.readFileSync(LATEST, "utf8")), CTX = L.ctx || {};
 const hlName = c => { const x = CTX[c]; if (x && x.n) return x.n; const i = c.indexOf(":"); return i < 0 ? c : c.slice(0, i).toLowerCase() + ":" + c.slice(i + 1); };
-const universe = Object.keys(CTX).filter(c => (CTX[c].v || 0) >= 5e5).sort((a, b) => CTX[b].v - CTX[a].v).slice(0, 220);
-log("universe", universe.length);
+// The last lab.json (lab.yml saves it as lab_prev.json; absent in mock runs or on the first run).
+const PREV = (() => { try { return JSON.parse(fs.readFileSync(process.env.LAB_PREV || "lab_prev.json", "utf8")); } catch (e) { return null; } })();
+// Universe (EV agent, 2026-11-12): 24 h volume >= $0.5 M, plus the markets of the last run while their volume stays >= $0.1 M.
+// Before, the universe followed the day's volume only (205, 190, 172, 167, 179 markets on Nov 10-12), and the walk-forward
+// picks and the rulings changed from run to run with it. Same cap (220, largest volume first).
+const prevU = new Set(PREV && PREV.prof ? Object.keys(PREV.prof) : []);
+const universe = Object.keys(CTX).filter(c => (CTX[c].v || 0) >= 5e5 || (prevU.has(c) && (CTX[c].v || 0) >= 1e5)).sort((a, b) => CTX[b].v - CTX[a].v).slice(0, 220);
+log("universe", universe.length, "kept from the last run by the lower floor:", universe.filter(c => (CTX[c].v || 0) < 5e5).length);
 const post = b => http("https://api.hyperliquid.xyz/info", { method: "POST", tries: 3, timeoutMs: 20000, body: JSON.stringify(b), headers: { "content-type": "application/json" } });
 let MS = 7; const MR = () => { MS = (MS * 16807) % 2147483647; return MS / 2147483647; };
 const mock = n => { let p = 50 + MR() * 100; const t0 = Math.floor(Date.now() / D) * D; return Array.from({ length: n }, (_, i) => { const o = p; p *= Math.exp((MR() - 0.5) * 0.08); return [t0 - (n - 1 - i) * D, o, Math.max(o, p) * 1.01, Math.min(o, p) * 0.99, p, 1e6]; }); };   // LAB_MOCK=1: random walks, for testing the script offline
@@ -181,6 +187,11 @@ for (const h of [1, 2, 7]) { const A = WFALT[h], pick = A ? A.pick : "cur"; WRUL
   if (WFG[h]) { WWHY[h] = "the setups lost on both halves"; continue; }
   if (pick === "none") { WFG[h] = true; WWHY[h] = "no idea rule beat 0 on the older half"; continue; }
   if (A && A.pickSecond && A.pickSecond.t <= -2) { WFG[h] = true; WWHY[h] = `the chosen rule (${pick}) lost on the newer half, ${(A.pickSecond.m * 100).toFixed(2)}% per step, t ${A.pickSecond.t.toFixed(1)}`; continue; }
+  // Council task (2026-11-11): the chosen rule's newer half below 0 on two runs in a row (this run and the last lab.json) gates
+  // the horizon: "none" (no setup, 0) beat it on unseen steps twice. It comes back when the newer half is >= 0 again.
+  // First use (Nov 12): 1 d "recent" newer half -0.14% (Nov 11) and -0.29% (Nov 12, t -1.7).
+  const pm = PREV && PREV.wfAlt && PREV.wfAlt[h] && PREV.wfAlt[h].pickSecond ? PREV.wfAlt[h].pickSecond.m : null;
+  if (A && A.pickSecond && A.pickSecond.n >= 20 && A.pickSecond.m < 0 && pm != null && pm < 0) { WFG[h] = true; WWHY[h] = `the chosen rule lost on the newer half on two runs in a row (${(pm * 100).toFixed(2)}%, then ${pick} ${(A.pickSecond.m * 100).toFixed(2)}% per step); no setup beats it`; continue; }
   if (pick === "gate") { const past = WROWS[h].slice(-20).map(q => q.v); if (past.length >= 10 && mean(past) < 0) { WFG[h] = true; WWHY[h] = "the setups' last 20 results lost"; } } }
 // ---------- today: profiles and the current bets ----------
 const F0 = crossAt(lastDay), prof = {}, picks = {};
