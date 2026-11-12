@@ -1,5 +1,53 @@
 # Council notes (newest first)
 
+## 2026-11-12 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live. Each big swing now keeps the signals of all ideas near the swing low and what was known at the low (swings.json, 20 days). The bot card shows "Signals near the low". Data only: no bot rule reads it. Pages build: success.
+- Cohort Sniper: yes, live. Bet lab: a horizon shows no setup when its chosen idea rule lost on the newer half on two runs in a row. Now 1 d is gated (−0.29 %, then −0.23 % per step). The market list is more stable (181 markets). The lab change is live through lab.json. The agent's push started no pages build (GitHub error); my push at 23:18 UTC did (success).
+- LETF Sniper: yes, live. When the underlying's chart is not loaded, every fund on that underlying shows WAIT. Before, a long fund and its inverse fund could both show "LONG SETUP". Pages build: success.
+- Scorecard (council): the fund-page trade plan of LETF Sniper now has a score (see "Changes I made"). EV governor run 23:19 UTC: success, 24 of 24 markets.
+
+### Scoreboard (ev.json 23:19 UTC, with Nov 12 data)
+- SOXX: 12 muted, 4 cut, 7 backed. Gain: funds squeeze, limit 1 ATR, plan t6a, +0.35 % per trade (n 164, z 3.3). Loss: funds squeeze 11:30–12:00 ET, −0.44 % (MUTE, shut by the gate). Paper bots live today: spot 2 trades +$24.79; funds 4 trades −$5.23; both 4 trades −$5.23. bot.spot.live is BACK (+0.48 %, n 17, z 2.3). Funds trades from 11:30 ET lost on 2 of 2 watch days.
+- Cohort: 0 muted, 20 cut, 9 backed. Gain: signal condition "smart money adding", +1.71 % in 24 h (z 3.4). Loss: Outlook momentum 48 h, −2.06 % (cut). Lab 1 d chosen rule: −0.23 % (CUT, now gated). Lab 2 d chosen rule: +0.03 % (WATCH).
+- LETF: 1 muted, 5 cut, 0 backed. Gain: fund-page plan when all three filters agree, +0.12 % per plan (n 97, z 1.3, both halves > 0, WATCH). Loss: reversal detector (all turns), −0.20 % (MUTE). The new plan score: all plans +0.02 % (n 466, fill 69 %), CUT for decay (newer half −0.13 %); LEAN plans (2 of 3 filters) newer half −0.18 %. The last 4 market days lost.
+
+### Agents
+- SOXX agent: ran, good work. It did all 3 tasks. The short-memory test and the cut-off test were walk-forward, and it did not ship them because they lost. It shipped a data log, not a rule: correct, the swing question has no data yet. No revert.
+- Cohort agent: ran, good work. It did all 3 tasks. Problem: the two-run gate counts runs, not days. Two runs that the agent starts by hand on the same day count as "two runs in a row". Today the two runs were 2 h apart on almost the same data. It is not wrong today (the scheduled runs also lost), but it must be fixed. No revert.
+- LETF agent: ran, good work. It found a real consistency bug (opposite setups on one underlying when a chart fails) and fixed it with a WAIT, not with a new rule. It checked that the push stays off. No revert.
+- Checks by me: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright 0 page errors on SOXX, Mastermind, LETF (live, ?demo, fund page) and Cohort. The 16 shared files are the same in all repos that use them.
+- All agents kept the order rules (limit entries that count only when touched, no new stops, the same bet size, Schwab-only and long-only bots).
+- Yesterday's "Watch next": SOXX live items now read the dated record (yes, src dated.json). Cohort 1 d chosen rule stayed below 0 (yes, so it is gated); 2 d went to +0.03 %. LETF push stays off (yes). 🚀 moves at 10:20–10:30 ET: no cluster (9 of 65 open-hour events; see Lessons).
+
+### Lessons shared
+- A plan with fewer filters decays first. LETF: plans with 2 of 3 filters (LEAN) won on older days and lost on newer days; plans with all 3 filters won on both halves. SOXX agent: the same check can apply to versions that trade on a partial signal.
+- The 10:20–10:40 ET swing cluster (SOXX) does not show in the LETF 🚀 events. 🚀 events by 10-minute bucket: 9:40 +1.39 % (n 27), 9:50 −2.03 % (n 6), 10:20 +0.26 % (n 9). The swing lows are not fast moves. Do not look for them with a fast-move rule.
+- A gate that counts runs can fire on one day of data (Cohort). Count market days, not runs. SOXX agent: the live watch counts days; keep it that way.
+- A push that returns an error can start no workflows (Cohort). All agents: after each push, check that the pages build started.
+
+### Tasks for tomorrow
+- SOXX agent: 1) Check swings.json (Nov 6 – Nov 13, "pre" and "ctx" on each swing) and report how many of the 30 swings had a signal up to the low. 2) Live watch day 3: funds and both from 11:30 ET. 3) Read plan.setup.lean.60m (LETF): test walk-forward whether the bots' versions that enter on a weaker signal decay the same way.
+- Cohort agent: 1) Make the two-run gate count market days: the last lab.json counts only when it is from an earlier UTC day (or 12+ h older). 2) Write a dated record of wfRule and wfGate in lab.json (your backlog 1), so I can score the gate. 3) Check the log of the new "Data watchdog" step at the end of ev.yml and lab.yml.
+- LETF agent: 1) Read plan.setup.60m, .full.60m and .lean.60m (fill, exits, days). Test walk-forward (choose on the older half of the plan days, report the newer half only) whether LEAN plans must show WAIT. 2) Show the plan's EV next to the plan on the fund page (your backlog 1), with the ruling. 3) Read fast.15m.15m.open10 (record only, no rule from n < 30).
+
+### Changes I made
+- Hyperdash-Cohort-Tracker 02a9ff0 (scripts/ev.mjs, .github/workflows/ev.yml, .github/workflows/lab.yml):
+  - LETF request (Nov 11): plan.setup.60m, plan.setup.full.60m, plan.setup.lean.60m. The test reads setupCore from LETF-Sniper main at run time, so it is the same code as the page. One plan per underlying per hour (10:30 … 14:30 ET), 5-minute bars of 1 month; LIMIT entry 0.5 × 5-min ATR, alive 60 min, counts only when touched; exit at the plan's stop or target, or 60 min after the fill; a bar that touches both counts as the stop. No fitted value. Offline check on random data: +0.007 % per plan, z 0.2 (no built-in bias).
+  - LETF request: fast.15m.15m.open10 (🚀 events by 10-minute bucket in the open hour; record only).
+  - LETF: fade.fast1m.15m.k25 removed (the question has its answer).
+  - Cohort request: items with a rule get rulePrev and ruleChanged.
+  - Cohort request: ev.yml and lab.yml end with the same data-age check as the watchdog (its own schedule fired only 3 times in 24 h).
+- Checks: node --check; YAML check; offline run with today's files: every SOXX and Cohort item has the same ruling, n and EV. Live EV run 23:19 UTC: success. Cohort pages build: success.
+- Not done: layout.js move of the LETF reversal card (small value, open since Nov 8).
+- No revert of agent work.
+
+### What Steven should know
+- Nothing to paste. No Worker change. No decision is necessary.
+- The LETF fund-page plan now has a score. Plans where all three filters agree made +0.12 % per plan on the underlying (not proven). LEAN plans (2 of 3 filters) lost on the newer days. Until the test is done, trust only "LONG SETUP" or "SHORT SETUP", not "LEAN".
+- Cohort 1-day setups are off (gated) because they lost on new data two times. 2-day setups show nothing today.
+
 ## 2026-11-11 · Council
 
 ### Shipped today
