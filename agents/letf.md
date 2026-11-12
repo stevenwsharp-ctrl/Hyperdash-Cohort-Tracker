@@ -1,5 +1,56 @@
 # LETF agent notes
 
+## 2026-11-12 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev (2026-11-12 22:15 UTC), trackers.letf, 24 of 24 underlyings, 9 of 9 funds, 14 spikes flattened. This scorecard has the Nov 12 data. This session cannot get bars (Yahoo and github.io are blocked from the cloud). I used the scorecard and the EV governor log (run 43318130510).
+- rev.all.15m: MUTE, n 126, −0.20% per 15 min, z −2.3 (older −0.37%, newer −0.03%). rev.hard.15m: CUT, n 27, −0.19% (the page mutes it with all turns).
+- fast.1m.15m: WATCH, n 29, −0.22%, both halves negative (−0.39%, −0.07%). fast.5m.15m: WATCH, n 31, +0.04%, halves disagree (−0.15%, +0.22%). The page says "do not follow" and "no clear edge". No follow flag exists for 1-minute or 5-minute moves.
+- Largest single events (log): SMCI Nov 12 11:24–11:25 ET, −2.95% in 1 min (−3.65% in 5 min), then +5.35% in the next 15 min. One event moves these small samples very much.
+- Limit fades: fade.fast5m.15m BACK → CUT (Nov 12: −0.93%, n 5; new-day streak 0). fade.fast1m.15m WATCH, n 14, −0.33%; Nov 12 −0.62% with 100% fill (n 8). fade.fast1m.15m.k25 (limit 0.25σ): n 17, fill 59%, −0.27%; Nov 12 −0.63% with 100% fill. fade.rev.15m BACK → CUT (decay: newer half −0.05%; new days 1 of 4 positive (Nov 12 +0.13%), streak 1). fade.15m.15m WATCH, −0.06%; Nov 12 −0.41%.
+- 🚀 rule fast.15m.15m: WATCH → CUT (decay: older +0.28%, newer −0.22%). Time of day (same data): open +0.44% (n 65), mid −0.29% (n 91). Walk-forward gate (window chosen on the older half: open), newer half only: +0.09%, n 39, z 0.2. No edge.
+- 🚀 alert fast.15m.alert: WATCH, −0.04%, older +0.34%, newer −0.40% (third scorecard with the newer half below 0). fast.15m.alert.tgate: MUTE → WATCH (open only, newer half −0.00%, n 29).
+- Consistency check (?demo, Playwright, 10 underlyings with 2+ funds): with the underlying chart loaded, every fund gives the same reading (0 of 10 bad). With the underlying chart missing, the page read each fund's own chart: 7 of 9 underlyings gave inconsistent readings, for example SPXL "LONG SETUP" and SPXS "LONG SETUP" (opposite bets on SPY). In live use this occurs when the Worker /chart call for the underlying fails or is slow; uvLoad then waited 55 s before it tried again.
+
+### Shipped today
+- LETF-Sniper fc16bd9 (index.html, inline code; no script file changed, so no ?v= bump):
+  1. setupOf: when a fund has an underlying but the underlying's 5-minute chart is not loaded, the setup is "WAIT · the $<underlying> chart is not loaded yet", with no plan (no entry, target or stop). All long and inverse funds on that underlying show the same WAIT. A line says that the filters below come from the fund's own chart only and are not a setup. Agree.publish and the web emit do not fire for this state.
+  2. uvLoad: when the underlying's bars do not load, it tries again after 10 s (before: 55 s).
+- Why: priority 2 (inconsistent setups on one underlying). Steven's rule: long and inverse funds on one underlying must give one consistent reading.
+- Walk-forward: not applicable (no new rule, no threshold). The change removes a reading that had no test and could give opposite bets.
+- Checks: Playwright ?demo: with underlying bars, 0 of 10 underlyings inconsistent (same as before); with the underlying bars removed, 0 of 10 inconsistent and no plan (before: 7 of 9 inconsistent). Fund page SPXS with SPY missing shows the WAIT text. 0 page errors on /, ?demo and ?demo#/f/SOXS. Pages build and deployment: success (run 43319334485, fc16bd9).
+- Council task 2 checked with today's ev.json (route of ev.json to the local file, ?demo, synthetic +9% 15-minute move): fastPushOn() = false; alert text "… no proven edge, do not chase · not pushed: this alert lost on the newer days of the test"; hot = false. The push stays off. I cannot open the live github.io page from the cloud.
+- worker.js not changed. Steven does not need to paste anything.
+
+### Not changed
+- 🚀 flag: kept with "no proven edge, do not chase". fast.15m.15m is CUT for decay, not negative on both halves. The open window is positive on all data (+0.44%), but the walk-forward gate (open, chosen on the older half) gives only +0.09% on the newer half (z 0.2). That is not evidence for an "open only" flag.
+- No fade flag: no fade test has 3 positive new days in a row. A closer limit (k25) fills more (59% against 48%) but loses the same (Nov 12 −0.63% at 100% fill). When every limit fills, the move kept going against the fade (adverse selection). Do not move the limit closer.
+- Council task 3 (🚀 cluster at 10:20–10:30 ET): the scorecard splits only open (09:30–10:30), mid (10:30–15:00) and close. 65 of 162 🚀 events (40%) are in the open hour, which is 15% of the session. I cannot see 10-minute buckets from the scorecard, and I cannot get bars. Request below.
+- Shared files: not edited.
+
+### Lessons for the other agents
+- A fallback can break a consistency rule. The page read the underlying for every fund, but when that chart did not load it read each fund's own chart in silence. Check what your page shows when one data source fails, not only when all load. Show WAIT, not a reading from a different source.
+- A closer limit is not a better limit. LETF k25 fills more often, and the extra fills are the losers (100% fill on the worst day). SOXX agent: check the fill rate per day next to the result for your limit entries.
+- One event can flip a small test. SMCI on Nov 12 (+5.35% in 15 min after a −3.65% drop) moved fast.5m.15m from a negative newer half to a positive one. Read the log of the largest events before you act on a small n.
+
+### For the council
+- ev.mjs (new item request): fast.15m.15m by 10-minute ET bucket in the open hour (09:30–10:30), n and mean per bucket, the same events as fast.15m.15m. Only a record (WATCH), for your 10:20–10:30 swing lesson. No ruling from it.
+- ev.mjs (request from Nov 11, still open): score the setupOf plan. It is the main trade plan on the fund page and has no score. Rule (same code as index.html setupCore on the UNDERLYING's 5-minute bars): when side ≠ 0, LIMIT entry 0.5 × 5-min ATR in the trade direction, alive 60 min, counts only when touched; exit at the target or the stop or after 60 min; report fill rate, EV per trade, older and newer halves, one per underlying per hour. Please copy setupCore, swings, profile, trendOf, rsi, ema, atr into ev.mjs (the same code as the page).
+- ev.mjs: fade.fast1m.15m.k25 answered the question (more fills, no edge). You can drop it if the scorecard is too long.
+- layout.js (shared): request of Nov 8 stays open (put #revCard after the scanner while rev.all.15m is muted).
+
+### Backlog
+1. When the setupOf plan has a score: show its EV on the fund page next to the plan, and mute the plan if it is proven negative.
+2. Show fade.15m.15m (limit fade of 🚀) next to the 🚀 rule, with its new-day record.
+3. Audit leverage and underlying of the fund list against instruments.json.
+4. The 🚀 flag threshold is per fund kind (4% single-stock, 2% index). A 1.5× and a 2× fund on one underlying can disagree. Check if a per-underlying move (fund move ÷ leverage) is more consistent.
+
+### Watch next
+- Pages build for fc16bd9 is success. On the live fund page, a long fund and its inverse fund never show opposite setups (WAIT when the underlying chart is missing).
+- fast.15m.alert newer half stays below 0: the push stays off. If it goes above 0 and the tgate is not MUTE, the push comes back by itself.
+- fade.fast5m.15m and fade.fast1m.15m: Nov 13 must be > 0 to start a streak. fast.1m.15m must stay negative on both halves (no follow flag).
+- fast.15m.15m (🚀): if the newer half stays below 0 and the older half goes below 0 too, the flag text changes by itself to "fast moves tended to come back: do not chase".
+
 ## 2026-11-11 · LETF agent
 
 ### Evidence
