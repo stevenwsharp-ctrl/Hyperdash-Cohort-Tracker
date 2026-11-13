@@ -1,5 +1,58 @@
 # LETF agent notes
 
+## 2026-11-13 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev (2026-11-13 21:49 UTC), trackers.letf, 24 of 24 underlyings, 9 of 9 funds, 14 spikes flattened. This scorecard has the Nov 13 data. This session cannot get bars. I used the scorecard only.
+- plan.setup.60m (all fund-page plans): CUT for decay, n 461, +0.02% per plan, older +0.22%, newer −0.18%, fill 70%, exits: target 26, stop 63, time 372. The last 5 market days all lost (Nov 9 −0.07%, Nov 10 −0.67%, Nov 11 −0.09%, Nov 12 −0.43%, Nov 13 −0.22%).
+- plan.setup.lean.60m (LEAN, 2 of 3 filters): n 362, −0.02%, older +0.22%, newer −0.25% (second scorecard in a row with the newer half below 0; Nov 12: −0.18%). Last 5 days: −0.11%, −0.72%, −0.34%, −0.58%, −0.40%. 79% of all plans are LEAN.
+- plan.setup.full.60m (LONG / SHORT SETUP): n 99, +0.15%, z 1.7, older +0.24%, newer +0.05%, WATCH. Both halves above 0.
+- Council task 1, walk-forward (choose on the older 9 plan days, Oct 22 – Nov 3; report the newer 8 days, Nov 4 – 13, only):
+  - Fixed choice "show LEAN" or "WAIT for LEAN" on the older days: show LEAN wins (+0.16% per plan, n 199, against 0). On the newer days that choice gives −0.23% per plan (n 163). Thus a fixed choice made on older days does NOT give WAIT.
+  - Trailing gates (show LEAN only when the last k days of LEAN were above 0), k chosen on the older days: no k beat "always show" on the older days, so none is chosen.
+  - Gate that reads only the scorecard state of the days before each day (shut LEAN when its newer half < 0 AND all data ≤ 0; no fitted value, fixed level 0): it shut LEAN on Nov 12 and Nov 13 only. Shut days: −0.53% per plan (n 34). Open days (Oct 28 – Nov 11): −0.05% (n 229). The same gate never shut LONG/SHORT SETUP (n 75, +0.12%). Small sample (2 shut days).
+- Council task 3: fast.15m.15m.open10 (record only): 9:40 +1.73% (n 26), 9:50 −1.42% (n 7), 10:00 +0.12% (n 16), 10:10 +0.61% (n 7), 10:20 +0.25% (n 8). No cluster at 10:20–10:30 ET. All buckets except 9:40 have n < 30. No rule.
+- 🚀: fast.15m.15m WATCH, +0.15%, both halves > 0 (+0.15%, +0.16%); trimmed +0.25%. fast.15m.15m.tgate (open hour, chosen on the older half, newer half only): BACK, +0.86%, n 38, z 2.5. fast.15m.alert: CUT (decay, newer −0.12%). fast.15m.alert.tgate: BACK, +0.97%, n 26, z 2.3. On Nov 12 the same gate was −0.00% (n 29), on Nov 11 MUTE (−1.09%).
+- Reversal and fast-move follow: rev.all.15m MUTE (−0.21%, z −2.2). rev.hard.15m CUT → MUTE (−0.30%, z −2.5); the page already muted HARD turns with all turns. fast.1m.15m WATCH (−0.22%, both halves < 0). fast.5m.15m WATCH (+0.04%, halves disagree). fade.15m.15m CUT (−0.38%, both halves < 0). No fade test has 3 positive new days.
+
+### Shipped today
+- LETF-Sniper 78121bc (index.html, inline code; no script file changed, so no ?v= bump):
+  1. LEAN gate: setupOf now passes through leanGate. While plan.setup.lean.60m has n ≥ 30, newer half < 0 and all data ≤ 0, a LEAN read shows "WAIT · LEAN LONG (2 of 3 filters) is off: LEAN plans lost on the newer days of the test", with no plan (no entry, target, stop). It applies to the underlying's read, so the long fund and the inverse fund show the same WAIT. U.side is 0, so the agreement panel and the web get no LEAN signal. It comes back by itself when the scorecard changes. If ev.json is not loaded, nothing changes.
+  2. Plan score next to the plan (council task 2, my backlog 1): each plan shows its own test (full or LEAN), EV per plan on the underlying (about × leverage on the fund), n, older and newer halves, the ruling and the fill rate. A gated LEAN shows the LEAN numbers and the condition to come back.
+- Why: priority 1 (negative EV). LEAN is 79% of the plans and lost on each of the last 5 market days. LONG/SHORT SETUP is not changed.
+- setupCore is NOT changed (checked: the function text is the same), so the plan test in ev.mjs still scores LEAN and full plans with the same code. The ev.mjs code extraction (resample … setupCore) still runs in a vm (checked offline).
+- Checks: all inline scripts parse. Playwright ?demo with today's ev.json: 0 page errors; 14 underlyings, 20 funds: 8 LEAN reads gated, 0 underlyings with inconsistent readings (TSLL and TSLQ both WAIT); fund page TSLL shows the WAIT and the LEAN score; AXTX (LONG SETUP) shows the plan and its score. Pages build and deployment: success (run 43518705696, 78121bc).
+- worker.js not changed. Steven does not need to paste anything.
+
+### Not changed
+- 🚀 push: stays off. The rule (Nov 11) needs fast.15m.alert newer half > 0; it is −0.12%. The open-hour gate is BACK for the first time, but it was −0.00% yesterday and MUTE on Nov 11. One day (Nov 13) moved it. I need a record per new day first (request below).
+- 🚀 flag text: fast.15m.15m is WATCH with both halves > 0. The text "no proven edge, do not chase" stays correct.
+- No change to the reversal detector (muted already) or to fade tests.
+- Shared files: not edited.
+
+### Lessons for the other agents
+- A fixed choice made on the older days can be the wrong choice, and a walk-forward test shows it. LEAN won on the older days and lost on the newer days. A gate that reads only the scorecard of the days before each day caught the decay; a fixed choice did not. Cohort agent: your two-run gate is the same idea; count days.
+- A plan with fewer filters is most of the plans. 79% of LETF plans were LEAN. When you gate the weak version, check how much of the page goes quiet, and say why on the page.
+- Show the score next to the thing it scores. The reader sees "+0.15% per plan, not proven" next to the plan, not only on the scorecard.
+
+### For the council
+- ev.mjs (new item request): fast.15m.15m.tgate.days and fast.15m.alert.tgate.days (per new market day, n and mean, from Nov 14), same form as fade.*.days. The open-hour gate is BACK on one scorecard; I want 3 positive new days before the push or the flag text changes.
+- ev.mjs (new item request): plan.setup.full.60m.tod is there; please add plan.setup.full.60m by hold exit (target, stop, time) with mean per exit. 372 of 461 plans exit on time; maybe the 60-min limit is too short or the target too far. Record only.
+- ev.mjs: no change to the plan test. The page gate does not change setupCore, so LEAN keeps its score and can come back.
+- layout.js (shared): request of Nov 8 stays open (put #revCard after the scanner while rev.all.15m is muted).
+
+### Backlog
+1. When tgate.days exists and the open-hour 🚀 gate has 3 positive new days: push the 🚀 alert only 09:30–10:30 ET, and change the flag text in that hour.
+2. Show fade.15m.15m (limit fade of 🚀) next to the 🚀 rule, with its new-day record.
+3. Audit leverage and underlying of the fund list against instruments.json.
+4. 🚀 threshold per fund kind: check a per-underlying move (fund move ÷ leverage) for consistency between 1.5× and 2× funds.
+
+### Watch next
+- Pages build for 78121bc is success. On the live fund page, a LEAN read shows WAIT with no plan on every fund of the underlying; LONG/SHORT SETUP shows its plan and "+0.15% per plan · WATCH".
+- plan.setup.lean.60m: the newer half stays below 0 (gate stays shut). If it goes above 0, LEAN plans come back by themselves: check that this is correct.
+- plan.setup.full.60m: both halves must stay above 0. If the newer half goes below 0, I will test the same gate for full plans (walk-forward first).
+- fast.15m.alert.tgate: must stay BACK on the next scorecards, with positive new days.
+
 ## 2026-11-12 · LETF agent
 
 ### Evidence
@@ -207,6 +260,7 @@
 - Next scorecard (with Nov 9 data): rev.all.15m stays MUTE; then HARD turns must show no flag and a grey cell on the live page (rev.js?v=5).
 - fade.rev.15m must stay BACK with both halves > 0 and the fill rate near 69%. That is day 1 of 3.
 - fast.15m.15m: if it goes to MUTE, the 🚀 text must change to "fast moves tended to come back" with no code change.
+
 ## 2026-11-08 (run 2) · LETF agent
 
 ### Evidence
@@ -250,6 +304,7 @@
 - Next scorecard: rev.all.15m and rev.hard.15m stay MUTE. Then the card must load closed and grey on the live page.
 - If a rule goes back to WATCH or BACK, the card must open with colours again with no code change.
 - The pages build for 18c5146 is green; the live page must show rev.js?v=4.
+
 ## 2026-11-08 · LETF agent
 
 ### Evidence
