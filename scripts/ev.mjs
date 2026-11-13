@@ -86,7 +86,11 @@ async function soxx() { const B = await getJ("https://raw.githubusercontent.com/
     items.push(rule({ id, desc, unit: "ret", n, ev: m, z, zTrades: m / (sdT / Math.sqrt(n)), hit: rows.reduce((p, v) => p + v[3], 0) / n, days: D, ...(D >= 2 ? { older: mean(dm.slice(0, h)), recent: mean(dm.slice(h)) } : {}), src: "dated.json", ...(ex || {}) })); };
   for (const [k, b] of Object.entries(B.bots || {})) { if (!LV[k]) continue; const ds = Object.keys(LV[k]).sort(), sum = (d, f) => { const o = [0, 0, 0, 0]; for (const [bb, v] of Object.entries(LV[k][d])) if (f(+bb)) v.forEach((x, i) => o[i] += x); return o; };
     for (let bb = 0; bb < 13; bb++) fromDays(`live.${k}.${bb}`, `${b.name}: LIVE trades started ${HH(bb)}–${HH(bb + 1)} ET (all live trades, dated record, by day)`, ds.map(d => LV[k][d][bb]).filter(v => v && v[0] > 0));
-    for (const [nm, f, tx] of [["early", bb => bb < 4, "before 11:30"], ["late", bb => bb >= 4, "11:30 and later"]]) fromDays(`live.${k}.${nm}`, `${b.name}: LIVE trades started ${tx} ET, from Nov 11 2026 only (split fixed before these trades; dated record, by day)`, ds.filter(d => d >= "2026-11-11").map(d => sum(d, f)).filter(v => v[0] > 0), { from: "2026-11-11" }, 1); }
+    for (const [nm, f, tx] of [["early", bb => bb < 4, "before 11:30"], ["late", bb => bb >= 4, "11:30 and later"]]) fromDays(`live.${k}.${nm}`, `${b.name}: LIVE trades started ${tx} ET, from Nov 11 2026 only (split fixed before these trades; dated record, by day)`, ds.filter(d => d >= "2026-11-11").map(d => sum(d, f)).filter(v => v[0] > 0), { from: "2026-11-11" }, 1);
+    // Council, Nov 13 2026 (SOXX agent request): the bots pick the best-scored version from Nov 16 2026 (b09fdad, no random
+    // draw). live.<bot>.pick = all live trades from Nov 16; live.<bot>.draw = the last random-draw days (Nov 11–13), same form.
+    fromDays(`live.${k}.pick`, `${b.name}: LIVE trades from Nov 16 2026 (best-score version pick; dated record, by day)`, ds.filter(d => d >= "2026-11-16").map(d => sum(d, () => true)).filter(v => v[0] > 0), { from: "2026-11-16" }, 1);
+    fromDays(`live.${k}.draw`, `${b.name}: LIVE trades Nov 11–13 2026 (random-draw version pick; dated record, by day)`, ds.filter(d => d >= "2026-11-11" && d < "2026-11-16").map(d => sum(d, () => true)).filter(v => v[0] > 0), { from: "2026-11-11", to: "2026-11-13" }, 1); }
   for (const [k, b] of Object.entries(B.bots || {})) { if (LV[k]) continue; const lv = (b.trades || []).filter(x => !x.bt && isFinite(x.r) && x.t0).map(x => ({ ...etP(x.t0), r: x.r, t: x.t0 })).sort((x, y) => x.t - y.t);
     for (let bb = 0; bb < 13; bb++) { const a = lv.filter(x => Math.floor((x.m - 570) / 30) === bb); if (a.length < 3) continue;
       items.push({ ...fromList(`live.${k}.${bb}`, `${b.name}: LIVE trades started ${HH(bb)}–${HH(bb + 1)} ET (last 60 trades in the file)`, "ret", a.map(x => x.r)), days: new Set(a.map(x => x.d)).size }); }
@@ -220,7 +224,11 @@ async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [],
   const perDay = (id, list) => { const byD = {}; list.forEach(x => { const d = new Date(x.t - 5 * 36e5).toISOString().slice(0, 10); (byD[d] || (byD[d] = [])).push(x.v); });
     const it = items.find(i => i.id === id); if (it) it.days = Object.fromEntries(Object.entries(byD).sort().map(([d, v]) => [d, { n: v.length, m: +mean(v).toFixed(5) }])); };
   const tgate = (id, list, desc) => { const a = list.slice().sort((x, y) => x.t - y.t), h = Math.floor(a.length / 2), old = a.slice(0, h), keep = ["open", "mid", "close"].filter(p => { const v = old.filter(x => x.p === p).map(x => x.v); return v.length >= 8 && mean(v) > 0; });
-    const nw = a.slice(h).filter(x => keep.includes(x.p)); if (nw.length) items.push({ ...fromList(`${id}.tgate`, `${desc}, only in the times of day that won on the older half (${keep.join(", ")}); scored on the newer half only`, "ret", nw.map(x => x.v)), keep, of: a.length - h }); };
+    const nw = a.slice(h).filter(x => keep.includes(x.p)); if (nw.length) items.push({ ...fromList(`${id}.tgate`, `${desc}, only in the times of day that won on the older half (${keep.join(", ")}); scored on the newer half only`, "ret", nw.map(x => x.v)), keep, of: a.length - h, days: dayRec(nw) }); };
+  // Council, Nov 13 2026 (LETF agent request): .tgate items keep n and mean per ET market day of the scored (newer-half) trades,
+  // so "3 positive new days" can be read for the 🚀 open-hour gate. Record only; the ruling is unchanged.
+  function dayRec(list) { const byD = {}; list.forEach(x => { const d = new Date(x.t - 5 * 36e5).toISOString().slice(0, 10); (byD[d] || (byD[d] = [])).push(x.v); });
+    return Object.fromEntries(Object.entries(byD).sort().map(([d, v]) => [d, { n: v.length, m: +mean(v).toFixed(5) }])); }
   perDay("fade.rev.15m", R.frev); perDay("fade.fast1m.15m", R.ff1); perDay("fade.fast5m.15m", R.ff5);
   // fill rate per market day of the fast 1-minute fades (council, Nov 11 2026): tried signals per day from R.tf1
   { const tD = {}; R.tf1.forEach(t => { const d = new Date(t - 5 * 36e5).toISOString().slice(0, 10); tD[d] = (tD[d] || 0) + 1; });
@@ -278,7 +286,9 @@ async function letfPlan() { const setupCore = await pageSetup(); if (!setupCore)
     const R = planTrades(setupCore, B5, BD); tried += R.tried; for (const w in ex) ex[w] += R.ex[w]; R.out.forEach(x => all.push({ ...x, s })); }));
   const items = [], v = a => a.slice().sort((x, y) => x.t - y.t).map(x => x.v);
   const perD = a => { const o = {}; a.forEach(x => { const d = etDay(x.t); (o[d] || (o[d] = [])).push(x.v); }); return Object.fromEntries(Object.entries(o).sort().map(([d, w]) => [d, { n: w.length, m: +mean(w).toFixed(5) }])); };
-  const add = (id, desc, a, extra) => { if (a.length) items.push({ ...fromList(id, desc, "ret", v(a)), tod: splits(a), days: perD(a), ...(extra || {}) }); };
+  // Council, Nov 13 2026 (LETF agent request): n and mean per exit kind (tgt, stop, time) on each plan item. Record only.
+  const byExit = a => Object.fromEntries(["tgt", "stop", "time"].map(w => { const x = a.filter(y => y.why === w).map(y => y.v); return [w, { n: x.length, m: x.length ? +mean(x).toFixed(5) : null }]; }));
+  const add = (id, desc, a, extra) => { if (a.length) items.push({ ...fromList(id, desc, "ret", v(a)), tod: splits(a), days: perD(a), byExit: byExit(a), ...(extra || {}) }); };
   add("plan.setup.60m", "Fund page trade plan (setupOf on the underlying's 5-min bars, LONG/SHORT SETUP and LEAN): LIMIT entry 0.5 × 5-min ATR, alive 60 min, counts only when touched; exit at the plan's stop or target or 60 min after the fill; cost 0.02% of the underlying; one per underlying per hour", all, { fill: tried ? +(all.length / tried).toFixed(3) : null, tried, exits: ex, markets: got });
   add("plan.setup.full.60m", "Fund page trade plan, only LONG / SHORT SETUP (all three filters agree): as plan.setup.60m", all.filter(x => x.full));
   add("plan.setup.lean.60m", "Fund page trade plan, only LEAN LONG / LEAN SHORT (2 of 3 filters): as plan.setup.60m", all.filter(x => !x.full));
