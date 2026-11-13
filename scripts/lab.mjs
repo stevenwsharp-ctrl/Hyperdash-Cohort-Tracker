@@ -182,6 +182,23 @@ const WFG = Object.fromEntries([1, 2, 7].map(h => { const w = WF[h]; return [h, 
 // scorecard's mute rule (t <= -2), or when the rule is "none", or when the rule is "gate" and the last 20 ended results lost.
 // First run (Nov 11): 1 d picks "recent" (newer half -0.05% vs -0.25% for the live rule); 2 d picks the live rule, whose
 // newer half lost -0.86% per step (t -2.2), so 2 d is gated.
+// Dated record of the chosen rule and the gate (Council task, 2026-11-12): one entry per UTC day (the last run of that day),
+// carried from the last lab.json, newest last, 90 days. m2/t2/n2 = the chosen rule's newer half per step in that run. The council
+// can score the gate from it (steps with the gate on vs off). SEED: the runs before this record existed, from the Actions logs
+// (Bet lab runs of Nov 11 22:22 and Nov 12 23:18 UTC).
+const NOW = Date.now(), r6 = v => v == null || !isFinite(v) ? null : Math.round(v * 1e6) / 1e6;
+const histOf = x => !x || !x.t || !x.wfAlt ? null : { t: x.t, asOf: x.asOf || null, markets: x.markets || null, rule: x.wfRule || null, gate: x.wfGate || null,
+  m2: Object.fromEntries([1, 2, 7].map(h => [h, x.wfAlt[h] && x.wfAlt[h].pickSecond ? r6(x.wfAlt[h].pickSecond.m) : null])),
+  t2: Object.fromEntries([1, 2, 7].map(h => [h, x.wfAlt[h] && x.wfAlt[h].pickSecond ? r6(x.wfAlt[h].pickSecond.t) : null])),
+  n2: Object.fromEntries([1, 2, 7].map(h => [h, x.wfAlt[h] && x.wfAlt[h].pickSecond ? x.wfAlt[h].pickSecond.n : null])) };
+const SEED = [
+  { t: "2026-11-11T22:24:34.000Z", markets: 170, src: "log", rule: { 1: "recent", 2: "recent", 7: "cur" }, gate: { 1: false, 2: false, 7: true }, m2: { 1: -0.00142, 2: -0.00122, 7: null }, t2: { 1: -0.9, 2: -0.3, 7: null }, n2: { 1: null, 2: null, 7: null } },
+  { t: "2026-11-12T23:21:18.000Z", markets: 181, src: "log", rule: { 1: "cur", 2: "strict", 7: "cur" }, gate: { 1: true, 2: false, 7: false }, m2: { 1: -0.00222, 2: 0.00101, 7: null }, t2: { 1: -1.5, 2: 0.3, 7: null }, n2: { 1: null, 2: null, 7: null } }];
+let HIST = PREV && Array.isArray(PREV.wfHist) ? PREV.wfHist.slice() : process.env.LAB_MOCK ? [] : SEED.slice();
+{ const e = histOf(PREV); if (e && !HIST.some(q => q.t === e.t)) HIST.push(e); }
+HIST = HIST.filter(q => q && q.t && Date.parse(q.t) < NOW).sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
+const REF = HIST.filter(q => NOW - Date.parse(q.t) >= 12 * 36e5).pop() || null;
+log("gate reference", REF ? `${REF.t} 1d ${REF.m2[1]} 2d ${REF.m2[2]}` : "none (no record 12+ h older)");
 const WRULE = {}, WWHY = {};
 for (const h of [1, 2, 7]) { const A = WFALT[h], pick = A ? A.pick : "cur"; WRULE[h] = pick;
   if (WFG[h]) { WWHY[h] = "the setups lost on both halves"; continue; }
@@ -190,8 +207,10 @@ for (const h of [1, 2, 7]) { const A = WFALT[h], pick = A ? A.pick : "cur"; WRUL
   // Council task (2026-11-11): the chosen rule's newer half below 0 on two runs in a row (this run and the last lab.json) gates
   // the horizon: "none" (no setup, 0) beat it on unseen steps twice. It comes back when the newer half is >= 0 again.
   // First use (Nov 12): 1 d "recent" newer half -0.14% (Nov 11) and -0.29% (Nov 12, t -1.7).
-  const pm = PREV && PREV.wfAlt && PREV.wfAlt[h] && PREV.wfAlt[h].pickSecond ? PREV.wfAlt[h].pickSecond.m : null;
-  if (A && A.pickSecond && A.pickSecond.n >= 20 && A.pickSecond.m < 0 && pm != null && pm < 0) { WFG[h] = true; WWHY[h] = `the chosen rule lost on the newer half on two runs in a row (${(pm * 100).toFixed(2)}%, then ${pick} ${(A.pickSecond.m * 100).toFixed(2)}% per step); no setup beats it`; continue; }
+  // Council task (2026-11-12): count market days, not runs. The earlier result is the newest record that is 12+ h older than
+  // this run (REF below), so two hand runs on the same day no longer count as "two runs in a row".
+  const pm = REF && REF.m2 && REF.m2[h] != null ? REF.m2[h] : null;
+  if (A && A.pickSecond && A.pickSecond.n >= 20 && A.pickSecond.m < 0 && pm != null && pm < 0) { WFG[h] = true; WWHY[h] = `the chosen rule lost on the newer half on two days in a row (${REF.t.slice(0, 10)} ${(pm * 100).toFixed(2)}%, then ${pick} ${(A.pickSecond.m * 100).toFixed(2)}% per step); no setup beats it`; continue; }
   if (pick === "gate") { const past = WROWS[h].slice(-20).map(q => q.v); if (past.length >= 10 && mean(past) < 0) { WFG[h] = true; WWHY[h] = "the setups' last 20 results lost"; } } }
 // ---------- today: profiles and the current bets ----------
 const F0 = crossAt(lastDay), prof = {}, picks = {};
@@ -213,7 +232,9 @@ for (const c in F0) { const f = F0[c], P = prof[c]; P.setups = {};
     const EXh = P.ex && P.ex[h] && P.ex[h][side > 0 ? "L" : "S"], exP = v => v == null ? null : r4(f.px * (1 + v * side));   // excursion prices for this side (drawdown below a long, above a short)
     P.setups[h] = { dd50: EXh ? exP(EXh.mae50) : null, dd90: EXh ? exP(EXh.mae90) : null, up50: EXh ? exP(EXh.mfe50) : null, up90: EXh ? exP(EXh.mfe90) : null, winStop: EXh && EXh.winMae80 != null ? exP(EXh.winMae80) : null, side, lean: r4(lean), lim: r4(f.px * Math.exp(-side * 0.25 * sH)), tgt: r4(f.px * Math.exp(side * (0.5 + Math.min(1, Math.abs(lean) * 2)) * sH)), wrong: r4(f.px * Math.exp(-side * 0.75 * sH)), why: why.filter(([k, v]) => Math.sign(v) === side && W[k]).sort((a, b) => Math.abs(b[1]) * WH[h][b[0]] - Math.abs(a[1]) * WH[h][a[0]]).map(x => x[0]).slice(0, 3) }; } }
 for (const [name, H] of Object.entries(HYP)) { const S = Object.keys(F0).map(c => ({ c, s: H.f(F0[c], M[c]) })).filter(x => Math.abs(x.s) >= 0.3); picks[name] = { L: S.filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 6).map(x => x.c), S: S.filter(x => x.s < 0).sort((a, b) => a.s - b.s).slice(0, 6).map(x => x.c) }; }
-const out = { weights: WH, wf: WF, wfGate: WFG, wfAlt: WFALT, wfRule: WRULE, wfWhy: WWHY, t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
+const cur = histOf({ t: new Date(NOW).toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, wfRule: WRULE, wfGate: WFG, wfAlt: WFALT });
+const wfHist = HIST.filter(q => q.t.slice(0, 10) !== cur.t.slice(0, 10)).concat([cur]).slice(-90);
+const out = { weights: WH, wf: WF, wfGate: WFG, wfAlt: WFALT, wfRule: WRULE, wfWhy: WWHY, wfRef: REF ? { t: REF.t, m2: REF.m2 } : null, wfHist, t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
 fs.writeFileSync(path.join(OUT, "lab.json"), JSON.stringify(out));
 for (const [k, R] of Object.entries(RES)) log(k.padEnd(12), [1, 2, 7].map(h => { const a = R.h[h] && R.h[h].all, s = R.h[h] && R.h[h].second; return a ? `${h}d n${a.n} ${(a.m * 100).toFixed(2)}% t${a.t.toFixed(1)} 2nd ${s ? (s.m * 100).toFixed(2) : "-"}% fill ${(R.h[h].fill * 100).toFixed(0)}%` : h + "d -"; }).join(" | "));
 log("done", Object.keys(prof).length, "profiles");
