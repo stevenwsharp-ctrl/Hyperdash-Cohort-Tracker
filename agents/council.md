@@ -1,5 +1,48 @@
 # Council notes (newest first)
 
+## 2026-11-13 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live. The paper bots now pick the version with the best score. Before, a random draw picked the version. The shadow trades already test all 15 versions, so the draw only added bad picks. Walk-forward: spot +$76.5 against +$27.9 for the random draw (6 test days); funds +$263.2 against +$243.6 (7 test days). The first market run with this change is on Nov 16. Pages build: success.
+- Cohort Sniper: yes, live. The Bet lab gate now counts days, not runs (the earlier result must be 12 h or more older). lab.json keeps a dated record of the chosen rule and the gate (wfHist). The Lab tab shows the last 7 days of each horizon. 1 d stays gated. Pages build: success.
+- LETF Sniper: yes, live. On the fund page, LEAN plans (2 of 3 filters) show WAIT with no plan while their test loses on the newer days. Each plan shows its own score next to it. Pages build: success. I made the gate more stable (see "Changes I made").
+
+### Scoreboard (ev.json 23:22 UTC, with Nov 13 data)
+- SOXX: 11 muted, 4 cut, 7 backed. Gain: funds squeeze, limit 1 ATR, plan t6a, +0.34 % per trade (n 181, z 3.5). Loss: spot squeeze 11:00–11:30 ET, −0.42 % (cut); spot squeeze 12:00–12:30 ET, −0.29 % (muted). Paper bots live Nov 13: spot 2 trades +$1.8; funds 4 trades +$23.8; both 5 trades +$6.7. bot.spot.live is BACK (+0.44 %, n 19, z 2.2). Live trades Nov 11–13 (the random draw): spot +0.35 %, funds +0.14 %, both +0.11 % per trade.
+- Cohort: 0 muted, 26 cut, 9 backed. Gain: signal condition "smart money adding", +1.71 % in 24 h (z 3.4). Loss: Outlook momentum 48 h, −2.1 % (cut); momentum 7 d −5.6 % (watch, weak). Lab 1 d chosen rule: −0.30 % per step (cut, gated).
+- LETF: 2 muted, 6 cut, 2 backed. Gain: 🚀 alert level in the open hour (time gate chosen on the older half), +0.97 % (n 26, z 2.3, BACK). Loss: HARD reversals, −0.30 % (muted). Fund-page plans: all +0.03 % (cut, decay); full plans +0.15 % (watch, both halves > 0); LEAN plans +0.00 % (now cut, newer half −0.21 %).
+
+### Agents
+- SOXX agent: ran, good work. It did all 3 tasks. It found a real cause of lost money (the random version draw) and fixed it with no new threshold. The walk-forward is fair. One problem (not a revert): choose() picks the best version from all versions, then skips the signal if that version has fewer than 30 trades. Its own test used only versions with 30+ trades. A signal can be skipped when a good version with 30+ trades was there. See tasks.
+- Cohort agent: ran, good work. It did all 3 tasks. It did not drop the "recent" rule because that choice would use the newer half (correct: no look-ahead). No revert.
+- LETF agent: ran, good work. It did all 3 tasks and tested the LEAN gate walk-forward. Problem: the gate needed "all data ≤ 0". The 23:22 UTC scorecard put LEAN at +0.0016 bp on all data, so the gate opened on noise while the ruling was CUT and the newer half was −0.21 %. I fixed it (no revert).
+- Checks by me: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright 0 page errors on SOXX, Mastermind, Cohort and LETF (live, ?demo, fund pages). The 16 shared files are the same in all repos that use them. All pages builds: success.
+- All agents kept the order rules (limit entries that count only when touched, no new stops, the same bet size, Schwab-only and long-only bots).
+- Yesterday's "Watch next": SOXX swing check done (22 % of swings had a signal near the low, mostly the muted "pull"; no rule). Cohort gate now counts days (yes). LETF LEAN tested and gated (yes). 🚀 push stays off (yes).
+
+### Lessons shared
+- A random choice in a live bot costs money when the paper record already tests every choice (SOXX). Cohort agent: the Bet lab picks a rule on the older half each run and the pick flips; test the pick procedure itself (your backlog 1).
+- A gate with a limit at exactly 0 opens and closes on noise (LETF). All agents: a gate that reads the scorecard must also read the ruling, or use a margin. Test that the gate does not flip between two runs on the same data.
+- The fund-page plans earn on time exits and lose on stop exits (new byExit record): all plans, time exits +0.11 % (n 375), stop exits −0.92 % (n 60), target +1.15 % (n 25). SOXX agent: your live stop exits (backlog 5) can show the same pattern.
+- The 🚀 rule with the open-hour gate: on its newer half, 4 of 5 days were positive (Nov 9 +1.21 %, Nov 10 +0.83 %, Nov 11 −0.55 %, Nov 12 +0.03 %, Nov 13 +1.97 %). These days were in the test, so they are not new days. New days start Nov 16.
+
+### Tasks for tomorrow
+- SOXX agent: 1) In choose(), pick the best version only from versions with 30+ trades and a mean above 0 (as in your walk-forward). Replay first: count the signals that "unproven" skipped since Nov 7, and the $ they would have made. 2) Nov 16: check that the 3 bots trade the same version on the same signal; read live.<bot>.pick against live.<bot>.draw. 3) Live watch day 4: funds and both from 11:30 ET.
+- Cohort agent: 1) Walk-forward test of the pick procedure (your backlog 1): best on older half, best with a margin, and "cur" always. 2) Read Sunday's backtest (Nov 15) and decide the 24 h Outlook gate for momentum and reversal. 3) Check the Lab gate: run lab.mjs two times on the same data and confirm the gate does not change.
+- LETF agent: 1) Read plan.setup.*.byExit. Test walk-forward why stop exits lose (stop too near the entry, or a bad entry) and ask me for a scored variant if needed (record only; a stop change needs a stated reason). 2) From Nov 16, read fast.15m.alert.tgate.days for new days; push stays off until 3 positive new days. 3) Review my LEAN gate fix (index.html 5ed6c6d) and confirm it matches your test.
+
+### Changes I made
+- Hyperdash-Cohort-Tracker 224299e (scripts/ev.mjs): live.<bot>.pick (live trades from Nov 16, the best-score pick) and live.<bot>.draw (Nov 11–13, the random draw), for the SOXX request. Per-day record (days) on the .tgate items and byExit (target, stop, time) on the plan items, for the LETF requests. Record only. Offline check (local branch files, synthetic bars, same seed): old and new script give the same ruling, n and EV on every old item. EV governor run 23:22 UTC: success.
+- LETF-Sniper 7306d20 and SOXX-Sniper d606a3b (shared layout.js v4, rev.js v8): a muted reversal card goes below the scanner and the watchlist (LETF request of Nov 8). No change on the SOXX page. Playwright: 0 page errors; order checked.
+- LETF-Sniper 5ed6c6d (index.html): the LEAN gate also stays shut when the ruling is cut or mute and the newer half is below 0. Playwright ?demo: 0 page errors; long and inverse funds on one underlying show the same WAIT.
+- Not done: score of the Cohort gate from wfHist. Only 3 days are in the record, and the next-day newer half overlaps the same data. I will add it when wfHist has 7+ days.
+- No revert of agent work.
+
+### What Steven should know
+- Nothing to paste. No Worker change. No decision is necessary.
+- From Monday, the three paper bots trade the same version on the same signal. Compare the live result with Nov 11–13.
+- On LETF Sniper, trust "LONG SETUP" or "SHORT SETUP" only. LEAN plans show WAIT. Most plan profit comes from plans that end on time, not on the stop.
+
 ## 2026-11-12 · Council
 
 ### Shipped today
