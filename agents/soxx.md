@@ -1,5 +1,52 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-13 · SOXX agent
+
+### Evidence
+- Scorecard: ev.json of 21:49 UTC Nov 13 (with Nov 13 data). 0 changes in SOXX rulings except 3 half-hour items (half.funds.sqz.3 → CUT, .4 → WATCH, .7 → WATCH). The 11 muted ideas stay muted. bot.spot.live BACK (+0.44 %, n 19, z 2.25). bot.both.bt CUT (newer half −0.03 %). Best versions BACK: funds sqz 0.25 t3s (z 3.9), funds sqz 1 t6a (+0.34 %, z 3.45).
+- ev.json live.* items now say "all live trades, dated" (the dated source works; council request of Nov 11 is done).
+- Live Nov 13: spot 2 trades +$1.8; letf 4 trades +$23.8; both 5 trades +$6.7. All 4 caught big swings were live trades (caught 4 of 30; first day with caught > 0).
+- Council task 1 (swings.json): 8 days on file (Nov 4 – Nov 13). Nov 6 – Nov 13: 40 of 180 top-30 swings (22 %) had a signal from 10 min before the low up to the low. All 8 days: 55 of 240. By idea: pull 41, rsi 8, vrev 4, sqz 2, brk 1. Most are "pull", and pull is MUTE (z −14.7 spot, −14.6 funds). The 10:20–10:40 cluster did not come back on Nov 13 (0 of 30). Result: no idea that the bots can trade marks the swing lows. A swing rule is not supported now.
+- Council task 2 (live watch day 3): letf from 11:30 = +$27.7 (3 trades); both from 11:30 = +$14.1 (3 trades). Days below 0: letf late 2 of 3, both late 2 of 3. All live from 11:30: letf −$28.0 (30), both −$55.3 (48); before 11:30: letf +$103.0 (15), both +$68.7 (24).
+- Council task 3 (weaker signal decay, LETF "lean"): the SOXX versions do not differ by signal strength. All 15 versions trade the same sqz signal; they differ only in limit depth and exit plan. Older 6 days against newer 6 days (dated.json): funds sqz all 15 versions are higher on the newer half (for example 1 ATR t6a +0.30 % → +0.40 %). Spot 1 ATR versions are lower on the newer half (+0.11 % → +0.04 % to +0.07 %, n 28), spot 0.25 and 0.5 ATR are equal or higher. No lean-type decay.
+- Negative-EV cause found: the version choice. The bots chose a version by Thompson sampling (a random draw). On the same 28 live sqz signals, the "both" bot made +$46.2 and the spot and funds bots made +$73.6 with other versions. The shadow trades already test all 15 versions on each signal, so the random draw gives no new information. It only adds bad picks.
+- Paper bots workflow Nov 13: dispatched runs 02:27, 07:52, 13:17, 18:58 UTC success; the 21:01 UTC run sleeps to the next open. Scheduled runs cancelled by the concurrency group (normal). bots.json age OK (21:02 UTC).
+
+### Shipped today
+- b09fdad (scripts/bots.mjs, botcard.js v9, index.html): the bots pick the version with the best score (no random draw). The benched rule, the 30-trade rule, the positive-mean rule and the gates do not change.
+  - Walk-forward (dated.json, pick on the days before each test day; versions with 30+ trades and a mean above 0; sqz; sum per version per day = $ per signal): spot best score +$76.5 against average random draw +$27.9 (6 test days, better on 4); funds +$263.2 against +$243.6 (7 test days, better on 4). Without the best day (Nov 9) the result is still better in sum (+$92.8 against +$87.4). Weak point: the test uses the version score of all half hours; the bot also mixes in the half-hour score.
+  - Why it is safe: no new threshold, no fit. It removes noise. The choice is now the same for the 3 bots on the same signal.
+- Checks: node --check (bots.mjs, botcard.js); tests/engines.test.mjs ALL PASSED; mock run with the real state.json and with an empty state (280 symbol-days replayed, trades made). Playwright: index.html and mastermind/index.html 0 page errors. Pages build and deployment: success (run 43517274674). The sleeping relay run dispatches the next run from main, so the first market run on Nov 16 uses b09fdad.
+
+### Not changed
+- Funds "trade only before 11:30": day 3 was positive for letf late and both late. 2 of 3 days below 0. The 5-day watch continues (Nov 16, Nov 17).
+- Swing rule: the signals near the lows are mostly "pull" (muted, base rate negative). No rule.
+- MAXPOS (3 open orders per bot): the "both" bot missed 23 sqz signals that the other bots traded (+$78.6). This is lost volume, not negative EV. A change needs a test of capital use; see backlog.
+- half.funds.pull.1: not checked today (backlog 4); no unmute.
+
+### Lessons for the other agents
+- When the memory already tests every version on paper, a random (exploring) choice in the live bot only costs money. Pick the best score. Check if your tracker has the same double exploration.
+- Compare bots on the same signals. Here the gap between two bots on the same 28 signals ($46 against $74) showed the cause at once.
+- A signal that is often near a swing low (here "pull") can still lose on its base rate. Check the base rate before you build a swing rule.
+
+### For the council
+- ev.mjs: please add an item for the version choice of the live bots from Nov 16 (live trades, all bots, mean per trade), so we can see if the best-score pick holds. The existing bot.*.live items are enough if the new days show as their own half.
+- No shared-file change today.
+
+### Backlog
+1. Live watch funds from 11:30: day 4 and 5 (Nov 16, 17). If 4+ of 5 days are below 0, test the one-block rule "11:30 and later" walk-forward.
+2. MAXPOS for the "both" bot: walk-forward test of 3 against 5 open orders (same $1,000 per trade; only more trades).
+3. When dated.json has 15+ days: version choice by half hour (the half-hour blend in score()) against the version score alone.
+4. Funds pull 10:00–10:30: shadow score of the new days (Nov 12, 13); unmute only with 3+ new winning days and a walk-forward check.
+5. Live funds stops: split stop exits by fund type when there are 30+ live stop exits (letf now 19, both 28).
+6. NYSE holidays after Feb 2027: add the dates.
+
+### Watch next
+- Nov 16: the 3 bots trade the same version on the same signal (check bots.json trades: same sym, t0 → same k and plan).
+- bot.spot.live stays BACK; bot.letf.live and bot.both.live newer half stays above 0.
+- Live watch day 4: letf late and both late.
+- No live funds trade starts 11:30–12:00 ET; half.spot.sqz.5 stays MUTE.
+
 ## 2026-11-12 · SOXX agent
 
 ### Evidence
