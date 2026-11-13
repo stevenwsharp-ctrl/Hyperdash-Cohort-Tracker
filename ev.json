@@ -1,5 +1,5 @@
 {
- "t": "2026-11-13T21:49:14.654Z",
+ "t": "2026-11-13T23:22:11.622Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; agents read this file every market day",
  "trackers": {
   "soxx": {
@@ -521,8 +521,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "half.funds.sqz.4",
@@ -537,8 +537,8 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "mute",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.sqz.5",
@@ -569,8 +569,8 @@
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.sqz.9",
@@ -854,7 +854,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.mom.10",
@@ -1344,6 +1346,25 @@
      "changed": false
     },
     {
+     "id": "live.spot.draw",
+     "desc": "Spot only: LIVE trades Nov 11–13 2026 (random-draw version pick; dated record, by day)",
+     "unit": "ret",
+     "n": 11,
+     "ev": 0.003519090909090909,
+     "z": 1.3516589876915663,
+     "zTrades": 1.1942659333308827,
+     "hit": 0.45454545454545453,
+     "days": 3,
+     "older": 0.0017357142857142853,
+     "recent": 0.00664,
+     "src": "dated.json",
+     "from": "2026-11-11",
+     "to": "2026-11-13",
+     "status": "watch",
+     "factor": 1,
+     "why": "too few results"
+    },
+    {
      "id": "live.letf.1",
      "desc": "2× and 3× funds only: LIVE trades started 10:00–10:30 ET (all live trades, dated record, by day)",
      "unit": "ret",
@@ -1515,6 +1536,25 @@
      "why": "too few results",
      "prev": "watch",
      "changed": false
+    },
+    {
+     "id": "live.letf.draw",
+     "desc": "2× and 3× funds only: LIVE trades Nov 11–13 2026 (random-draw version pick; dated record, by day)",
+     "unit": "ret",
+     "n": 9,
+     "ev": 0.0013566666666666666,
+     "z": -0.15970489641753255,
+     "zTrades": 0.39606951905014026,
+     "hit": 0.3333333333333333,
+     "days": 3,
+     "older": -0.00635,
+     "recent": 0.00232,
+     "src": "dated.json",
+     "from": "2026-11-11",
+     "to": "2026-11-13",
+     "status": "watch",
+     "factor": 1,
+     "why": "too few results"
     },
     {
      "id": "live.both.1",
@@ -1766,6 +1806,25 @@
      "changed": false
     },
     {
+     "id": "live.both.draw",
+     "desc": "Spot + 2×/3× funds: LIVE trades Nov 11–13 2026 (random-draw version pick; dated record, by day)",
+     "unit": "ret",
+     "n": 15,
+     "ev": 0.001114,
+     "z": 0.754735183462404,
+     "zTrades": 0.6428901538869363,
+     "hit": 0.4,
+     "days": 3,
+     "older": 0.002538333333333333,
+     "recent": 0.000017250000000000013,
+     "src": "dated.json",
+     "from": "2026-11-11",
+     "to": "2026-11-13",
+     "status": "watch",
+     "factor": 1,
+     "why": "positive, not proven"
+    },
+    {
      "id": "arm.L.sqz.0.25.t3s",
      "desc": "best version: funds sqz, limit 0.25 ATR, t3s",
      "unit": "ret",
@@ -1826,7 +1885,9 @@
      "z": 3.32,
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "time.S.0",
@@ -2174,11 +2235,11 @@
     "caughtBt": 1
    },
    "summary": {
-    "n": 128,
+    "n": 131,
     "mute": 11,
     "cut": 4,
     "back": 7,
-    "changed": 3
+    "changed": 0
    },
    "rules": {
     "bot.spot.live": 1.25,
@@ -2871,11 +2932,11 @@
      "desc": "Bet lab: Weinstein stage: long stage 2 (rising 150-day average, price above), short stage 4 (fallin · 1 d",
      "unit": "ret",
      "n": 270,
-     "ev": 0.0011952099112881528,
-     "z": 0.8608619406721217,
-     "hit": 0.5037037037037037,
-     "older": 0.004705193948068945,
-     "recent": -0.002314774125492641,
+     "ev": 0.0011483284920589928,
+     "z": 0.8241923845343534,
+     "hit": 0.5074074074074074,
+     "older": 0.004635004397367334,
+     "recent": -0.0023383474132493507,
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
@@ -2887,11 +2948,11 @@
      "desc": "Bet lab: Weinstein stage: long stage 2 (rising 150-day average, price above), short stage 4 (fallin · 2 d",
      "unit": "ret",
      "n": 135,
-     "ev": 0.0029294682517562566,
-     "z": 0.9181054120418133,
+     "ev": 0.002756776689575577,
+     "z": 0.8614592640532402,
      "hit": 0.5481481481481482,
-     "older": 0.011048231425340957,
-     "recent": -0.005069901345746311,
+     "older": 0.010734486738163436,
+     "recent": -0.005103614093591873,
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
@@ -2903,11 +2964,11 @@
      "desc": "Bet lab: Weinstein stage: long stage 2 (rising 150-day average, price above), short stage 4 (fallin · 7 d",
      "unit": "ret",
      "n": 38,
-     "ev": 0.020065837840407896,
-     "z": 1.2999098918197485,
+     "ev": 0.020088397915982298,
+     "z": 1.2989640958930442,
      "hit": 0.5789473684210527,
-     "older": 0.050027979219392525,
-     "recent": -0.00989630353857673,
+     "older": 0.05017406888781515,
+     "recent": -0.009997273055850549,
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
@@ -2919,27 +2980,27 @@
      "desc": "Bet lab: Relative strength vs its industry: long the leaders of their peer group, short the laggard · 1 d",
      "unit": "ret",
      "n": 270,
-     "ev": -0.0014693245027885416,
-     "z": -1.1832444435310534,
+     "ev": -0.0014143284621249376,
+     "z": -1.149175652739796,
      "hit": 0.45555555555555555,
-     "older": -0.0017875432308825593,
-     "recent": -0.0011511057746945233,
+     "older": -0.0016773324912728398,
+     "recent": -0.001151324432977035,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.rs-peer.2d",
      "desc": "Bet lab: Relative strength vs its industry: long the leaders of their peer group, short the laggard · 2 d",
      "unit": "ret",
      "n": 135,
-     "ev": -0.002679537657233741,
-     "z": -1.299582690423003,
-     "hit": 0.4666666666666667,
-     "older": -0.0027786592753594364,
-     "recent": -0.002581873709962832,
+     "ev": -0.002683447897999684,
+     "z": -1.2951306500495783,
+     "hit": 0.45925925925925926,
+     "older": -0.0027772389448234964,
+     "recent": -0.0025910361312762187,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -2951,11 +3012,11 @@
      "desc": "Bet lab: Relative strength vs its industry: long the leaders of their peer group, short the laggard · 7 d",
      "unit": "ret",
      "n": 38,
-     "ev": 0.011121479691496815,
-     "z": 0.9482542518393131,
+     "ev": 0.01116518242879884,
+     "z": 0.9521034684866556,
      "hit": 0.5,
-     "older": 0.007252714454950159,
-     "recent": 0.01499024492804347,
+     "older": 0.007291943145957974,
+     "recent": 0.015038421711639698,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -2967,11 +3028,11 @@
      "desc": "Bet lab: Catch-up: long laggards of a rising industry, short leaders of a falling one (peers pull i · 1 d",
      "unit": "ret",
      "n": 261,
-     "ev": 0.0020511503978788586,
-     "z": 1.4236909465672931,
-     "hit": 0.49808429118773945,
-     "older": 0.0022596176083920644,
-     "recent": 0.0018442745401176632,
+     "ev": 0.0020586873577242027,
+     "z": 1.4290907501553858,
+     "hit": 0.5019157088122606,
+     "older": 0.002258589884653974,
+     "recent": 0.001860310804282443,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -2983,11 +3044,11 @@
      "desc": "Bet lab: Catch-up: long laggards of a rising industry, short leaders of a falling one (peers pull i · 2 d",
      "unit": "ret",
      "n": 128,
-     "ev": 0.001569496522873041,
-     "z": 0.43369150139060697,
+     "ev": 0.0016645981860361919,
+     "z": 0.45735180276735915,
      "hit": 0.46875,
-     "older": 0.00022600879656149096,
-     "recent": 0.002912984249184591,
+     "older": 0.00021933968724569396,
+     "recent": 0.0031098566848266887,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -2999,27 +3060,27 @@
      "desc": "Bet lab: Catch-up: long laggards of a rising industry, short leaders of a falling one (peers pull i · 7 d",
      "unit": "ret",
      "n": 33,
-     "ev": -0.01428338921718254,
-     "z": -0.9988220240018866,
+     "ev": -0.014082074915076659,
+     "z": -0.9860954958329501,
      "hit": 0.3939393939393939,
-     "older": -0.0023988783999085144,
-     "recent": -0.02546881116285221,
+     "older": -0.0022573650430558635,
+     "recent": -0.025211213618155058,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.group-mom.1d",
      "desc": "Bet lab: Sector rotation: long the strongest industries, short the weakest (30-day median move vs a · 1 d",
      "unit": "ret",
      "n": 270,
-     "ev": -0.0013443535453001147,
-     "z": -1.256211506298627,
-     "hit": 0.5074074074074074,
-     "older": -0.0016348100699884783,
-     "recent": -0.0010538970206117528,
+     "ev": -0.0013092870680068828,
+     "z": -1.223913972632693,
+     "hit": 0.5037037037037037,
+     "older": -0.0016302295043019212,
+     "recent": -0.0009883446317118445,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -3031,11 +3092,11 @@
      "desc": "Bet lab: Sector rotation: long the strongest industries, short the weakest (30-day median move vs a · 2 d",
      "unit": "ret",
      "n": 135,
-     "ev": -0.002780422891158635,
-     "z": -0.9758714852237286,
+     "ev": -0.0026248636173151,
+     "z": -0.931641843335456,
      "hit": 0.5037037037037037,
-     "older": -0.0014451254314498078,
-     "recent": -0.0040960836235188,
+     "older": -0.0012508355356449538,
+     "recent": -0.003978685403666566,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
@@ -3047,27 +3108,27 @@
      "desc": "Bet lab: Sector rotation: long the strongest industries, short the weakest (30-day median move vs a · 7 d",
      "unit": "ret",
      "n": 38,
-     "ev": 0.006759451507312066,
-     "z": 0.5022372743807918,
+     "ev": 0.005390757504154784,
+     "z": 0.38660679155795585,
      "hit": 0.4473684210526316,
-     "older": 0.013925394552001558,
-     "recent": -0.0004064915373774214,
+     "older": 0.010930804935374412,
+     "recent": -0.00014928992706484157,
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.new-listing.1d",
      "desc": "Bet lab: Young listings: short markets listed on Hyperliquid in the last 90 days (supply unlocks, h · 1 d",
      "unit": "ret",
      "n": 251,
-     "ev": 0.0005939407657638338,
-     "z": 0.2785971781123418,
-     "hit": 0.4900398406374502,
-     "older": -0.005109512885486512,
-     "recent": 0.006252128911845529,
+     "ev": 0.0007619469956600947,
+     "z": 0.35413778211201874,
+     "hit": 0.4820717131474104,
+     "older": -0.005149887461145686,
+     "recent": 0.006626862131380114,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -3079,11 +3140,11 @@
      "desc": "Bet lab: Young listings: short markets listed on Hyperliquid in the last 90 days (supply unlocks, h · 2 d",
      "unit": "ret",
      "n": 118,
-     "ev": 0.005252176982699064,
-     "z": 0.9150954445281635,
+     "ev": 0.0052915989205262305,
+     "z": 0.9062461703768687,
      "hit": 0.5084745762711864,
-     "older": -0.0035271471913075844,
-     "recent": 0.014031501156705718,
+     "older": -0.003690592657423475,
+     "recent": 0.014273790498475943,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -3095,11 +3156,11 @@
      "desc": "Bet lab: Young listings: short markets listed on Hyperliquid in the last 90 days (supply unlocks, h · 7 d",
      "unit": "ret",
      "n": 31,
-     "ev": 0.019807626694250062,
-     "z": 0.8272811866641866,
-     "hit": 0.4838709677419355,
-     "older": -0.0184753633672232,
-     "recent": 0.05569792987688123,
+     "ev": 0.016136644779739976,
+     "z": 0.7021898123060265,
+     "hit": 0.5161290322580645,
+     "older": -0.018362439006639694,
+     "recent": 0.04847953582947091,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -3111,27 +3172,27 @@
      "desc": "Bet lab: Life cycle: long near all-time highs (within 10%: nothing overhead), short broken charts ( · 1 d",
      "unit": "ret",
      "n": 270,
-     "ev": -0.0001387346393182713,
-     "z": -0.1256193359900563,
-     "hit": 0.5333333333333333,
-     "older": 0.001239004792582089,
-     "recent": -0.0015164740712186313,
+     "ev": -0.0003437247953820966,
+     "z": -0.3170705574299941,
+     "hit": 0.5259259259259259,
+     "older": 0.0009435874571498534,
+     "recent": -0.0016310370479140455,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.ath.2d",
      "desc": "Bet lab: Life cycle: long near all-time highs (within 10%: nothing overhead), short broken charts ( · 2 d",
      "unit": "ret",
      "n": 135,
-     "ev": -0.0015099765954350848,
-     "z": -0.6860670223362894,
-     "hit": 0.48148148148148145,
-     "older": 0.0041962698422775115,
-     "recent": -0.007132307644357788,
+     "ev": -0.001720561307804508,
+     "z": -0.7804697637353085,
+     "hit": 0.45925925925925926,
+     "older": 0.004216593551493294,
+     "recent": -0.007570405066230292,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
@@ -3143,27 +3204,27 @@
      "desc": "Bet lab: Life cycle: long near all-time highs (within 10%: nothing overhead), short broken charts ( · 7 d",
      "unit": "ret",
      "n": 37,
-     "ev": 0.0033115287968940046,
-     "z": 0.3170435713154601,
+     "ev": 0.0019610666103171263,
+     "z": 0.19028344359667856,
      "hit": 0.5135135135135135,
-     "older": 0.01675352005096902,
-     "recent": -0.009422989233282325,
+     "older": 0.014226635918406906,
+     "recent": -0.009658946418399506,
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.pump-fade.1d",
      "desc": "Bet lab: Fade the extreme: after a 14-day move over ±50%, bet on part of it coming back · 1 d",
      "unit": "ret",
      "n": 270,
-     "ev": -0.0007712058598554232,
-     "z": -0.4658307282280058,
-     "hit": 0.4888888888888889,
-     "older": -0.003968502767983927,
-     "recent": 0.0024260910482730796,
+     "ev": -0.0007239798994778627,
+     "z": -0.4372146057267168,
+     "hit": 0.4925925925925926,
+     "older": -0.003974473038933403,
+     "recent": 0.002526513239977677,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
@@ -3175,11 +3236,11 @@
      "desc": "Bet lab: Fade the extreme: after a 14-day move over ±50%, bet on part of it coming back · 2 d",
      "unit": "ret",
      "n": 135,
-     "ev": -0.0013769301912002331,
-     "z": -0.31407918122592404,
+     "ev": -0.0012048384106281584,
+     "z": -0.2739243989319991,
      "hit": 0.5111111111111111,
-     "older": -0.00500283679137016,
-     "recent": 0.0021956542530848413,
+     "older": -0.004999560574583637,
+     "recent": 0.0025340790156220916,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
@@ -3191,27 +3252,27 @@
      "desc": "Bet lab: Fade the extreme: after a 14-day move over ±50%, bet on part of it coming back · 7 d",
      "unit": "ret",
      "n": 37,
-     "ev": -0.011883214324223217,
-     "z": -0.8359605861193705,
+     "ev": -0.011698811234486335,
+     "z": -0.8218752597790498,
      "hit": 0.5135135135135135,
-     "older": -0.032338092166892096,
-     "recent": 0.007495091000410461,
+     "older": -0.032203293739502224,
+     "recent": 0.00772648798079187,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.beta-tide.1d",
      "desc": "Bet lab: Tide: when its market (Bitcoin or the S&P 500) is above its 50-day average, long the high- · 1 d",
      "unit": "ret",
      "n": 269,
-     "ev": -0.0017032941183554805,
-     "z": -1.3455183131089778,
+     "ev": -0.0018049339932360374,
+     "z": -1.4187373259166598,
      "hit": 0.4349442379182156,
-     "older": 0.001171907200767566,
-     "recent": -0.0045571976499294686,
+     "older": 0.0010715444609233353,
+     "recent": -0.004660105199586825,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -3223,11 +3284,11 @@
      "desc": "Bet lab: Tide: when its market (Bitcoin or the S&P 500) is above its 50-day average, long the high- · 2 d",
      "unit": "ret",
      "n": 135,
-     "ev": -0.0037159201830416692,
-     "z": -1.3164083436366583,
-     "hit": 0.4444444444444444,
-     "older": 0.0006903921772310369,
-     "recent": -0.008057433832133896,
+     "ev": -0.0034279852216436216,
+     "z": -1.192865993875932,
+     "hit": 0.43703703703703706,
+     "older": 0.001002691440475628,
+     "recent": -0.007793504874025823,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -3239,27 +3300,27 @@
      "desc": "Bet lab: Tide: when its market (Bitcoin or the S&P 500) is above its 50-day average, long the high- · 7 d",
      "unit": "ret",
      "n": 38,
-     "ev": -0.00407071128296251,
-     "z": -0.511313060245452,
+     "ev": -0.004351072320296471,
+     "z": -0.5376381201405817,
      "hit": 0.47368421052631576,
-     "older": 0.0039055790574258676,
-     "recent": -0.012047001623350892,
+     "older": 0.0031154886572026734,
+     "recent": -0.011817633297795616,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.vol-squeeze.1d",
      "desc": "Bet lab: Coiled spring: volatility at under 60% of its own normal; bet in the direction of the last · 1 d",
      "unit": "ret",
      "n": 268,
-     "ev": -0.0010605461815930794,
-     "z": -1.2741834023415648,
-     "hit": 0.458955223880597,
-     "older": -0.001693340058352143,
-     "recent": -0.00042775230483401404,
+     "ev": -0.0009528865660631124,
+     "z": -1.1434239721088706,
+     "hit": 0.4552238805970149,
+     "older": -0.0016566270674860885,
+     "recent": -0.0002491460646401375,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -3271,11 +3332,11 @@
      "desc": "Bet lab: Coiled spring: volatility at under 60% of its own normal; bet in the direction of the last · 2 d",
      "unit": "ret",
      "n": 134,
-     "ev": 0.002468669056150973,
-     "z": 0.7870949416729311,
+     "ev": 0.0026873974322617687,
+     "z": 0.8615745660989735,
      "hit": 0.5223880597014925,
-     "older": -0.00034293905516331934,
-     "recent": 0.005280277167465265,
+     "older": -0.00007646869632811037,
+     "recent": 0.005451263560851648,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -3287,11 +3348,11 @@
      "desc": "Bet lab: Coiled spring: volatility at under 60% of its own normal; bet in the direction of the last · 7 d",
      "unit": "ret",
      "n": 37,
-     "ev": -0.0021205662701164257,
-     "z": -0.23008999764371668,
+     "ev": -0.002468679247493051,
+     "z": -0.2665247558800023,
      "hit": 0.40540540540540543,
-     "older": -0.0025704203868572666,
-     "recent": -0.0016943886858356311,
+     "older": -0.00414089653066365,
+     "recent": -0.000884473400278798,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
@@ -3303,11 +3364,11 @@
      "desc": "Bet lab: Life stage of the company or coin: young (listed 2021 or later) and small or mid size = lo · 1 d",
      "unit": "ret",
      "n": 270,
-     "ev": -0.0011243075229192179,
-     "z": -1.1865522986527726,
-     "hit": 0.45185185185185184,
-     "older": -0.0034150930345274296,
-     "recent": 0.001166477988688992,
+     "ev": -0.0011640452679380904,
+     "z": -1.231846301216038,
+     "hit": 0.44814814814814813,
+     "older": -0.0034224533918100746,
+     "recent": 0.0010943628559338954,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -3319,27 +3380,27 @@
      "desc": "Bet lab: Life stage of the company or coin: young (listed 2021 or later) and small or mid size = lo · 2 d",
      "unit": "ret",
      "n": 134,
-     "ev": -0.0035895272349503273,
-     "z": -1.7780371260454528,
-     "hit": 0.43283582089552236,
-     "older": -0.008412424975073185,
-     "recent": 0.00123337050517253,
+     "ev": -0.0036493219548006865,
+     "z": -1.812089649423605,
+     "hit": 0.44029850746268656,
+     "older": -0.008401383602759983,
+     "recent": 0.001102739693158615,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.young-small.7d",
      "desc": "Bet lab: Life stage of the company or coin: young (listed 2021 or later) and small or mid size = lo · 7 d",
      "unit": "ret",
      "n": 38,
-     "ev": -0.005507105120729477,
-     "z": -0.624804147315279,
+     "ev": -0.005331275599374558,
+     "z": -0.6040746088657674,
      "hit": 0.42105263157894735,
-     "older": -0.029488366465794825,
-     "recent": 0.018474156224335868,
+     "older": -0.029390035787479615,
+     "recent": 0.018727484588730497,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
@@ -3350,13 +3411,13 @@
      "id": "lab.setup.1d",
      "desc": "Bet lab: the blended setups shown on the sites (top 6 long + 6 short, limit entry, vs the same order on every market), walk-forward, 1 d",
      "unit": "ret",
-     "n": 230,
-     "ev": 0.001458954499324268,
-     "z": 0.9338193667073208,
-     "hit": 0.5391304347826087,
-     "older": 0.0021075921914870135,
-     "recent": 0.0008103168071615226,
-     "fill": 0.7153912295786758,
+     "n": 231,
+     "ev": 0.0012600115763750398,
+     "z": 0.8025300264939867,
+     "hit": 0.5411255411255411,
+     "older": 0.001882571633496414,
+     "recent": 0.0006428184162978152,
+     "fill": 0.7130025662959795,
      "gated": true,
      "status": "watch",
      "factor": 1,
@@ -3369,29 +3430,29 @@
      "desc": "Bet lab: the blended setups shown on the sites (top 6 long + 6 short, limit entry, vs the same order on every market), walk-forward, 2 d",
      "unit": "ret",
      "n": 115,
-     "ev": 0.0030339087942685052,
-     "z": 1.0082053350134303,
-     "hit": 0.5652173913043478,
-     "older": 0.006790786639243547,
-     "recent": -0.0006581952947586914,
-     "fill": 0.6159420289855072,
+     "ev": 0.0028776141597600014,
+     "z": 0.9561477557256999,
+     "hit": 0.5391304347826087,
+     "older": 0.006470653478294789,
+     "recent": -0.0006534762050069447,
+     "fill": 0.6177325581395349,
      "gated": false,
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.setup.7d",
      "desc": "Bet lab: the blended setups shown on the sites (top 6 long + 6 short, limit entry, vs the same order on every market), walk-forward, 7 d",
      "unit": "ret",
      "n": 18,
-     "ev": -0.02054822212495303,
-     "z": -0.8174900766684524,
-     "hit": 0.3333333333333333,
-     "older": -0.05503447798680204,
-     "recent": 0.01393803373689598,
+     "ev": -0.012889112106019639,
+     "z": -0.6758060129274001,
+     "hit": 0.3888888888888889,
+     "older": -0.045129472247914096,
+     "recent": 0.01935124803587481,
      "fill": 0.4583333333333333,
      "gated": false,
      "status": "watch",
@@ -3405,11 +3466,11 @@
      "desc": "Bet lab idea rule \"cur\" (walk-forward, past bets only), 1 d, per step",
      "unit": "ret",
      "n": 250,
-     "ev": 0.0013422381393783267,
-     "z": 0.9338402354880329,
-     "hit": 0.496,
-     "older": 0.0018430513354534932,
-     "recent": 0.00084142494330316,
+     "ev": 0.0011642506965705368,
+     "z": 0.8025772105688412,
+     "hit": 0.5,
+     "older": 0.0015636640234513574,
+     "recent": 0.0007648373696897164,
      "live": false,
      "status": "watch",
      "factor": 1,
@@ -3422,50 +3483,50 @@
      "desc": "Bet lab idea rule \"strict\" (walk-forward, past bets only), 1 d, per step",
      "unit": "ret",
      "n": 250,
-     "ev": -0.0014654785600479747,
-     "z": -1.8978865205866473,
+     "ev": -0.0012556060214922579,
+     "z": -1.6776209159508393,
      "hit": 0.136,
-     "older": -0.002328333015347092,
-     "recent": -0.0006026241047488577,
+     "older": -0.0018094996318594933,
+     "recent": -0.0007017124111250224,
      "live": false,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.rule.1d.recent",
      "desc": "Bet lab idea rule \"recent\" (walk-forward, past bets only), 1 d, per step",
      "unit": "ret",
      "n": 250,
-     "ev": -0.00030818158575099966,
-     "z": -0.23344049954755797,
-     "hit": 0.46,
-     "older": 0.002406258001361984,
-     "recent": -0.0030226211728639836,
+     "ev": 0.00027830633285714167,
+     "z": 0.2100801952043177,
+     "hit": 0.468,
+     "older": 0.0024372989540500972,
+     "recent": -0.0018806862883358122,
      "live": true,
-     "status": "watch",
-     "factor": 1,
-     "why": "negative, weak evidence",
+     "status": "cut",
+     "factor": 0.5,
+     "why": "decay: the recent half lost",
      "prev": "watch",
-     "changed": false
+     "changed": true
     },
     {
      "id": "lab.rule.1d.gate",
      "desc": "Bet lab idea rule \"gate\" (walk-forward, past bets only), 1 d, per step",
      "unit": "ret",
      "n": 250,
-     "ev": 0.00016409961700851927,
-     "z": 0.1554633027529494,
-     "hit": 0.312,
-     "older": 0.00054332552733809,
-     "recent": -0.00021512629332105145,
+     "ev": -0.00027445449897407206,
+     "z": -0.2735809822566261,
+     "hit": 0.28,
+     "older": -0.0002504163644871414,
+     "recent": -0.00029849263346100227,
      "live": false,
-     "status": "cut",
-     "factor": 0.5,
-     "why": "decay: the recent half lost",
-     "prev": "watch",
+     "status": "watch",
+     "factor": 1,
+     "why": "negative, weak evidence",
+     "prev": "cut",
      "changed": true
     },
     {
@@ -3473,9 +3534,9 @@
      "desc": "Bet lab: the setups with the rule picked on the older half (\"recent\"), 1 d, scored on the newer half only (from 2026-07-11)",
      "unit": "ret",
      "n": 125,
-     "ev": -0.0030226211728639836,
-     "z": -1.8575171825038006,
-     "hit": 0.36,
+     "ev": -0.0018806862883358122,
+     "z": -1.135135950914732,
+     "hit": 0.368,
      "rule": "recent",
      "gated": true,
      "status": "cut",
@@ -3483,36 +3544,36 @@
      "why": "negative EV, not yet proven",
      "prev": "cut",
      "changed": false,
-     "rulePrev": "cur",
-     "ruleChanged": true
+     "rulePrev": "recent",
+     "ruleChanged": false
     },
     {
      "id": "lab.rule.2d.cur",
      "desc": "Bet lab idea rule \"cur\" (walk-forward, past bets only), 2 d, per step",
      "unit": "ret",
      "n": 115,
-     "ev": 0.0030339087942685052,
-     "z": 1.0082053350134303,
-     "hit": 0.5652173913043478,
-     "older": 0.006790786639243547,
-     "recent": -0.0006581952947586914,
+     "ev": 0.0028776141597600014,
+     "z": 0.9561477557256999,
+     "hit": 0.5391304347826087,
+     "older": 0.006470653478294789,
+     "recent": -0.0006534762050069447,
      "live": true,
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.rule.2d.strict",
      "desc": "Bet lab idea rule \"strict\" (walk-forward, past bets only), 2 d, per step",
      "unit": "ret",
      "n": 115,
-     "ev": 0.0030552563506876245,
-     "z": 0.924596797127098,
-     "hit": 0.4956521739130435,
-     "older": 0.0008933707566979469,
-     "recent": 0.005179868055125756,
+     "ev": 0.002467812583792182,
+     "z": 0.7495718087580024,
+     "hit": 0.48695652173913045,
+     "older": -0.00008955345541113438,
+     "recent": 0.004981086105078199,
      "live": false,
      "status": "watch",
      "factor": 1,
@@ -3525,43 +3586,43 @@
      "desc": "Bet lab idea rule \"recent\" (walk-forward, past bets only), 2 d, per step",
      "unit": "ret",
      "n": 115,
-     "ev": 0.0017272595800607252,
-     "z": 0.5818874277739888,
-     "hit": 0.5565217391304348,
-     "older": 0.006049193097047714,
-     "recent": -0.0025201578418058,
+     "ev": 0.0020322703111504796,
+     "z": 0.6938361363890592,
+     "hit": 0.5391304347826087,
+     "older": 0.006060378115306971,
+     "recent": -0.0019263873584515903,
      "live": false,
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.rule.2d.gate",
      "desc": "Bet lab idea rule \"gate\" (walk-forward, past bets only), 2 d, per step",
      "unit": "ret",
      "n": 115,
-     "ev": 0.0018307244941008405,
-     "z": 0.7572605393194399,
-     "hit": 0.33043478260869563,
-     "older": 0.0037479942383074564,
-     "recent": -0.00005348887520566151,
+     "ev": 0.0012997981573683317,
+     "z": 0.5263350803924038,
+     "hit": 0.3130434782608696,
+     "older": 0.003436328924878864,
+     "recent": -0.0007998958727713274,
      "live": false,
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.setup.2d.chosen",
      "desc": "Bet lab: the setups with the rule picked on the older half (\"cur\"), 2 d, scored on the newer half only (from 2026-07-20)",
      "unit": "ret",
      "n": 58,
-     "ev": -0.0006581952947586914,
-     "z": -0.17629191971981975,
-     "hit": 0.5172413793103449,
+     "ev": -0.0006534762050069447,
+     "z": -0.17445621207958711,
+     "hit": 0.5,
      "rule": "cur",
      "gated": false,
      "status": "watch",
@@ -3569,8 +3630,8 @@
      "why": "negative, weak evidence",
      "prev": "watch",
      "changed": false,
-     "rulePrev": "strict",
-     "ruleChanged": true
+     "rulePrev": "cur",
+     "ruleChanged": false
     }
    ],
    "summary": {
@@ -3578,7 +3639,7 @@
     "mute": 0,
     "cut": 26,
     "back": 9,
-    "changed": 14
+    "changed": 2
    },
    "rules": {
     "outlook.smart.24h": 0.5,
@@ -3611,7 +3672,7 @@
     "lab.young-small.2d": 0.5,
     "lab.setup.2d": 0.5,
     "lab.rule.1d.strict": 0.5,
-    "lab.rule.1d.gate": 0.5,
+    "lab.rule.1d.recent": 0.5,
     "lab.setup.1d.chosen": 0.5,
     "lab.rule.2d.cur": 0.5,
     "lab.rule.2d.recent": 0.5,
@@ -3619,18 +3680,18 @@
    }
   },
   "letf": {
-   "at": "2026-11-13T21:49:14.653Z",
+   "at": "2026-11-13T23:22:11.621Z",
    "items": [
     {
      "id": "rev.all.15m",
      "desc": "Hard reversal detector, all turns (score ≥ 0.6), on the underlying: trade the new direction, next 15 min",
      "unit": "ret",
-     "n": 107,
-     "ev": -0.0020969559867480753,
-     "z": -2.163954788271351,
-     "hit": 0.38317757009345793,
-     "older": -0.003195090702270135,
-     "recent": -0.0010191570992912399,
+     "n": 110,
+     "ev": -0.002253742163556712,
+     "z": -2.3858073667027773,
+     "hit": 0.37272727272727274,
+     "older": -0.003203574807909909,
+     "recent": -0.0013039095192035163,
      "status": "mute",
      "factor": 0,
      "why": "proven negative EV",
@@ -3641,17 +3702,17 @@
      "id": "rev.hard.15m",
      "desc": "Hard reversal detector, HARD turns (score ≥ 1), on the underlying, next 15 min",
      "unit": "ret",
-     "n": 24,
-     "ev": -0.0029533720807131576,
-     "z": -2.4511413436686933,
-     "hit": 0.20833333333333334,
-     "older": -0.0037000783331285446,
+     "n": 23,
+     "ev": -0.0032540195645903236,
+     "z": -2.5901129348401746,
+     "hit": 0.21739130434782608,
+     "older": -0.004396587276909471,
      "recent": -0.002206665828297771,
      "status": "mute",
      "factor": 0,
      "why": "proven negative EV",
-     "prev": "cut",
-     "changed": true
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "fast.5m.15m",
@@ -3661,8 +3722,8 @@
      "ev": 0.0004038768521953657,
      "z": 0.18486141520952706,
      "hit": 0.3548387096774194,
-     "older": -0.0013729401837679369,
-     "recent": 0.002069642823410962,
+     "older": -0.0014735491621009253,
+     "recent": 0.002163963740598139,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -3691,24 +3752,24 @@
      "id": "fade.rev.15m",
      "desc": "Fade a turn (score ≥ 0.6): LIMIT entry in the old direction 0.5 × 5-min σ better than the signal close, alive 10 min, counts only when touched; exit 15 min after the fill; cost 0.02% of the underlying",
      "unit": "ret",
-     "n": 67,
-     "ev": 0.00048809204056659205,
-     "z": 0.508544019235117,
-     "hit": 0.582089552238806,
-     "older": 0.0014264801375816617,
-     "recent": -0.0004226964065362696,
+     "n": 68,
+     "ev": 0.0006907996600990834,
+     "z": 0.7242225445693035,
+     "hit": 0.6029411764705882,
+     "older": 0.001491136996351845,
+     "recent": -0.0001095376761536783,
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "fill": 0.626,
+     "fill": 0.618,
      "tod": {
       "open": {
        "n": 1,
        "m": 0.00025
       },
       "mid": {
-       "n": 47,
-       "m": 0.0013
+       "n": 48,
+       "m": 0.00157
       },
       "close": {
        "n": 19,
@@ -3722,7 +3783,7 @@
       },
       "2026-11-06": {
        "n": 11,
-       "m": -0.00161
+       "m": -0.00132
       },
       "2026-11-09": {
        "n": 11,
@@ -3734,11 +3795,11 @@
       },
       "2026-11-11": {
        "n": 5,
-       "m": -0.00217
+       "m": -0.00004
       },
       "2026-11-12": {
-       "n": 5,
-       "m": 0.0013
+       "n": 6,
+       "m": 0.00115
       },
       "2026-11-13": {
        "n": 4,
@@ -3856,11 +3917,11 @@
      "desc": "Fade a turn (as fade.rev.15m), only in the times of day that won on the older half (mid); scored on the newer half only",
      "unit": "ret",
      "n": 19,
-     "ev": 0.0008208180648982264,
-     "z": 0.8500421060759475,
-     "hit": 0.5789473684210527,
-     "older": 0.0008993443878930287,
-     "recent": 0.0007501443742029045,
+     "ev": 0.0013822496721052902,
+     "z": 1.3905098889651846,
+     "hit": 0.631578947368421,
+     "older": 0.0010771337169756183,
+     "recent": 0.0016568540317219952,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -3868,6 +3929,24 @@
       "mid"
      ],
      "of": 34,
+     "days": {
+      "2026-11-10": {
+       "n": 10,
+       "m": 0.00108
+      },
+      "2026-11-11": {
+       "n": 3,
+       "m": 0.00167
+      },
+      "2026-11-12": {
+       "n": 3,
+       "m": 0.00424
+      },
+      "2026-11-13": {
+       "n": 3,
+       "m": -0.00075
+      }
+     },
      "prev": "watch",
      "changed": false
     },
@@ -3876,11 +3955,11 @@
      "desc": "🚀 rule: the fund moved 4%+ (single-stock fund) or 2%+ (index fund) in 15 min: follow it, next 15 min, cost 0.05% (one long fund per underlying)",
      "unit": "ret",
      "n": 156,
-     "ev": 0.0015355372880521687,
-     "z": 0.7328717959853147,
+     "ev": 0.0015341481042997216,
+     "z": 0.7322242512699396,
      "hit": 0.5512820512820513,
-     "older": 0.001505057472338235,
-     "recent": 0.0015660171037661002,
+     "older": 0.00150628797620746,
+     "recent": 0.001562008232391982,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -3892,7 +3971,7 @@
       },
       "mid": {
        "n": 86,
-       "m": -0.00258
+       "m": -0.00259
       },
       "close": {
        "n": 6,
@@ -3902,7 +3981,7 @@
      "open10": {
       "10:00": {
        "n": 16,
-       "m": 0.00121
+       "m": 0.0012
       },
       "10:10": {
        "n": 7,
@@ -3921,19 +4000,19 @@
        "m": -0.01416
       }
      },
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "fast.15m.alert",
      "desc": "🚀 ALERT level: the fund moved 5%+ (single-stock fund) or 2.5%+ (index fund) in 15 min with $1M+ traded today: follow it, next 15 min, cost 0.05%",
      "unit": "ret",
      "n": 105,
-     "ev": 0.0008768609384976533,
-     "z": 0.30817946450728995,
+     "ev": 0.000876759447729928,
+     "z": 0.308179282907399,
      "hit": 0.5238095238095238,
-     "older": 0.0030224746032247317,
-     "recent": -0.001228269449536465,
+     "older": 0.003020583590687495,
+     "recent": -0.001226615183096367,
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
@@ -3941,7 +4020,7 @@
      "tod": {
       "open": {
        "n": 48,
-       "m": 0.00781
+       "m": 0.0078
       },
       "mid": {
        "n": 54,
@@ -3952,19 +4031,19 @@
        "m": 0.01504
       }
      },
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "fade.15m.15m",
      "desc": "Fade the 🚀 move: LIMIT entry against the move 0.5 × the fund's 5-min σ past the close, alive 5 min, counts only when touched; exit 15 min after the fill; cost 0.05%",
      "unit": "ret",
      "n": 78,
-     "ev": -0.0037617870470617854,
-     "z": -1.8485825555624817,
+     "ev": -0.003432887879005061,
+     "z": -1.7358344060037134,
      "hit": 0.4230769230769231,
-     "older": -0.0030435964234382692,
-     "recent": -0.004479977670685305,
+     "older": -0.002405976662494787,
+     "recent": -0.004459799095515337,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -3972,11 +4051,11 @@
      "tod": {
       "open": {
        "n": 31,
-       "m": -0.00965
+       "m": -0.00966
       },
       "mid": {
        "n": 44,
-       "m": 0.00036
+       "m": 0.00095
       },
       "close": {
        "n": 3,
@@ -3986,7 +4065,7 @@
      "days": {
       "2026-11-05": {
        "n": 36,
-       "m": -0.00439
+       "m": -0.0037
       },
       "2026-11-06": {
        "n": 5,
@@ -3998,34 +4077,34 @@
       },
       "2026-11-10": {
        "n": 7,
-       "m": -0.00355
+       "m": -0.00349
       },
       "2026-11-11": {
        "n": 5,
-       "m": 0.00416
+       "m": 0.0042
       },
       "2026-11-12": {
        "n": 7,
-       "m": -0.0041
+       "m": -0.00409
       },
       "2026-11-13": {
        "n": 8,
-       "m": -0.01396
+       "m": -0.01394
       }
      },
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "fast.15m.15m.tgate",
      "desc": "🚀 rule (as fast.15m.15m), only in the times of day that won on the older half (open); scored on the newer half only",
      "unit": "ret",
      "n": 38,
-     "ev": 0.008647472104861055,
-     "z": 2.5038649694894652,
+     "ev": 0.008649528905157609,
+     "z": 2.5045275251233834,
      "hit": 0.7105263157894737,
      "older": 0.009710794067319659,
-     "recent": 0.007584150142402454,
+     "recent": 0.00758826374299556,
      "status": "back",
      "factor": 1.25,
      "why": "proven positive EV",
@@ -4033,8 +4112,30 @@
       "open"
      ],
      "of": 78,
-     "prev": "watch",
-     "changed": true
+     "days": {
+      "2026-11-09": {
+       "n": 10,
+       "m": 0.01212
+      },
+      "2026-11-10": {
+       "n": 10,
+       "m": 0.00832
+      },
+      "2026-11-11": {
+       "n": 3,
+       "m": -0.00546
+      },
+      "2026-11-12": {
+       "n": 8,
+       "m": 0.00032
+      },
+      "2026-11-13": {
+       "n": 7,
+       "m": 0.01974
+      }
+     },
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "fast.15m.alert.tgate",
@@ -4053,45 +4154,67 @@
       "open"
      ],
      "of": 53,
-     "prev": "watch",
-     "changed": true
+     "days": {
+      "2026-11-09": {
+       "n": 7,
+       "m": 0.01184
+      },
+      "2026-11-10": {
+       "n": 7,
+       "m": 0.00865
+      },
+      "2026-11-11": {
+       "n": 1,
+       "m": -0.01707
+      },
+      "2026-11-12": {
+       "n": 6,
+       "m": 0.00603
+      },
+      "2026-11-13": {
+       "n": 5,
+       "m": 0.01776
+      }
+     },
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "plan.setup.60m",
      "desc": "Fund page trade plan (setupOf on the underlying's 5-min bars, LONG/SHORT SETUP and LEAN): LIMIT entry 0.5 × 5-min ATR, alive 60 min, counts only when touched; exit at the plan's stop or target or 60 min after the fill; cost 0.02% of the underlying; one per underlying per hour",
      "unit": "ret",
-     "n": 461,
-     "ev": 0.00017820107391674258,
-     "z": 0.352543401970153,
-     "hit": 0.5206073752711496,
-     "older": 0.002204518324789136,
-     "recent": -0.0018393442408046873,
+     "n": 460,
+     "ev": 0.00032723221259025427,
+     "z": 0.664135584699341,
+     "hit": 0.5217391304347826,
+     "older": 0.0021702822721871855,
+     "recent": -0.001515817847006676,
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
      "tod": {
       "open": {
        "n": 136,
-       "m": 0.00024
+       "m": 0.00032
       },
       "mid": {
-       "n": 325,
-       "m": 0.00015
+       "n": 324,
+       "m": 0.00033
       },
       "close": null
      },
      "days": {
       "2026-10-22": {
        "n": 33,
-       "m": 0.0034
+       "m": 0.00341
       },
       "2026-10-23": {
        "n": 29,
-       "m": 0.00006
+       "m": 0.00003
       },
       "2026-10-26": {
-       "n": 29,
-       "m": 0.00453
+       "n": 28,
+       "m": 0.00465
       },
       "2026-10-27": {
        "n": 32,
@@ -4099,23 +4222,23 @@
       },
       "2026-10-28": {
        "n": 29,
-       "m": 0.00419
+       "m": 0.0042
       },
       "2026-10-29": {
        "n": 22,
-       "m": -0.00065
+       "m": -0.00059
       },
       "2026-10-30": {
-       "n": 21,
-       "m": 0.00197
+       "n": 22,
+       "m": 0.00153
       },
       "2026-11-02": {
        "n": 35,
-       "m": 0.00201
+       "m": 0.00202
       },
       "2026-11-03": {
        "n": 19,
-       "m": -0.00436
+       "m": -0.00429
       },
       "2026-11-04": {
        "n": 31,
@@ -4123,39 +4246,53 @@
       },
       "2026-11-05": {
        "n": 41,
-       "m": -0.00211
+       "m": -0.0019
       },
       "2026-11-06": {
        "n": 24,
-       "m": 0.00339
+       "m": 0.00536
       },
       "2026-11-09": {
        "n": 20,
-       "m": -0.00071
+       "m": -0.00055
       },
       "2026-11-10": {
        "n": 25,
-       "m": -0.00672
+       "m": -0.00611
       },
       "2026-11-11": {
        "n": 24,
-       "m": -0.00092
+       "m": -0.00083
       },
       "2026-11-12": {
        "n": 32,
-       "m": -0.00427
+       "m": -0.00437
       },
       "2026-11-13": {
-       "n": 15,
-       "m": -0.00225
+       "n": 14,
+       "m": -0.00229
       }
      },
-     "fill": 0.695,
+     "byExit": {
+      "tgt": {
+       "n": 25,
+       "m": 0.01147
+      },
+      "stop": {
+       "n": 60,
+       "m": -0.0092
+      },
+      "time": {
+       "n": 375,
+       "m": 0.00111
+      }
+     },
+     "fill": 0.694,
      "tried": 663,
      "exits": {
-      "tgt": 26,
-      "stop": 63,
-      "time": 372
+      "tgt": 25,
+      "stop": 60,
+      "time": 375
      },
      "markets": 24,
      "prev": "cut",
@@ -4166,11 +4303,11 @@
      "desc": "Fund page trade plan, only LONG / SHORT SETUP (all three filters agree): as plan.setup.60m",
      "unit": "ret",
      "n": 99,
-     "ev": 0.0014562895242747056,
-     "z": 1.667671856261971,
+     "ev": 0.001462090518878354,
+     "z": 1.677556355621417,
      "hit": 0.5656565656565656,
-     "older": 0.002381235231691936,
-     "recent": 0.0005498427310058187,
+     "older": 0.0023394822533915273,
+     "recent": 0.000602246619055442,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -4181,7 +4318,7 @@
       },
       "mid": {
        "n": 58,
-       "m": 0.00164
+       "m": 0.00165
       },
       "close": null
      },
@@ -4192,7 +4329,7 @@
       },
       "2026-10-23": {
        "n": 11,
-       "m": 0.00099
+       "m": 0.00093
       },
       "2026-10-26": {
        "n": 4,
@@ -4212,7 +4349,7 @@
       },
       "2026-10-30": {
        "n": 1,
-       "m": -0.00309
+       "m": -0.00455
       },
       "2026-11-02": {
        "n": 11,
@@ -4220,7 +4357,7 @@
       },
       "2026-11-03": {
        "n": 1,
-       "m": -0.00389
+       "m": -0.00125
       },
       "2026-11-04": {
        "n": 11,
@@ -4228,7 +4365,7 @@
       },
       "2026-11-05": {
        "n": 8,
-       "m": -0.0006
+       "m": -0.00052
       },
       "2026-11-06": {
        "n": 6,
@@ -4244,7 +4381,7 @@
       },
       "2026-11-11": {
        "n": 3,
-       "m": 0.01618
+       "m": 0.01617
       },
       "2026-11-12": {
        "n": 8,
@@ -4252,7 +4389,21 @@
       },
       "2026-11-13": {
        "n": 5,
-       "m": 0.00126
+       "m": 0.00114
+      }
+     },
+     "byExit": {
+      "tgt": {
+       "n": 5,
+       "m": 0.00562
+      },
+      "stop": {
+       "n": 11,
+       "m": -0.00679
+      },
+      "time": {
+       "n": 83,
+       "m": 0.00231
       }
      },
      "prev": "watch",
@@ -4262,23 +4413,23 @@
      "id": "plan.setup.lean.60m",
      "desc": "Fund page trade plan, only LEAN LONG / LEAN SHORT (2 of 3 filters): as plan.setup.60m",
      "unit": "ret",
-     "n": 362,
-     "ev": -0.0001713314028386117,
-     "z": -0.2869831116526156,
-     "hit": 0.5082872928176796,
-     "older": 0.002156677836180091,
-     "recent": -0.002499340641857313,
-     "status": "watch",
-     "factor": 1,
-     "why": "negative, weak evidence",
+     "n": 361,
+     "ev": 0.00001601068261097017,
+     "z": 0.02760207772586461,
+     "hit": 0.5096952908587258,
+     "older": 0.002116657334591494,
+     "recent": -0.002073030186761926,
+     "status": "cut",
+     "factor": 0.5,
+     "why": "decay: the recent half lost",
      "tod": {
       "open": {
        "n": 95,
-       "m": -0.00017
+       "m": -0.00006
       },
       "mid": {
-       "n": 267,
-       "m": -0.00017
+       "n": 266,
+       "m": 0.00004
       },
       "close": null
      },
@@ -4289,11 +4440,11 @@
       },
       "2026-10-23": {
        "n": 18,
-       "m": -0.00051
+       "m": -0.00052
       },
       "2026-10-26": {
-       "n": 25,
-       "m": 0.00441
+       "n": 24,
+       "m": 0.00455
       },
       "2026-10-27": {
        "n": 30,
@@ -4301,23 +4452,23 @@
       },
       "2026-10-28": {
        "n": 21,
-       "m": 0.00516
+       "m": 0.00517
       },
       "2026-10-29": {
        "n": 17,
-       "m": 0.00045
+       "m": 0.00053
       },
       "2026-10-30": {
-       "n": 20,
-       "m": 0.00222
+       "n": 21,
+       "m": 0.00182
       },
       "2026-11-02": {
        "n": 24,
-       "m": -0.00021
+       "m": -0.00019
       },
       "2026-11-03": {
        "n": 18,
-       "m": -0.00438
+       "m": -0.00446
       },
       "2026-11-04": {
        "n": 20,
@@ -4325,35 +4476,49 @@
       },
       "2026-11-05": {
        "n": 33,
-       "m": -0.00248
+       "m": -0.00223
       },
       "2026-11-06": {
        "n": 18,
-       "m": 0.00384
+       "m": 0.00646
       },
       "2026-11-09": {
        "n": 17,
-       "m": -0.00107
+       "m": -0.00087
       },
       "2026-11-10": {
        "n": 20,
-       "m": -0.00723
+       "m": -0.00646
       },
       "2026-11-11": {
        "n": 21,
-       "m": -0.00336
+       "m": -0.00326
       },
       "2026-11-12": {
        "n": 24,
-       "m": -0.00577
+       "m": -0.0059
       },
       "2026-11-13": {
-       "n": 10,
-       "m": -0.00401
+       "n": 9,
+       "m": -0.0042
+      }
+     },
+     "byExit": {
+      "tgt": {
+       "n": 20,
+       "m": 0.01293
+      },
+      "stop": {
+       "n": 49,
+       "m": -0.00974
+      },
+      "time": {
+       "n": 292,
+       "m": 0.00077
       }
      },
      "prev": "watch",
-     "changed": false
+     "changed": true
     }
    ],
    "extra": {
@@ -4367,9 +4532,9 @@
    "summary": {
     "n": 16,
     "mute": 2,
-    "cut": 5,
+    "cut": 6,
     "back": 2,
-    "changed": 6
+    "changed": 1
    },
    "rules": {
     "rev.all.15m": 0,
@@ -4380,7 +4545,8 @@
     "fade.15m.15m": 0.5,
     "fast.15m.15m.tgate": 1.25,
     "fast.15m.alert.tgate": 1.25,
-    "plan.setup.60m": 0.5
+    "plan.setup.60m": 0.5,
+    "plan.setup.lean.60m": 0.5
    }
   }
  }
