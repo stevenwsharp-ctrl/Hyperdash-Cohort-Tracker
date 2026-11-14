@@ -1,5 +1,46 @@
 # Council notes (newest first)
 
+## 2026-11-14 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live. The paper bots now pick the best version only from versions with 30+ paper trades and a score above 0. Before, the bots could skip a signal as "unproven" when a proven version was there (Nov 4 and Nov 5: funds skipped, +$20.3 and +$12.2 lost). The first market run with this change is on Nov 16. Pages build: success.
+- Cohort Sniper: yes, live. The Bet lab has a walk-forward test of the pick procedure (record only), and the dated record keeps one entry per day (a double Nov 13 entry is gone). The Lab tab shows the test. Pages builds: success.
+- LETF Sniper: yes, live. The LEAN gate on the fund page reads only the newer half of its test (shut while it is below 0). The plan score shows the result per exit kind (target, stop, time). Pages build: success.
+
+### Scoreboard (ev.json 23:23 UTC, after my clock fix; Saturday, no new market day)
+- SOXX: 11 muted, 4 cut, 7 backed. Gain: funds squeeze, limit 0.25 ATR, plan t3s, +0.20 % per trade (n 298, z 3.9). Loss: spot squeeze 12:00–12:30 ET, −0.30 % (muted). Paper bots, all live trades: spot +0.44 % per trade (n 19, BACK); funds +0.27 % (n 23); both +0.43 % (n 16). Live exits (new record): stop exits lose on all 3 bots (spot −$36, funds −$112, both −$112); time and target exits make all of the profit.
+- Cohort: 1 muted, 22 cut, 9 backed. Gain: signal condition "smart money adding", +1.71 % in 24 h (z 3.4). Loss: Bet lab pick procedure "best so far" at 2 d, −0.57 % per step (muted, not live). The live procedure ("half") is +0.14 % (1 d) and +0.06 % (2 d) per step, not proven.
+- LETF: 2 muted, 6 cut, 2 backed. Gain: 🚀 alert level in the open hour, +0.97 % (n 26, z 2.3, BACK). Loss: HARD reversals −0.30 % (muted). Fund-page plans with the true clock: all −0.06 % (cut, n 506); full plans +0.08 % (watch, both halves above 0); LEAN −0.10 % (now CUT, newer half −0.21 %, gate shut).
+
+### Agents
+- SOXX agent: ran, good work. It did task 1 (the pool fix) with a fair replay and no new threshold. It could not count the "unproven" skips per signal (the bots keep the counts for one day only); it gave the reason and a plan (dated skip record). It did not change the 11:00–11:30 spot gate at z −2.0: correct, a new limit fitted on one case is not evidence.
+- Cohort agent: ran, good work. It did tasks 1 and 3. The pick test is walk-forward (each pick from ended steps only) with a fair baseline ("none"). It did not switch the live procedure because no procedure is proven: correct. It found that the gate flips when the market list changes (197 → 203 markets). Task 2 (Sunday backtest) waits for Nov 15.
+- LETF agent: ran, very good work. It ran its stop test in GitHub Actions on a side branch, found that no exit variant wins walk-forward, and kept the stops (Steven's rule). It found a real data bug in the scorecard (wrong clock before Nov 1). I fixed it; its numbers came true (plans n 506, −0.06 %; full +0.08 %).
+- Checks by me: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright 0 page errors on SOXX, Mastermind, LETF (live and ?demo) and Cohort. The 16 shared files are the same in all repos that use them. All pages builds: success. No revert.
+- All agents kept the order rules (limit entries that count only when touched, no stop change, the same bet size, Schwab-only and long-only bots).
+- Yesterday's "Watch next": SOXX pick fix done (yes). Cohort pick test done, wfHist one entry per day (yes). LETF read the exits and reviewed my gate fix (yes; it replaced it with a simpler rule; I agree). 🚀 push stays off (yes).
+
+### Lessons shared
+- Check the clock (LETF). A fixed UTC−5 clock is 1 hour wrong before Nov 1. The scorecard is now fixed. The SOXX bots already use the true New York clock. The next change is Mar 14 2027 (not Mar 8).
+- Filter first, then pick the best (SOXX). A filter after the pick loses good choices. Cohort agent: the same is true for the gate: pick only among rules that pass the gate.
+- A procedure that chases the best recent rule loses (Cohort: "best so far" 2 d −0.57 % per step, muted). SOXX agent: your bots pick the best score; test the pick procedure itself walk-forward, with ended trades only.
+- Stop exits lose and time exits win on all three trackers (SOXX bots and LETF plans). LETF found that this is a near stop that is hit, not a bad fill. Read the plan total, not the stop share. A stop change needs a stated reason and a walk-forward win.
+- A gate must read one clear input (LETF: the newer half). Count the switches of a rule, not only its result (Cohort).
+
+### Tasks for tomorrow
+- SOXX agent: 1) Nov 16: read live.<bot>.pick against live.<bot>.draw and confirm the 3 bots trade the same version on the same signal. 2) Add the dated skip record to dated.json. ev.mjs reads only the keys "S|", "L|" and "live|", so a "skip|" key has no effect on the scorecard. 3) Use the new live.<bot>.exit.* items: find if the funds bot's stop loss (19 stops, −$112) comes from one plan or one limit size. Record and walk-forward only; no stop change without a stated reason.
+- Cohort agent: 1) Read Sunday's backtest (Nov 15) and decide the 24 h Outlook gate for momentum and reversal. 2) Freeze the lab market list for the day at the scheduled run (your backlog 3). Then test your request "a gate change counts only after the next scheduled run confirms it" in lab.mjs on wfHist; it is your file, not the scorecard. 3) Keep a dated per-day result of each pick procedure (in wfHist), so "5+ new days" for "margin" against "half" can be counted. lab.pick.* on the scorecard is a full replay each day, not new days.
+- LETF agent: 1) Read plan.setup.*.nostop each day. Today (true clock): all plans with no stop −0.005 % against −0.055 % with the stop; newer half +0.013 % against −0.107 %; older half −0.024 % against −0.003 %. The no-stop variant still loses on the older half, so it is not a walk-forward winner. Ask me for a per-day no-stop record if you need new-day counts. 2) From Nov 16: fast.15m.alert.tgate.days; push stays off until 3 positive new days. 3) Full plans with the true clock: older +0.11 %, newer +0.06 %. No gate; act only if the newer half goes below 0 (walk-forward first).
+
+### Changes I made
+- Hyperdash-Cohort-Tracker 1bf465b (scripts/ev.mjs): the scorecard uses the true New York clock (DST). Before, October bars were 1 hour late. Check: 43,612 times from Sep 2026 to Mar 2027 agree with the New York time zone (0 differences). New record items: live.<bot>.exit.<kind> (SOXX request; record only, factor 1), lab.pick.<h>d.<procedure> (Cohort request), and "nostop" on plan.setup.* (LETF request; record only). Offline check: every old SOXX and Cohort item keeps the same ruling, n and EV. EV governor run 23:23 UTC: success. Only LETF plan numbers moved (as the LETF agent said); LEAN went from watch to cut, and the LEAN gate stays shut.
+- No shared-file change today. No revert of agent work.
+
+### What Steven should know
+- Nothing to paste. No Worker change. No decision is necessary.
+- The fund-page plan test on LETF Sniper was too good before (wrong clock on October days). With the true clock, all plans are −0.06 % per plan, full LONG / SHORT SETUP plans are +0.08 %, LEAN plans are −0.10 %. Trust full SETUP plans only; LEAN shows WAIT.
+- On Monday the SOXX paper bots skip fewer good signals (the pick uses proven versions only).
+
 ## 2026-11-13 · Council
 
 ### Shipped today
