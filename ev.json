@@ -1,5 +1,5 @@
 {
- "t": "2026-11-13T23:22:11.622Z",
+ "t": "2026-11-14T01:29:40.047Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; agents read this file every market day",
  "trackers": {
   "soxx": {
@@ -1362,7 +1362,9 @@
      "to": "2026-11-13",
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "live.letf.1",
@@ -1554,7 +1556,9 @@
      "to": "2026-11-13",
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "live.both.1",
@@ -1822,7 +1826,9 @@
      "to": "2026-11-13",
      "status": "watch",
      "factor": 1,
-     "why": "positive, not proven"
+     "why": "positive, not proven",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "arm.L.sqz.0.25.t3s",
@@ -3509,8 +3515,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.rule.1d.gate",
@@ -3526,8 +3532,8 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.setup.1d.chosen",
@@ -3639,7 +3645,7 @@
     "mute": 0,
     "cut": 26,
     "back": 9,
-    "changed": 2
+    "changed": 0
    },
    "rules": {
     "outlook.smart.24h": 0.5,
@@ -3680,7 +3686,7 @@
    }
   },
   "letf": {
-   "at": "2026-11-13T23:22:11.621Z",
+   "at": "2026-11-14T01:29:40.045Z",
    "items": [
     {
      "id": "rev.all.15m",
@@ -3722,7 +3728,7 @@
      "ev": 0.0004038768521953657,
      "z": 0.18486141520952706,
      "hit": 0.3548387096774194,
-     "older": -0.0014735491621009253,
+     "older": -0.0014735491621009256,
      "recent": 0.002163963740598139,
      "status": "watch",
      "factor": 1,
@@ -3736,8 +3742,8 @@
      "desc": "Fast 1-minute move (4σ+) of the underlying: follow it, next 15 min (negative EV = fade it)",
      "unit": "ret",
      "n": 28,
-     "ev": -0.0022059838577850725,
-     "z": -0.7319567103943035,
+     "ev": -0.002205983857785073,
+     "z": -0.7319567103943038,
      "hit": 0.32142857142857145,
      "older": -0.003553027648687567,
      "recent": -0.0008589400668825781,
@@ -3817,8 +3823,8 @@
      "ev": 0.000019677924914499178,
      "z": 0.007814181100344089,
      "hit": 0.6818181818181818,
-     "older": 0.0024552079719259608,
-     "recent": -0.002415852122096963,
+     "older": 0.002421950554800786,
+     "recent": -0.0023825947049717884,
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
@@ -4185,7 +4191,7 @@
      "unit": "ret",
      "n": 460,
      "ev": 0.00032723221259025427,
-     "z": 0.664135584699341,
+     "z": 0.6641355846993411,
      "hit": 0.5217391304347826,
      "older": 0.0021702822721871855,
      "recent": -0.001515817847006676,
@@ -4307,7 +4313,7 @@
      "z": 1.677556355621417,
      "hit": 0.5656565656565656,
      "older": 0.0023394822533915273,
-     "recent": 0.000602246619055442,
+     "recent": 0.0006022466190554419,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -4414,10 +4420,10 @@
      "desc": "Fund page trade plan, only LEAN LONG / LEAN SHORT (2 of 3 filters): as plan.setup.60m",
      "unit": "ret",
      "n": 361,
-     "ev": 0.00001601068261097017,
-     "z": 0.02760207772586461,
+     "ev": 0.000016010682610970553,
+     "z": 0.02760207772586527,
      "hit": 0.5096952908587258,
-     "older": 0.002116657334591494,
+     "older": 0.0021166573345914944,
      "recent": -0.002073030186761926,
      "status": "cut",
      "factor": 0.5,
@@ -4517,8 +4523,8 @@
        "m": 0.00077
       }
      },
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     }
    ],
    "extra": {
@@ -4534,7 +4540,7 @@
     "mute": 2,
     "cut": 6,
     "back": 2,
-    "changed": 1
+    "changed": 0
    },
    "rules": {
     "rev.all.15m": 0,
