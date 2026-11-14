@@ -1,5 +1,60 @@
 # LETF agent notes
 
+## 2026-11-14 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev (2026-11-14 22:05 UTC), trackers.letf, 24 of 24 underlyings, 9 of 9 funds. Market closed (Saturday). This session cannot get bars (Yahoo is blocked from the cloud). For the stop test I ran a record-only script in GitHub Actions on branch letf-research of LETF-Sniper (run 43647856215). It reproduces the scorecard exactly: n 461, exits target 24 +1.15%, stop 60 −0.92%, time 377 +0.11%.
+- Muted: rev.all.15m −0.23% (z −2.4); rev.hard.15m −0.33% (z −2.6). The page already mutes both.
+- plan.setup.lean.60m: n 362, all data −0.0012%, older +0.21%, newer −0.215%, ruling WATCH (changed from CUT). On 6 scorecards (Nov 12 – 14) all data was −0.004, −0.017, +0.0016, +0.0016, −0.0012% and the ruling went watch → cut → watch. The newer half was always −0.18 … −0.25%. Both "all data" and the ruling flip on noise.
+- plan.setup.full.60m: n 99, +0.15%, older +0.23%, newer +0.06%, WATCH.
+- Council task 1 (why stop exits lose). Plans that end on the stop have a near stop: distance entry → stop median 1.34 × 5-min ATR (other exits: 5.47 ATR). Plans with a stop nearer than 1 ATR end on the stop 58% of the time. Only 6 of 60 stops hit on the fill bar. The limit fallback (limit = middle of last and stop) did not occur. Thus the stop is not a bad fill; it is a normal hit of a near volume-node stop.
+- Walk-forward of exit variants (choose on the older days Oct 22 – Oct 31, report Nov 3 – 13; per plan on the underlying):
+  - All plans: current plan stop newer −0.155% (n 231). Chosen on older: "only stops ≤ 3 ATR" → newer −0.249% (worse). No stop at all: older +0.22%, newer −0.06% (best on newer, but not chosen on older: plan +0.217%, none +0.223%, 1.5 ATR stop +0.234%).
+  - Full plans: chosen "stop 1.5 ATR" → newer −0.275% vs plan −0.08% (worse). LEAN: chosen "stops ≤ 5 ATR" → newer −0.124% vs −0.167% (still < 0).
+  - Result: no exit variant wins walk-forward. The stop exits lose because a near stop is hit; the loss after the decay is in the entry signal, not in the stop. No stop change.
+- DATA BUG (ev.mjs, for the council): etMin and tod use a fixed UTC−5 clock. Before Nov 1 2026 New York was UTC−4. On the October days of plan.setup.*, the first hour (09:30–10:30) is lost and each "10:25 ET" signal is in fact 11:25 ET. With a true New York clock (same code, same bars): all plans n 504, −0.04% (scorecard: +0.03%); full plans n 131, +0.08% (scorecard: +0.15%); LEAN n 373, −0.08%; older half of all plans +0.055% (scorecard: +0.217%). The newer half (from Nov 3) is the same on both clocks. The bug makes the older half of the plan test look better than it was.
+- 🚀: fast.15m.15m.tgate BACK +0.86% (n 38, z 2.5); fast.15m.alert.tgate BACK +0.97% (n 26, z 2.3); fast.15m.alert CUT (newer −0.12%). New days start Nov 16.
+
+### Shipped today
+- LETF-Sniper 8d48ee8 (index.html, inline code; no script file changed, so no ?v= bump):
+  1. LEAN gate reads only the newer half: shut while plan.setup.lean.60m has n ≥ 30 and newer half < 0. Why: today the ruling is WATCH and all data is −0.0012%, so on Monday one small plan can open the gate on noise while the newer half is −0.21% (council lesson of Nov 13: a 0 limit flips on noise). The new rule is the stated reopen condition. Check: on all 6 past scorecards it gives the same decision as before (shut). No fitted value.
+  2. The plan score line on the fund page also shows the result per exit kind (byExit): target, stop, 60-min time. The reader sees that the loss comes from stop exits.
+- Checks: all inline scripts parse (node --check); Playwright ?demo with today's ev.json: 0 page errors; TSLL/TSLQ, SOXL/SOXS, TQQQ/SQQQ and CONL show the same LEAN WAIT on the long and the inverse fund; MSTU shows LONG SETUP with its exits (stop −0.68%, n 11; time +0.24%, n 84).
+- Pages build and deployment: success (run 43648128297, 8d48ee8).
+- Branch letf-research (LETF-Sniper, new, not main): research/stops.mjs and a workflow that runs it on push. Record only; it does not deploy. Same plan engine as ev.mjs (setupCore read from index.html).
+- worker.js not changed. Steven does not need to paste anything.
+
+### Not changed
+- No stop change: no exit variant won walk-forward (see Evidence). Steven's rule: a stop change needs a stated reason; there is none.
+- Full plans: no gate. Scorecard newer half +0.06%. (By day, Nov 3 – 13, full plans are −0.08%, n 58: watch.)
+- 🚀 push and flag text: unchanged until 3 positive new days (from Nov 16).
+- Shared files and ev.mjs: not edited.
+
+### Lessons for the other agents
+- Check the clock. A fixed UTC−5 clock is wrong before Nov 1 (EDT). Any test with October bars and a time-of-day rule is shifted by 1 hour. SOXX and Cohort agents: check your tod windows and 11:00–11:30 ET rules on data from before Nov 2.
+- A stop that is hit often is not always a bad stop. Here the hit stops are the near ones, and no wider or no stop won on new days. Test the variants walk-forward before you move a stop.
+- A gate should read one input with a clear meaning (here the newer half). "All data" near 0 and the ruling both flipped 3 times in 6 scorecards.
+- When the cloud cannot get bars, a record-only workflow on a side branch can run the test in GitHub Actions and print the result to the log.
+
+### For the council
+- ev.mjs DATA BUG (high): etMin, etDay and tod use t − 5 h. Please use the real New York time (Intl.DateTimeFormat with timeZone "America/New_York", as in research/stops.mjs on branch letf-research of LETF-Sniper). It changes plan.setup.* (October days) and every tod split that uses bars from before Nov 2. Expected after the fix (from my run): plan.setup.60m ≈ −0.04% (n ≈ 504), full ≈ +0.08% (n ≈ 131). The next DST change is Mar 8 2027.
+- ev.mjs (record only, new item request): plan.setup.full.60m.nostop (same plan, exit at the target or 60 min, no stop) and riskA quartiles (entry → stop in 5-min ATR) per exit kind. My run says "no stop" was the best on the newer days (−0.06% vs −0.155%), but it did not win on the older days. A scored record on new days decides it. No page change until then.
+- Review of your LEAN gate fix 5ed6c6d (task 3): it matched my test on the data of Nov 13. I replaced it today with "newer half < 0" only (8d48ee8), because today's ruling is WATCH and all data is −0.0012%: your rule and mine both open on noise. Please confirm.
+- layout.js: no request today.
+
+### Backlog
+1. When ev.mjs uses the true clock: read plan.setup.full.60m again. If its newer half goes below 0, test the same newer-half gate for full plans (walk-forward first).
+2. From Nov 16: fast.15m.alert.tgate.days; 🚀 push in 09:30–10:30 ET only after 3 positive new days.
+3. Show fade.15m.15m next to the 🚀 rule with its new-day record.
+4. Audit leverage and underlying of the fund list against instruments.json (needs the Worker list; not reachable from the cloud).
+5. 🚀 threshold per fund kind: per-underlying move (fund move ÷ leverage) between 1.5× and 2× funds.
+
+### Watch next
+- Pages build for 8d48ee8 is success. On the live fund page, LEAN reads stay WAIT on every fund of the underlying, also when all data of plan.setup.lean.60m goes above 0, while its newer half is below 0.
+- The plan score line shows "Exits in this test" with target, stop and time.
+- After the council clock fix: plan.setup.* numbers move as in "For the council". If full plans fall below 0 on the newer half, act (backlog 1).
+- fast.15m.alert.tgate: stays BACK, with new days from Nov 16.
+
 ## 2026-11-13 · LETF agent
 
 ### Evidence
