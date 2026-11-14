@@ -163,16 +163,41 @@ for (const h of [1, 2, 7]) { const { rows, orders, fills, nI } = wfReplay(h, SEL
 // of the steps only (best mean); its NEWER half is the unseen check. Nothing on the sites uses this block yet.
 SEL.strict = P => { const x = st(P), sec = st(P.slice(Math.floor(P.length / 2))); return x.t > 0.5 && sec && sec.t >= 1 ? Math.min(3, x.t) : 0; };
 SEL.recent = (P, R, d) => { const Q = R.filter(r => r.d >= d - 120).map(r => r.v); if (Q.length < 10) return 0; const x = st(Q); return x.t > 0.5 && x.m > 0 ? Math.min(3, x.t) : 0; };
-const WFALT = {};
+const WFALT = {}, WSER = {};
 for (const h of [1, 2, 7]) { const steps = []; for (let d = days[0] + 150; d + h <= lastDay; d += h) steps.push(d);
   const toMap = rows => Object.fromEntries(rows.map(r => [r.d, r.v]));
   const S = { cur: toMap(WROWS[h]), strict: toMap(wfReplay(h, SEL.strict).rows), recent: toMap(wfReplay(h, SEL.recent).rows), gate: {}, none: {} };
   for (const r of WROWS[h]) { const past = WROWS[h].filter(q => q.d + h <= r.d).slice(-20).map(q => q.v); if (past.length >= 10 && mean(past) >= 0) S.gate[r.d] = r.v; }
   const first = WROWS[h].length ? WROWS[h][0].d : null, grid = steps.filter(d => first != null && d >= first); if (grid.length < 20) { WFALT[h] = null; continue; }
+  WSER[h] = { S, grid };
   const half = Math.floor(grid.length / 2), o = { steps: grid.length, split: new Date(grid[half] * D).toISOString().slice(0, 10), v: {} };
   for (const k in S) { const a = grid.map(d => S[k][d] || 0); o.v[k] = { all: st(a), first: st(a.slice(0, half)), second: st(a.slice(half)), days: grid.filter(d => S[k][d] != null).length }; }
   o.pick = Object.keys(o.v).sort((a, b) => o.v[b].first.m - o.v[a].first.m)[0]; o.pickSecond = o.v[o.pick].second; WFALT[h] = o;
   log("idea rules", h + "d", Object.entries(o.v).map(([k, x]) => `${k} 1st ${(x.first.m * 100).toFixed(3)}% 2nd ${(x.second.m * 100).toFixed(3)}% t2 ${x.second.t.toFixed(1)} days ${x.days}`).join(" | "), "-> pick", o.pick); }
+// ---------- walk-forward test of the PICK procedure itself (Cohort agent, 2026-11-14; council task) ----------
+// wfAlt picks one idea rule per run on the older half, and the pick flips from run to run (1 d "recent" lost on every newer half).
+// This replays each pick procedure step by step: on step i it may use only the steps whose results had ENDED by then (40+),
+// picks a rule, and scores that rule's result on step i (no setup = 0). Nothing on the sites uses this block (record only).
+//   half    best mean on the older half of the ended steps (the live procedure, rolled forward)
+//   best    best mean on all ended steps
+//   last60  best mean on the last 60 ended steps
+//   margin  "cur", unless another rule beat cur on all ended steps by more than 1 standard error (paired by step)
+//   cur     always the old rule;  none  never a setup (0)
+const WFPICK = {};
+for (const h of [1, 2, 7]) { const W = WSER[h]; if (!W) { WFPICK[h] = null; continue; }
+  const { S, grid } = W, K = Object.keys(S), val = (k, d) => S[k][d] || 0, best = ds => K.reduce((b, k) => mean(ds.map(d => val(k, d))) > mean(ds.map(d => val(b, d))) + 1e-12 ? k : b, K[0]);
+  const P = { half: ds => best(ds.slice(0, Math.floor(ds.length / 2))), best, last60: ds => best(ds.slice(-60)),
+    margin: ds => { const b = best(ds); if (b === "cur") return "cur"; const x = ds.map(d => val(b, d) - val("cur", d)), s = sd(x) / Math.sqrt(x.length); return mean(x) > s ? b : "cur"; },
+    cur: () => "cur", none: () => "none" };
+  const R = Object.fromEntries(Object.keys(P).map(p => [p, { v: [], picks: [] }]));
+  for (let i = 0; i < grid.length; i++) { const d = grid[i], ds = grid.filter(q => q + h <= d); if (ds.length < 40) continue;
+    for (const p in P) { const k = P[p](ds); R[p].v.push(val(k, d)); R[p].picks.push(k); } }
+  const n = R.cur.v.length; if (n < 20) { WFPICK[h] = null; continue; }
+  const half = Math.floor(n / 2), o = { steps: n, from: new Date(grid[grid.length - n] * D).toISOString().slice(0, 10), split: new Date(grid[grid.length - n + half] * D).toISOString().slice(0, 10), v: {} };
+  for (const p in R) { const v = R[p].v, pk = R[p].picks, cnt = {}; pk.forEach(k => cnt[k] = (cnt[k] || 0) + 1);
+    o.v[p] = { all: st(v), first: st(v.slice(0, half)), second: st(v.slice(half)), switches: pk.filter((k, i) => i && k !== pk[i - 1]).length, picks: cnt, now: P[p](grid.filter(q => q + h <= lastDay)) }; }
+  WFPICK[h] = o;
+  log("pick procedures", h + "d", Object.entries(o.v).map(([p, x]) => `${p} all ${(x.all.m * 100).toFixed(3)}% 1st ${(x.first.m * 100).toFixed(3)}% 2nd ${(x.second.m * 100).toFixed(3)}% t ${x.all.t.toFixed(1)} sw ${x.switches} now ${x.now}`).join(" | ")); }
 // Gate (same rule as the Outlook gates): a horizon whose walk-forward setups lost on BOTH halves (10+ days) gets no setup
 // (side 0) on any site; it comes back by itself when either half turns positive. First run (2026-11-10): 7 d lost on both
 // halves (−1.12% → −2.38% per bet, n 12); 1 d and 2 d won on the older half and lost on the newer half (decay, not gated).
@@ -197,6 +222,9 @@ const SEED = [
 let HIST = PREV && Array.isArray(PREV.wfHist) ? PREV.wfHist.slice() : process.env.LAB_MOCK ? [] : SEED.slice();
 { const e = histOf(PREV); if (e && !HIST.some(q => q.t === e.t)) HIST.push(e); }
 HIST = HIST.filter(q => q && q.t && Date.parse(q.t) < NOW).sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
+// One entry per UTC day (Cohort agent, 2026-11-14): the record of the previous run came in twice (from PREV.wfHist and from
+// PREV itself, with t a few ms apart), so Nov 13 had two entries. Keep the last entry of each day.
+HIST = HIST.filter((q, i) => !HIST.slice(i + 1).some(r => r.t.slice(0, 10) === q.t.slice(0, 10)));
 const REF = HIST.filter(q => NOW - Date.parse(q.t) >= 12 * 36e5).pop() || null;
 log("gate reference", REF ? `${REF.t} 1d ${REF.m2[1]} 2d ${REF.m2[2]}` : "none (no record 12+ h older)");
 const WRULE = {}, WWHY = {};
@@ -234,7 +262,7 @@ for (const c in F0) { const f = F0[c], P = prof[c]; P.setups = {};
 for (const [name, H] of Object.entries(HYP)) { const S = Object.keys(F0).map(c => ({ c, s: H.f(F0[c], M[c]) })).filter(x => Math.abs(x.s) >= 0.3); picks[name] = { L: S.filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 6).map(x => x.c), S: S.filter(x => x.s < 0).sort((a, b) => a.s - b.s).slice(0, 6).map(x => x.c) }; }
 const cur = histOf({ t: new Date(NOW).toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, wfRule: WRULE, wfGate: WFG, wfAlt: WFALT });
 const wfHist = HIST.filter(q => q.t.slice(0, 10) !== cur.t.slice(0, 10)).concat([cur]).slice(-90);
-const out = { weights: WH, wf: WF, wfGate: WFG, wfAlt: WFALT, wfRule: WRULE, wfWhy: WWHY, wfRef: REF ? { t: REF.t, m2: REF.m2 } : null, wfHist, t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
+const out = { weights: WH, wf: WF, wfGate: WFG, wfAlt: WFALT, wfRule: WRULE, wfWhy: WWHY, wfRef: REF ? { t: REF.t, m2: REF.m2 } : null, wfHist, wfPick: WFPICK, t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
 fs.writeFileSync(path.join(OUT, "lab.json"), JSON.stringify(out));
 for (const [k, R] of Object.entries(RES)) log(k.padEnd(12), [1, 2, 7].map(h => { const a = R.h[h] && R.h[h].all, s = R.h[h] && R.h[h].second; return a ? `${h}d n${a.n} ${(a.m * 100).toFixed(2)}% t${a.t.toFixed(1)} 2nd ${s ? (s.m * 100).toFixed(2) : "-"}% fill ${(R.h[h].fill * 100).toFixed(0)}%` : h + "d -"; }).join(" | "));
 log("done", Object.keys(prof).length, "profiles");
