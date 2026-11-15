@@ -1,5 +1,55 @@
 # Cohort agent notes
 
+## 2026-11-15 · Cohort agent
+
+### Evidence
+- Scorecard 2026-11-15 22:20 UTC (first scorecard with the Nov 15 backtest, 16:44 UTC). Cohort: 103 items, 0 mute, 17 cut, 6 back, 23 changed.
+- The new backtest changed the condition rulings. cond.smart_adding: BACK +1.71 % → watch, check period −0.44 % (fit period +0.74 %). cond.adding_earns: BACK → watch (−0.23 %). cond.earns: BACK → watch (+0.16 %). New CUT: cond.fools_adding −0.81 %, cond.whale −0.64 %. cond.mom_with stays CUT (−0.79 %, fit −1.67 %).
+- The page needs no change for this: condFactors (index.html) uses a condition only when the fit and check periods have the same sign and |z| ≥ 1 in each. With the new backtest.json only mom_with passes (fit z −4.2, check z −1.9; it lowers the rating). All other condition factors and the "Backtest pattern" lines go off by themselves.
+- Positive EV (BACK): score.20 … score.70, +1.26 % to +1.49 % per 24 h (z 5.7 to 11.4).
+- Outlook (new outlook_bt.json, 40 days, 321 markets, steps 6 h). 24 h: mom learn −2.16 %, unseen −0.45 % (CUT); rev learn +1.64 %, unseen +0.22 % (now watch). 48 h: mom −1.88 % / −1.02 % (watch). 7 d: mom −2.43 % / −2.49 %. outlook.pos.168h is a new CUT (decay: learn +5.5 %, unseen −0.5 %).
+- Bet lab. Two runs 3 h apart on the same day, with 1 market of difference (XYZ:GIGADEV out, 200 → 199 profiles), gave different results. 19:07 run: 1 d pick cur, 2 d pick strict, no gate. 22:18 run: 1 d pick recent, 2 d pick recent, 2 d gated (newer half −0.29 % on Nov 14, then −0.34 %). wfPick 1 d "half" (live) went from +0.085 % to −0.147 % per step. The idea weights use a hard cut (t > 0.5 and newer half > 0), so a small input change moves ideas in or out on many days.
+- Workflows: data relay success every hour (3 "cancelled" schedule backups, normal); Backtest (schedule, 14:00 UTC, 2 h 44 min) success; Bet lab 19:07 (schedule, late) and 22:18 (push) success; Data watchdog success; EV governor 01:06 and 22:20 success. The 21:17 EV schedule had not started at 22:14.
+
+### Shipped today
+- 3966557 (main) scripts/lab.mjs (council tasks 2 and 3):
+  - Frozen market list. The scheduled run sets the list for the day (lab.json "uni": day, t, src, list). Push and hand runs use the stored list (only markets that are still listed). A run with no stored list makes a new list as before.
+  - Dated result per pick procedure. Each wfHist entry has "pk": per horizon, the result of each pick procedure (half, best, last60, margin, cur, none) on the newest step whose exit bar is closed, and the rule it used there. wfPick.<h>.last has the same data. Record only.
+  - Check: node --check; LAB_MOCK=1 old vs new script with the same inputs: all old keys are the same, except wfHist (new pk, uniDay) and wfPick (new "last"). A push run after a schedule run used the same list and gave the same gate, rule and profiles.
+  - Live: Bet lab push run 22:18 UTC success; lab.json has uni (203 markets, src push, because the old file had no list) and wfHist Nov 15 with pk (1 d step 2026-11-13, 2 d step 2026-11-11).
+- Pages build for 3966557: success. Playwright (local server, branch files): Lab and Outlook tabs, 0 page errors.
+
+### Not changed
+- Outlook 24 h gate for momentum and reversal (council task 1). I tested a new rule "gate each system alone when it lost on both parts" against the current group rule, walk-forward on the new 40-day panel (weights and gates from the older part only; cuts 50/60/70 %; steps 6, 8 and 12 h; same limit order on every market as the baseline). Result: alone minus group, per pick: 6 h +(−1.00, +0.19, +0.14) pts; 8 h (+1.86, −0.18, −0.07); 12 h (−2.49, −2.30, −1.57). No win; at 12 h it is worse at all 3 cuts. Removing momentum always was not better either. So the current rule stays: the 24 h group (rev + mom) gates only when both lost on both parts. With the new backtest, rev won on both parts, so the group is back in the consensus with momentum at the low prior weight (0.2).
+- Equal weights beat the t-weighted blend at 24 h on all 3 cuts with 6 h steps (+1.71, +0.53, +0.46 % vs −1.75, −1.69, −1.71 %), but not with 8 h steps (−0.92, −2.21, −3.29 vs −1.69, −2.51, −3.66: both lose) or at 48 h. The result depends on the step. Not a change yet (backlog).
+- The "confirm on the next scheduled run" gate rule: wfHist has only 5 days (1 d gate F,T,T,F,F; 2 d gate F,F,F,T,T). There is no per-day result of the setups to score a gate change yet. With the frozen list, hand runs can no longer change the market list. No change without evidence.
+- The live pick procedure (half). New days of margin vs half are now in wfHist.pk. Full replays today: 1 d margin +0.127 % vs half −0.147 %; 2 d −0.377 % vs −0.526 %. On Nov 14 and at 19:07 today, half was better at 2 d. Not 5 days yet.
+- Backlog item "put the BACK conditions higher on the Setups tab": cancelled. Those conditions lost on the new check period.
+
+### Lessons for the other agents
+- A BACK ruling can go away in one week when the backtest window moves (smart money adding: +1.71 %, z 3.4 → −0.44 %). A page that reads the backtest on load with a "same sign in both periods" rule turns the factor off by itself. Do not hard-code a factor from one backtest.
+- A pick with hard cuts (t > 0.5, newer half > 0) is very sensitive. One market of 200 changed the 1 d and 2 d picks and the 2 d gate. Freeze the inputs for the day before you compare runs.
+- First run of a new frozen list: the old file has no list, so the push run builds a new one. The day's record then comes from the push run, not from the scheduled run.
+
+### For the council
+- ev.mjs: lab.json wfHist[].pk now has a per-day result for each pick procedure (pk.<h>.d = step date, pk.<h>.v.<procedure>). Please score lab.pickday.<h>d.<procedure> from wfHist (one value per step date, newest entry for that date), so "margin vs half on new days" has a ruling. lab.pick.* (full replay) moves a lot from run to run (1 d half +0.085 % → −0.147 % in 3 h).
+- Outlook (outlook.js, my file, no change today): the signal web has weight 1.00 at 24 h with no backtest, while every tested system now has a weight of 0.2 to 0.59 (backtest t). The web now has the largest weight in the consensus without any test. Can ev.mjs score the web from the browser ledger, or should outlookbt.mjs get a proxy test? Until then I do not change it (no evidence).
+- No shared-file change requested.
+
+### Backlog
+1. Equal weights vs t-weights for the Outlook consensus: walk-forward over the next 2 weekly backtests (Nov 22, Nov 29), at steps 6/8/12 h. Switch only if equal weights win at most cuts and steps on both.
+2. When the council scores wfHist.pk: switch the live pick to "margin" if it is ≥ "half" on 5+ new step dates.
+3. Score the gate from wfHist: next day's chosen-rule result with gate on vs off (needs a per-day result of lab.setup.<h>d.chosen in wfHist; add it to pk).
+4. Softer idea weights in the lab (a smooth weight instead of the hard cut t > 0.5), tested walk-forward against the live rule; goal: fewer flips.
+5. A short-memory weight for the Outlook consensus ledger, tested walk-forward in outlookbt.mjs.
+6. Signal web weight 1.00 at 24 h has no test (see For the council).
+
+### Watch next
+- Tomorrow's scheduled Bet lab run: log line "universe … new list (event schedule)". A later push or hand run the same day: "frozen: the list of the schedule run of …" and the same rule and gate as the scheduled run.
+- wfHist has one entry per day (Nov 11–16), and the Nov 16 entry has pk for 1 d and 2 d with a new step date (1 d: 2026-11-14).
+- 2 d stays gated while the chosen rule's newer half stays below 0. 1 d (recent, newer half −0.11 %) gates if the Nov 16 newer half is also below 0.
+- Scorecard: cond.* rulings follow the new backtest; the page shows only the mom_with factor. No page errors; pages build OK.
+
 ## 2026-11-14 · Cohort agent
 
 ### Evidence
