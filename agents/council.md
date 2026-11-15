@@ -1,5 +1,48 @@
 # Council notes (newest first)
 
+## 2026-11-15 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live. The paper bots keep a dated record of each skipped signal (reason: muted, time, idea, unproven, full) and the result of the trade they did not make (from its shadow limit order). The bot card shows "What the gates blocked". The trades do not change. The first market day of the record is Nov 16. I added the shared market calendar (cal.js): the SOXX page clock is now closed on Thanksgiving (Nov 26) and the regular session ends at 1:00 pm ET on Nov 27 and Dec 24. Pages builds: success.
+- Cohort Sniper: yes, live. The Bet lab freezes the market list for the day at the scheduled run, and keeps a dated daily result of each pick procedure. I added the scorecard items for this record (lab.pickday.*). Pages builds: success.
+- LETF Sniper: yes, live. The page clock knows NYSE holidays and 1:00 pm early closes (no 🔥 alerts and no live reversal on Thanksgiving; correct volume pace on Nov 27 and Dec 24). The calendar now comes from the shared cal.js (same file as SOXX). Pages builds: success.
+
+### Scoreboard (ev.json 23:19 UTC; Sunday, no new market day)
+- SOXX: 11 muted, 4 cut, 7 backed, 0 changed. Gain: funds squeeze, limit 0.25 ATR, plan t3s, +0.20 % per trade (n 298, z 3.9). Loss: spot squeeze 12:00–12:30 ET, −0.29 % (muted). Paper bots, live trades: spot +0.44 % per trade (n 19, BACK), funds +0.27 % (n 23), both +0.43 % (n 16). Stop exits lose on all 3 bots (spot −$36, funds −$112, both −$112); target and time exits make the profit.
+- Cohort: 2 muted, 17 cut, 6 backed, 7 changed. Gain: cohort score 50+, +1.49 % per 24 h (z 9.5, BACK). Loss: signal condition "dumb money adding", −0.81 % (new CUT) and Outlook momentum 24 h, −1.5 % (CUT). New today (newer lab run): lab.young-small.2d MUTE (−0.38 %), lab.pick.2d.last60 MUTE (−0.50 % per step), and the LIVE 2 d pick procedure "half" is now CUT (−0.53 % per step). The 2 d setups are gated on the sites, so no 2 d setup shows.
+- LETF: 2 muted, 6 cut, 2 backed, 0 changed. Gain: 🚀 alert level in the open hour, +0.97 % (n 26, z 2.3, BACK). Loss: HARD reversals −0.30 % (muted). Fund-page plans: all −0.06 % (CUT, n 506); full SETUP plans +0.08 % (both halves above 0); LEAN −0.10 % (CUT, gate shut).
+
+### Agents
+- SOXX agent: ran, good work. It did tasks 2 and 3. The skip record is record only. I read the code: choose() with "strict" has no random part, so calling it earlier does not change the trades. Its stop study is fair: the loss is from one bad day (Nov 9, 6 of 11 stops) and old explore trades, not from one plan or limit size; the no-stop plan loses on the newer half at every limit size. No stop change: correct (Steven's rule). Task 1 waits for Nov 16.
+- Cohort agent: ran, good work. It did tasks 1, 2 and 3. Its 24 h Outlook gate test is walk-forward (weights and gates from the older part only) against the current rule at 3 cuts and 3 step sizes; no win, so no change: correct. It saw that the condition factors on the page turn off by themselves with the new backtest. Small problem: the frozen market list does not check the day. If a scheduled run does not start (GitHub can skip it; today it started 6.5 h late), push and hand runs reuse an old list on the next days. See tasks.
+- LETF agent: ran, very good work. It found a real data bug (no market holidays, no early closes) and fixed it with the true NYSE calendar. I checked all 20 holiday dates for 2026–2027 and the phase at 7 times: correct. One error in its note: web.js HOL already has the 2027 dates (it has no early closes). It read the 01:06 scorecard, not the 22:20 one (no market day between them, so no harm).
+- Checks by me: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright 0 page errors on SOXX, Mastermind, LETF (live, ?demo, fund page) and Cohort, also with the clock set to Nov 26, Nov 27 and Nov 16. The 16 shared files are the same in all repos that use them; cal.js is the same in SOXX and LETF. All pages builds: success. No revert.
+- All agents kept the order rules (limit entries that count only when touched, no stop change, the same bet size, Schwab-only and long-only bots).
+- Yesterday's "Watch next": SOXX pick fix and Monday run on the new code (waits for Nov 16). Cohort Sunday backtest read and gate decided (yes). LETF read nostop each day (yes; no stop still loses on the older half). 🚀 push stays off (yes).
+
+### Lessons shared
+- Check the market calendar, not only the clock (LETF). Now all pages use one shared file (cal.js, 2026–2028). SOXX agent: bots.mjs has its own HOLI list only to Feb 15 2027; add Mar 26 2027 (Good Friday) and the later dates, or read cal.js.
+- Split a loss by day before you split it by rule (SOXX). 6 of 11 funds stops were on one day. LETF agent: do the same with your plan stop exits (69 stops) before any stop idea.
+- A BACK ruling can go away in one week when the backtest window moves (Cohort: smart money adding +1.71 % → −0.44 %). A page must read the test each time, with a "same sign in both periods" rule, not a hard-coded factor. SOXX and LETF agents: do not hard-code a BACK factor from one scorecard.
+- Freeze the inputs for the day before you compare runs (Cohort). One market of 200 changed two picks and a gate.
+
+### Tasks for tomorrow
+- SOXX agent: 1) Nov 16: confirm the 3 bots trade the same version on the same signal (live.<bot>.pick) and that dated.json has skipn|/skip| keys for Nov 16. 2) Holidays in bots.mjs: extend HOLI and HALF to the cal.js dates (2027–2028), or load cal.js in the script; check no trade and no "day" on Nov 26 and time exits before 13:00 ET on Nov 27 (replay with a mock day). 3) Funds from 11:30: read day 4 (Nov 16); act only on your 4-of-5 rule with a walk-forward check.
+- Cohort agent: 1) Act on today's new rulings: lab.young-small.2d MUTE and the live 2 d pick "half" CUT. Confirm the 2 d gate stays shut on the sites; test walk-forward if "young-small" must leave the 2 d blend. 2) Frozen list: reuse the stored list only when uni.day is today (UTC); else build a new list and say so in the log. 3) lab.pickday.1d: the Nov 13 step is +10.8 % for "cur" against +0.96 % for "half". Check that this one step is real (not a data error) before you count margin against half.
+- LETF agent: 1) Nov 16: confirm "regular" 09:30–16:00 ET on the page and no page errors with cal.js. 2) From Nov 16: fast.15m.alert.tgate.days; push stays off until 3 positive new days. 3) Split the 74 plan stop exits by day and by underlying (as SOXX did); record only, no stop change.
+
+### Changes I made
+- SOXX-Sniper edfd072: new shared cal.js v1 (NYSE holidays and early closes 2026–2028), loaded in <head>; phaseAt uses it (closed on holidays, regular until 13:00 ET on early-close days). Without cal.js the page works as before.
+- LETF-Sniper 8186e08: the page calendar comes from the same cal.js (same phase as e3d9c77; adds 2028). The plan test code (resample … setupCore) is not changed.
+- Hyperdash-Cohort-Tracker 5b939d2 (scripts/ev.mjs): new items lab.pickday.<h>d.<procedure> from lab.json wfHist.pk (one closed step per date; vsHalf = dates at least as good as the live "half"). Record only. Offline check: the 103 old Cohort items are the same. EV governor run 23:19 UTC: success.
+- LETF question on the scorecard: a plan on an early-close day cannot read bars of the next day; the time exit stops at the last bar of the same day. No change needed.
+- No revert of agent work.
+
+### What Steven should know
+- Nothing to paste. No Worker change. No decision is necessary.
+- Thanksgiving (Nov 26): the SOXX and LETF pages now show "closed". Nov 27 and Dec 24 end at 1:00 pm ET.
+- The Cohort Bet lab 2 d setups lose now (the live pick −0.53 % per step); the sites already gate them, so trust only the 1 d setups and the cohort score.
+
 ## 2026-11-14 · Council
 
 ### Shipped today
