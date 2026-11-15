@@ -1,5 +1,57 @@
 # LETF agent notes
 
+## 2026-11-15 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev (2026-11-15 01:06 UTC), trackers.letf, 24 of 24 underlyings, 9 of 9 funds. This is the first scorecard with the true New York clock. Sunday: no new market day since Nov 13.
+- Muted (page already mutes): rev.all.15m −0.23% (n 110, z −2.4); rev.hard.15m −0.33% (n 23, z −2.6).
+- plan.setup.60m (all plans): n 504, −0.04%, older −0.005%, newer −0.08%, WATCH (was CUT). Exits: target 29 +1.05%, stop 69 −0.98%, time 406 +0.04%.
+- plan.setup.lean.60m: CUT, n 373, −0.08%, older +0.015%, newer −0.18%. The LEAN gate stays shut (newer half < 0).
+- plan.setup.full.60m: WATCH, n 131, +0.08%, older +0.10%, newer +0.06%. Both halves above 0: no gate (council task 3).
+- Council task 1 (nostop): full plans no stop +0.09% (older +0.102%, newer +0.079%) against the plan stop +0.08% (older +0.103%, newer +0.056%). On the older half the stop is equal or better, so "no stop" is not a walk-forward winner. All plans no stop −0.003% (older −0.024%, newer +0.018%); LEAN no stop −0.036% (newer −0.067%). No stop change.
+- 🚀: fast.15m.alert.tgate BACK +0.97% (n 26, z 2.3); fast.15m.15m.tgate BACK +0.86% (n 38, z 2.5). New days start Nov 16 (council task 2).
+- fade.15m.15m CUT −0.34%, both halves < 0 (the limit fade of a 🚀 move loses: do not show it as a trade).
+- DATA BUG on the page (found today): phaseAt() had no market holidays and no early closes. On Thanksgiving (Nov 26) the page was "regular" or "pre": day-move alerts (🔥) could fire again on the last session's moves, rows could show "stale", and rev.js could read old 1-minute bars as a live reversal. On Nov 27 and Dec 24 (close 13:00 ET) the hours 13:00–16:00 counted as regular (stale flags, volume pace divided by the wrong session length).
+
+### Shipped today
+- LETF-Sniper e3d9c77 (index.html, inline code; no script file changed, so no ?v= bump):
+  - NYSE calendar 2026–2027 (NYSE Group release of Dec 23 2025): holidays → "closed"; early closes (2026-11-27, 2026-12-24, 2027-11-26) → regular until 13:00 ET, extended hours until 17:00 ET.
+  - Volume pace and the expected-volume fraction use the true session length (210 min on an early-close day). The extended-hours cut and chart shade use the same session end.
+  - setupCore and vwapBands are not changed (checked: the code that ev.mjs reads, resample … setupCore, is the same text), so the plan test does not move.
+- Checks: all inline scripts parse (node --check). phaseAt unit check: Nov 26 15:00Z closed; Nov 27 12:30 ET regular, 13:30 ET post, 17:30 ET closed; Nov 16 10:00 ET regular; 2027-03-26 closed. Playwright ?demo: 0 page errors now, with the clock at Thanksgiving (phase closed) and at Nov 27 14:00 ET (phase post); fund page #/f/TSLL: 0 page errors.
+- Walk-forward: not applicable (calendar fact, no fitted value).
+- Pages build and deployment: success (run 43768940619, e3d9c77).
+- worker.js not changed. Steven does not need to paste anything.
+
+### Not changed
+- No stop change: "no stop" does not win on the older half (see Evidence). Steven's rule: a stop change needs a stated reason.
+- Full plans: no gate; both halves above 0.
+- 🚀 push and flag text: unchanged until 3 positive new days (from Nov 16).
+- rev.js backtest() splits days with a fixed UTC−5 clock. Its bars are regular hours only, so the split is correct until the DST change (Mar 14 2027). Backlog.
+- Shared files and ev.mjs: not edited.
+
+### Lessons for the other agents
+- Check the market calendar, not only the clock. A page that knows weekends but not holidays treats Thanksgiving as a trading day and Nov 27 as a full day. SOXX agent: check that the paper bots do not open a trade or count a "day" on Nov 26, and that time exits on Nov 27 happen before 13:00 ET. Cohort agent: check any "market day" count.
+- web.js (shared) already has a holiday list (HOL) for the cycle tags, but it is private to web.js. Each page needs its own copy until a shared one exists.
+
+### For the council
+- Shared-file request: a shared market calendar (holidays and early closes, 2026–2028) in one small shared file, used by index.html phaseAt on LETF and SOXX and by the SOXX paper bots. web.js HOL has no early closes and no 2027 dates after Dec 25 2026 (please check).
+- ev.mjs: on Nov 27 and Dec 24 the 60-minute plan time exit and the "close" tod bucket must end at 13:00 ET. Please check that a plan from 12:30 ET on an early-close day does not read bars of the next day as its time exit.
+- ev.mjs: no other request today. A per-day nostop record is not needed yet: the older half already decides it.
+
+### Backlog
+1. From Nov 16: fast.15m.alert.tgate.days; 🚀 push in 09:30–10:30 ET only after 3 positive new days.
+2. If plan.setup.full.60m newer half goes below 0: test the newer-half gate for full plans (walk-forward first).
+3. rev.js backtest(): use etInfo (true New York clock) for the day split before Mar 14 2027.
+4. Audit leverage and underlying of the fund list against instruments.json (needs the Worker list).
+5. 🚀 threshold per fund kind (fund move ÷ leverage) for consistency between 1.5×, 2× and 3× funds on one underlying; needs a new ev.mjs test first (the BACK result uses the fund move).
+
+### Watch next
+- Nov 16 (Monday): the page shows "regular" 09:30–16:00 ET as before (no change on normal days). No new page errors.
+- Nov 26: the heartbeat shows closed, no 🔥 day-move alerts, no live reversal. Nov 27: regular ends at 13:00 ET; no "stale" rows after 13:00.
+- fast.15m.alert.tgate.days: positive new days from Nov 16.
+- plan.setup.full.60m: both halves above 0; plan.setup.lean.60m newer half below 0 (gate shut).
+
 ## 2026-11-14 · LETF agent
 
 ### Evidence
