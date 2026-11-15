@@ -139,6 +139,17 @@ function cohort() { const items = [], O = rd("outlook_bt.json"), K = rd("backtes
   // "none" (no setups, 0) is the baseline. Nothing on the sites reads these yet.
   if (L && L.wfPick) for (const [h, P] of Object.entries(L.wfPick)) for (const [pr, W] of Object.entries((P && P.v) || {})) { const a = W && W.all; if (pr === "none" || !a || !a.n) continue;
     items.push(rule({ id: `lab.pick.${h}d.${pr}`, desc: `Bet lab pick procedure "${pr}" (walk-forward, each pick from ended steps only), ${h} d, per step`, unit: "ret", n: a.n, ev: a.m, z: a.t, hit: a.hit, older: W.first && W.first.m, recent: W.second && W.second.m, switches: W.switches, live: pr === "half", from: P.from, split: P.split })); }
+  // Council, Nov 15 2026 (Cohort agent request): the DATED result of each pick procedure (lab.json wfHist[].pk, written from
+  // Nov 15 2026): one value per step date (the newest wfHist entry for that date wins), so new days are counted, not a full
+  // replay. lab.pickday.<h>d.<procedure>: n = step dates, older / newer = halves of the dates; vsHalf = the dates where the
+  // procedure did at least as well as "half" (the live procedure). Out of sample: each step is scored after its exit bar closed,
+  // with a pick made from ended steps only. Record only: nothing on the sites reads these.
+  if (L && Array.isArray(L.wfHist)) { const byH = {};
+    for (const e of L.wfHist) for (const [h, x] of Object.entries((e && e.pk) || {})) { if (!x || !x.d || !x.v) continue; (byH[h] || (byH[h] = {}))[x.d] = x; }
+    for (const [h, D] of Object.entries(byH)) { const ds = Object.keys(D).sort(), prs = Object.keys(D[ds[ds.length - 1]].v).filter(p => p !== "none");
+      for (const pr of prs) { const v = ds.map(d => D[d].v[pr]).filter(isFinite), hv = ds.filter(d => isFinite(D[d].v[pr]) && isFinite(D[d].v.half));
+        const it = fromList(`lab.pickday.${h}d.${pr}`, `Bet lab pick procedure "${pr}", ${h} d, DATED record (one closed step per date, from Nov 15 2026)`, "ret", v);
+        items.push({ ...it, live: pr === "half", from: ds[0], to: ds[ds.length - 1], vsHalf: pr === "half" ? null : hv.filter(d => D[d].v[pr] >= D[d].v.half).length, vsHalfOf: pr === "half" ? null : hv.length }); } } }
   return { at: (O && O.t) || (L && L.t), items }; }
 
 // ---------- LETF Sniper: hard reversals and fast moves (7 days of 1-minute bars) ----------
