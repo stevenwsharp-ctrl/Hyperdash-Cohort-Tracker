@@ -31,8 +31,15 @@ const PREV = (() => { try { return JSON.parse(fs.readFileSync(process.env.LAB_PR
 // Before, the universe followed the day's volume only (205, 190, 172, 167, 179 markets on Nov 10-12), and the walk-forward
 // picks and the rulings changed from run to run with it. Same cap (220, largest volume first).
 const prevU = new Set(PREV && PREV.prof ? Object.keys(PREV.prof) : []);
-const universe = Object.keys(CTX).filter(c => (CTX[c].v || 0) >= 5e5 || (prevU.has(c) && (CTX[c].v || 0) >= 1e5)).sort((a, b) => CTX[b].v - CTX[a].v).slice(0, 220);
-log("universe", universe.length, "kept from the last run by the lower floor:", universe.filter(c => (CTX[c].v || 0) < 5e5).length);
+// Frozen market list (Cohort agent, 2026-11-15; council task): the scheduled run sets the list for the day; push and hand runs
+// reuse the list of the last lab.json (only markets that are still listed). Before, 197 -> 203 markets on Nov 14 (one hand run)
+// changed the 1 d pick (recent -> cur) and its gate (on -> off), and 203 -> 201 on Nov 15 changed the 2 d pick (cur -> strict).
+// A first run with no stored list builds it as before.
+const EVENT = process.env.GITHUB_EVENT_NAME || "local", PU = PREV && PREV.uni && Array.isArray(PREV.uni.list) ? PREV.uni : null;
+const frozen = EVENT !== "schedule" && PU ? PU.list.filter(c => CTX[c]) : null;
+const universe = frozen || Object.keys(CTX).filter(c => (CTX[c].v || 0) >= 5e5 || (prevU.has(c) && (CTX[c].v || 0) >= 1e5)).sort((a, b) => CTX[b].v - CTX[a].v).slice(0, 220);
+const UNI = frozen ? { ...PU, list: universe, reused: (PU.reused || 0) + 1 } : { day: new Date().toISOString().slice(0, 10), t: new Date().toISOString(), src: EVENT, list: universe };
+log("universe", universe.length, frozen ? `frozen: the list of the ${PU.src} run of ${PU.t} (event ${EVENT})` : `new list (event ${EVENT})`, "kept from the last run by the lower floor:", universe.filter(c => (CTX[c].v || 0) < 5e5).length);
 const post = b => http("https://api.hyperliquid.xyz/info", { method: "POST", tries: 3, timeoutMs: 20000, body: JSON.stringify(b), headers: { "content-type": "application/json" } });
 let MS = 7; const MR = () => { MS = (MS * 16807) % 2147483647; return MS / 2147483647; };
 const mock = n => { let p = 50 + MR() * 100; const t0 = Math.floor(Date.now() / D) * D; return Array.from({ length: n }, (_, i) => { const o = p; p *= Math.exp((MR() - 0.5) * 0.08); return [t0 - (n - 1 - i) * D, o, Math.max(o, p) * 1.01, Math.min(o, p) * 0.99, p, 1e6]; }); };   // LAB_MOCK=1: random walks, for testing the script offline
@@ -189,13 +196,16 @@ for (const h of [1, 2, 7]) { const W = WSER[h]; if (!W) { WFPICK[h] = null; cont
   const P = { half: ds => best(ds.slice(0, Math.floor(ds.length / 2))), best, last60: ds => best(ds.slice(-60)),
     margin: ds => { const b = best(ds); if (b === "cur") return "cur"; const x = ds.map(d => val(b, d) - val("cur", d)), s = sd(x) / Math.sqrt(x.length); return mean(x) > s ? b : "cur"; },
     cur: () => "cur", none: () => "none" };
-  const R = Object.fromEntries(Object.keys(P).map(p => [p, { v: [], picks: [] }]));
-  for (let i = 0; i < grid.length; i++) { const d = grid[i], ds = grid.filter(q => q + h <= d); if (ds.length < 40) continue;
+  const R = Object.fromEntries(Object.keys(P).map(p => [p, { v: [], picks: [] }])), SD = [];
+  for (let i = 0; i < grid.length; i++) { const d = grid[i], ds = grid.filter(q => q + h <= d); if (ds.length < 40) continue; SD.push(d);
     for (const p in P) { const k = P[p](ds); R[p].v.push(val(k, d)); R[p].picks.push(k); } }
   const n = R.cur.v.length; if (n < 20) { WFPICK[h] = null; continue; }
   const half = Math.floor(n / 2), o = { steps: n, from: new Date(grid[grid.length - n] * D).toISOString().slice(0, 10), split: new Date(grid[grid.length - n + half] * D).toISOString().slice(0, 10), v: {} };
   for (const p in R) { const v = R[p].v, pk = R[p].picks, cnt = {}; pk.forEach(k => cnt[k] = (cnt[k] || 0) + 1);
     o.v[p] = { all: st(v), first: st(v.slice(0, half)), second: st(v.slice(half)), switches: pk.filter((k, i) => i && k !== pk[i - 1]).length, picks: cnt, now: P[p](grid.filter(q => q + h <= lastDay)) }; }
+  // the newest step whose exit bar is closed (d + h < lastDay; the last daily bar is still open): one result per procedure, for
+  // the dated record (wfHist.pk), so new days can be counted (Cohort agent, 2026-11-15; council task 3)
+  { let j = SD.length - 1; while (j >= 0 && SD[j] + h >= lastDay) j--; if (j >= 0) o.last = { d: new Date(SD[j] * D).toISOString().slice(0, 10), v: Object.fromEntries(Object.keys(R).map(p => [p, Math.round(R[p].v[j] * 1e6) / 1e6])), rule: Object.fromEntries(Object.keys(R).map(p => [p, R[p].picks[j]])) }; }
   WFPICK[h] = o;
   log("pick procedures", h + "d", Object.entries(o.v).map(([p, x]) => `${p} all ${(x.all.m * 100).toFixed(3)}% 1st ${(x.first.m * 100).toFixed(3)}% 2nd ${(x.second.m * 100).toFixed(3)}% t ${x.all.t.toFixed(1)} sw ${x.switches} now ${x.now}`).join(" | ")); }
 // Gate (same rule as the Outlook gates): a horizon whose walk-forward setups lost on BOTH halves (10+ days) gets no setup
@@ -215,7 +225,10 @@ const NOW = Date.now(), r6 = v => v == null || !isFinite(v) ? null : Math.round(
 const histOf = x => !x || !x.t || !x.wfAlt ? null : { t: x.t, asOf: x.asOf || null, markets: x.markets || null, rule: x.wfRule || null, gate: x.wfGate || null,
   m2: Object.fromEntries([1, 2, 7].map(h => [h, x.wfAlt[h] && x.wfAlt[h].pickSecond ? r6(x.wfAlt[h].pickSecond.m) : null])),
   t2: Object.fromEntries([1, 2, 7].map(h => [h, x.wfAlt[h] && x.wfAlt[h].pickSecond ? r6(x.wfAlt[h].pickSecond.t) : null])),
-  n2: Object.fromEntries([1, 2, 7].map(h => [h, x.wfAlt[h] && x.wfAlt[h].pickSecond ? x.wfAlt[h].pickSecond.n : null])) };
+  n2: Object.fromEntries([1, 2, 7].map(h => [h, x.wfAlt[h] && x.wfAlt[h].pickSecond ? x.wfAlt[h].pickSecond.n : null])),
+  // pk: per horizon, each pick procedure's result on the newest closed step (d), and the rule it used there (from wfPick.last)
+  ...(x.wfPick ? { pk: Object.fromEntries([1, 2, 7].map(h => [h, x.wfPick[h] && x.wfPick[h].last || null])) } : {}),
+  ...(x.uni ? { uniDay: x.uni.day || null } : {}) };
 const SEED = [
   { t: "2026-11-11T22:24:34.000Z", markets: 170, src: "log", rule: { 1: "recent", 2: "recent", 7: "cur" }, gate: { 1: false, 2: false, 7: true }, m2: { 1: -0.00142, 2: -0.00122, 7: null }, t2: { 1: -0.9, 2: -0.3, 7: null }, n2: { 1: null, 2: null, 7: null } },
   { t: "2026-11-12T23:21:18.000Z", markets: 181, src: "log", rule: { 1: "cur", 2: "strict", 7: "cur" }, gate: { 1: true, 2: false, 7: false }, m2: { 1: -0.00222, 2: 0.00101, 7: null }, t2: { 1: -1.5, 2: 0.3, 7: null }, n2: { 1: null, 2: null, 7: null } }];
@@ -260,9 +273,9 @@ for (const c in F0) { const f = F0[c], P = prof[c]; P.setups = {};
     const EXh = P.ex && P.ex[h] && P.ex[h][side > 0 ? "L" : "S"], exP = v => v == null ? null : r4(f.px * (1 + v * side));   // excursion prices for this side (drawdown below a long, above a short)
     P.setups[h] = { dd50: EXh ? exP(EXh.mae50) : null, dd90: EXh ? exP(EXh.mae90) : null, up50: EXh ? exP(EXh.mfe50) : null, up90: EXh ? exP(EXh.mfe90) : null, winStop: EXh && EXh.winMae80 != null ? exP(EXh.winMae80) : null, side, lean: r4(lean), lim: r4(f.px * Math.exp(-side * 0.25 * sH)), tgt: r4(f.px * Math.exp(side * (0.5 + Math.min(1, Math.abs(lean) * 2)) * sH)), wrong: r4(f.px * Math.exp(-side * 0.75 * sH)), why: why.filter(([k, v]) => Math.sign(v) === side && W[k]).sort((a, b) => Math.abs(b[1]) * WH[h][b[0]] - Math.abs(a[1]) * WH[h][a[0]]).map(x => x[0]).slice(0, 3) }; } }
 for (const [name, H] of Object.entries(HYP)) { const S = Object.keys(F0).map(c => ({ c, s: H.f(F0[c], M[c]) })).filter(x => Math.abs(x.s) >= 0.3); picks[name] = { L: S.filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 6).map(x => x.c), S: S.filter(x => x.s < 0).sort((a, b) => a.s - b.s).slice(0, 6).map(x => x.c) }; }
-const cur = histOf({ t: new Date(NOW).toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, wfRule: WRULE, wfGate: WFG, wfAlt: WFALT });
+const cur = histOf({ t: new Date(NOW).toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, wfRule: WRULE, wfGate: WFG, wfAlt: WFALT, wfPick: WFPICK, uni: UNI });
 const wfHist = HIST.filter(q => q.t.slice(0, 10) !== cur.t.slice(0, 10)).concat([cur]).slice(-90);
-const out = { weights: WH, wf: WF, wfGate: WFG, wfAlt: WFALT, wfRule: WRULE, wfWhy: WWHY, wfRef: REF ? { t: REF.t, m2: REF.m2 } : null, wfHist, wfPick: WFPICK, t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
+const out = { uni: UNI, weights: WH, wf: WF, wfGate: WFG, wfAlt: WFALT, wfRule: WRULE, wfWhy: WWHY, wfRef: REF ? { t: REF.t, m2: REF.m2 } : null, wfHist, wfPick: WFPICK, t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
 fs.writeFileSync(path.join(OUT, "lab.json"), JSON.stringify(out));
 for (const [k, R] of Object.entries(RES)) log(k.padEnd(12), [1, 2, 7].map(h => { const a = R.h[h] && R.h[h].all, s = R.h[h] && R.h[h].second; return a ? `${h}d n${a.n} ${(a.m * 100).toFixed(2)}% t${a.t.toFixed(1)} 2nd ${s ? (s.m * 100).toFixed(2) : "-"}% fill ${(R.h[h].fill * 100).toFixed(0)}%` : h + "d -"; }).join(" | "));
 log("done", Object.keys(prof).length, "profiles");
