@@ -149,7 +149,11 @@ function cohort() { const items = [], O = rd("outlook_bt.json"), K = rd("backtes
     for (const [h, D] of Object.entries(byH)) { const ds = Object.keys(D).sort(), prs = Object.keys(D[ds[ds.length - 1]].v).filter(p => p !== "none");
       for (const pr of prs) { const v = ds.map(d => D[d].v[pr]).filter(isFinite), hv = ds.filter(d => isFinite(D[d].v[pr]) && isFinite(D[d].v.half));
         const it = fromList(`lab.pickday.${h}d.${pr}`, `Bet lab pick procedure "${pr}", ${h} d, DATED record (one closed step per date, from Nov 15 2026)`, "ret", v);
-        items.push({ ...it, live: pr === "half", from: ds[0], to: ds[ds.length - 1], vsHalf: pr === "half" ? null : hv.filter(d => D[d].v[pr] >= D[d].v.half).length, vsHalfOf: pr === "half" ? null : hv.length }); } } }
+        // Council, Nov 16 2026 (Cohort agent request): filled bets per step date, from wfHist[].pk.<h>.nb.<procedure> (written by
+        // lab.mjs at the run that made the dated value; null when that run did not write it). Not from wfPick.det: det is the
+        // replay of the CURRENT run, and its bets can differ from the run that wrote the dated value. Record only.
+        const bets = Object.fromEntries(ds.map(d => { const nb = D[d].nb && D[d].nb[pr]; return [d, Number.isFinite(nb) ? nb : null]; }));
+        items.push({ ...it, bets, live: pr === "half", from: ds[0], to: ds[ds.length - 1], vsHalf: pr === "half" ? null : hv.filter(d => D[d].v[pr] >= D[d].v.half).length, vsHalfOf: pr === "half" ? null : hv.length }); } } }
   return { at: (O && O.t) || (L && L.t), items }; }
 
 // ---------- LETF Sniper: hard reversals and fast moves (7 days of 1-minute bars) ----------
@@ -252,7 +256,10 @@ async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [],
   const perDay = (id, list) => { const byD = {}; list.forEach(x => { const d = new Date(nyT(x.t)).toISOString().slice(0, 10); (byD[d] || (byD[d] = [])).push(x.v); });
     const it = items.find(i => i.id === id); if (it) it.days = Object.fromEntries(Object.entries(byD).sort().map(([d, v]) => [d, { n: v.length, m: +mean(v).toFixed(5) }])); };
   const tgate = (id, list, desc) => { const a = list.slice().sort((x, y) => x.t - y.t), h = Math.floor(a.length / 2), old = a.slice(0, h), keep = ["open", "mid", "close"].filter(p => { const v = old.filter(x => x.p === p).map(x => x.v); return v.length >= 8 && mean(v) > 0; });
-    const nw = a.slice(h).filter(x => keep.includes(x.p)); if (nw.length) items.push({ ...fromList(`${id}.tgate`, `${desc}, only in the times of day that won on the older half (${keep.join(", ")}); scored on the newer half only`, "ret", nw.map(x => x.v)), keep, of: a.length - h, days: dayRec(nw) }); };
+    const nw = a.slice(h).filter(x => keep.includes(x.p)); if (nw.length) items.push({ ...fromList(`${id}.tgate`, `${desc}, only in the times of day that won on the older half (${keep.join(", ")}); scored on the newer half only`, "ret", nw.map(x => x.v)), keep, of: a.length - h, days: dayRec(nw) });
+    // Council, Nov 16 2026 (LETF agent request): when no time of day won on the older half, still write the item (n 0, keep []),
+    // so a page can tell "the gate keeps no time of day" from "no data". Watch, factor 1: it changes no page decision.
+    else if (a.length) items.push({ id: `${id}.tgate`, desc: `${desc}, only in the times of day that won on the older half (none won); scored on the newer half only; n 0, so the values 0 are not a result`, unit: "ret", n: 0, ev: 0, z: 0, hit: 0, older: 0, recent: 0, status: "watch", factor: 1, why: "no time of day won on the older half (n 8+ and mean above 0)", keep: [], of: a.length - h, days: {} }); };
   // Council, Nov 13 2026 (LETF agent request): .tgate items keep n and mean per ET market day of the scored (newer-half) trades,
   // so "3 positive new days" can be read for the 🚀 open-hour gate. Record only; the ruling is unchanged.
   function dayRec(list) { const byD = {}; list.forEach(x => { const d = new Date(nyT(x.t)).toISOString().slice(0, 10); (byD[d] || (byD[d] = [])).push(x.v); });
@@ -291,13 +298,13 @@ async function pageSetup() { try { const r = await fetch("https://raw.githubuser
     const vm = await import("vm"), ctx = { console, Math, Date, Infinity, NaN, isFinite }; vm.createContext(ctx); vm.runInContext(src, ctx); return ctx.setupCore; } catch (e) { console.log("setupOf code not read:", e.message); return null; } }
 async function barsY(sym, interval, range) { const Y = await ysess(); for (let i = 0; i < 3; i++) { try { const r = await fetch(`https://query${i % 2 ? 2 : 1}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=${interval}&range=${range}&includePrePost=false${Y.crumb ? "&crumb=" + encodeURIComponent(Y.crumb) : ""}`, { headers: { "user-agent": UA, ...(Y.ck ? { cookie: Y.ck } : {}) } }); if (!r.ok) throw new Error(r.status); const j = await r.json(), x = j.chart.result[0], q = x.indicators.quote[0]; const B = []; x.timestamp.forEach((t, k) => { if ([q.open[k], q.high[k], q.low[k], q.close[k]].every(v => v > 0)) B.push([t * 1000, q.open[k], q.high[k], q.low[k], q.close[k], q.volume[k] || 0]); }); return B; } catch (e) { await sleep(1500 * (i + 1)); } } return null; }
 const etDay = t => new Date(nyT(t)).toISOString().slice(0, 10);
-function planTrades(setupCore, B5, BD, cost = COST_U) { const out = [], tried = { n: 0 }, ex = { tgt: 0, stop: 0, time: 0 }; let busy = -1;
+function planTrades(setupCore, B5, BD, cost = COST_U) { const out = [], sigs = [], tried = { n: 0 }, ex = { tgt: 0, stop: 0, time: 0 }; let busy = -1;
   const B = B5.filter(b => { const m = etMin(b[0]); return m >= 570 && m < 960; });
   for (let i = 400; i < B.length; i++) { const m = etMin(B[i][0]); if (![625, 685, 745, 805, 865].includes(m) || i <= busy) continue; const day = etDay(B[i][0]);
     const today = B.filter((b, k) => k <= i && etDay(b[0]) === day), bd = BD.filter(b => etDay(b[0]) < day).slice(-60);
     if (today.length) bd.push([today[0][0], today[0][1], Math.max(...today.map(b => b[2])), Math.min(...today.map(b => b[3])), today[today.length - 1][4], today.reduce((p, b) => p + b[5], 0)]);
     let S; try { S = setupCore({ b5: B.slice(i - 389, i + 1), bd }, B[i][4], null); } catch (e) { continue; } if (!S || !S.side || !S.plan) continue;
-    const P = S.plan, d = P.side, end = (() => { let k = i; while (k + 1 < B.length && etDay(B[k + 1][0]) === day) k++; return k; })(); tried.n++;
+    const P = S.plan, d = P.side, end = (() => { let k = i; while (k + 1 < B.length && etDay(B[k + 1][0]) === day) k++; return k; })(); tried.n++; sigs.push({ t: B[i][0], d });
     let f = -1; for (let j = i + 1; j <= Math.min(i + 12, end); j++) if (d > 0 ? B[j][3] <= P.limit : B[j][2] >= P.limit) { f = j; break; }
     if (f < 0) { busy = Math.min(i + 12, end); continue; }
     let px = null, why = "time", k = f; const stopHit = b => d > 0 ? b[3] <= P.stop : b[2] >= P.stop, tgtHit = b => d > 0 ? b[2] >= P.tgt : b[3] <= P.tgt;
@@ -308,12 +315,12 @@ function planTrades(setupCore, B5, BD, cost = COST_U) { const out = [], tried = 
     if (px == null) { k = Math.min(f + 12, end); px = B[k][4]; }
     // Council, Nov 14 2026 (LETF agent request): the same fill with NO stop (exit at the target or 60 min after the fill). Record only.
     let ns = null; for (let q = f + 1; q <= Math.min(f + 12, end); q++) if (tgtHit(B[q])) { ns = P.tgt; break; } if (ns == null) ns = B[Math.min(f + 12, end)][4];
-    ex[why]++; busy = k; out.push({ t: B[i][0], v: d * Math.log(px / P.limit) - cost, ns: d * Math.log(ns / P.limit) - cost, p: tod(B[i][0]), full: /SETUP/.test(S.verdict), why }); }
-  return { out, tried: tried.n, ex }; }
+    ex[why]++; busy = k; out.push({ t: B[i][0], v: d * Math.log(px / P.limit) - cost, ns: d * Math.log(ns / P.limit) - cost, p: tod(B[i][0]), full: /SETUP/.test(S.verdict), why, d }); }
+  return { out, tried: tried.n, ex, sigs }; }
 async function letfPlan() { const setupCore = await pageSetup(); if (!setupCore) return { items: [], got: 0 };
-  const all = [], ex = { tgt: 0, stop: 0, time: 0 }; let tried = 0, got = 0;
+  const all = [], sigAll = [], ex = { tgt: 0, stop: 0, time: 0 }; let tried = 0, got = 0;
   for (let k = 0; k < LETF_U.length; k += 3) await Promise.all(LETF_U.slice(k, k + 3).map(async s => { const [B5, BD] = await Promise.all([barsY(s, "5m", "1mo"), barsY(s, "1d", "6mo")]); if (!B5 || B5.length < 500 || !BD) return; got++;
-    const R = planTrades(setupCore, B5, BD); tried += R.tried; for (const w in ex) ex[w] += R.ex[w]; R.out.forEach(x => all.push({ ...x, s })); }));
+    const R = planTrades(setupCore, B5, BD); tried += R.tried; for (const w in ex) ex[w] += R.ex[w]; R.out.forEach(x => all.push({ ...x, s })); R.sigs.forEach(x => sigAll.push({ ...x, s })); }));
   const items = [], v = a => a.slice().sort((x, y) => x.t - y.t).map(x => x.v);
   const perD = a => { const o = {}; a.forEach(x => { const d = etDay(x.t); (o[d] || (o[d] = [])).push(x.v); }); return Object.fromEntries(Object.entries(o).sort().map(([d, w]) => [d, { n: w.length, m: +mean(w).toFixed(5) }])); };
   // Council, Nov 13 2026 (LETF agent request): n and mean per exit kind (tgt, stop, time) on each plan item. Record only.
@@ -323,6 +330,18 @@ async function letfPlan() { const setupCore = await pageSetup(); if (!setupCore)
   add("plan.setup.60m", "Fund page trade plan (setupOf on the underlying's 5-min bars, LONG/SHORT SETUP and LEAN): LIMIT entry 0.5 × 5-min ATR, alive 60 min, counts only when touched; exit at the plan's stop or target or 60 min after the fill; cost 0.02% of the underlying; one per underlying per hour", all, { fill: tried ? +(all.length / tried).toFixed(3) : null, tried, exits: ex, markets: got });
   add("plan.setup.full.60m", "Fund page trade plan, only LONG / SHORT SETUP (all three filters agree): as plan.setup.60m", all.filter(x => x.full));
   add("plan.setup.lean.60m", "Fund page trade plan, only LEAN LONG / LEAN SHORT (2 of 3 filters): as plan.setup.60m", all.filter(x => !x.full));
+  // Council, Nov 16 2026 (LETF agent request): plan crowding. "crowd" = the number of underlyings that gave a plan on the SAME side
+  // at the SAME signal time (known when the plan shows: it counts signals, not fills). Record only (watch, factor 1):
+  // plan.setup.60m.crowd3 = filled plans with crowd 3+, plan.setup.60m.crowd12 = crowd 1-2. .hour = per signal time (ET day hh:mm):
+  // signals long / short, filled plans, stop exits. A rule "at most N plans on one side per hour" needs a walk-forward test first.
+  { const C = {}; sigAll.forEach(x => { const k = x.t + "|" + x.d; C[k] = (C[k] || 0) + 1; }); all.forEach(x => { x.crowd = C[x.t + "|" + x.d] || 1; });
+    const rec = (id, desc, a) => { if (a.length) { const r = fromList(id, desc, "ret", v(a)); items.push({ ...r, ruling: r.status, status: "watch", factor: 1, why: `record only (would be ${r.status})`, days: perD(a), byExit: byExit(a) }); } };
+    rec("plan.setup.60m.crowd3", "Fund page trade plan (as plan.setup.60m), only when 3+ underlyings gave a plan on the same side at the same signal time", all.filter(x => x.crowd >= 3));
+    rec("plan.setup.60m.crowd12", "Fund page trade plan (as plan.setup.60m), only when 1-2 underlyings gave a plan on the same side at the same signal time", all.filter(x => x.crowd < 3));
+    const H = {}; const hk = t => { const d = new Date(nyT(t)); return d.toISOString().slice(0, 10) + " " + d.toISOString().slice(11, 16); };
+    sigAll.forEach(x => { const o = H[hk(x.t)] || (H[hk(x.t)] = { L: 0, S: 0, fill: 0, stop: 0 }); x.d > 0 ? o.L++ : o.S++; });
+    all.forEach(x => { const o = H[hk(x.t)]; if (o) { o.fill++; if (x.why === "stop") o.stop++; } });
+    const it = items.find(i => i.id === "plan.setup.60m"); if (it) it.hour = Object.fromEntries(Object.entries(H).sort()); }
   console.log("plan.setup.60m: markets", got, "plans", tried, "filled", all.length, "exits", JSON.stringify(ex));
   return { items, got }; }
 
