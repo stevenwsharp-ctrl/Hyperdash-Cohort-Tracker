@@ -1,5 +1,49 @@
 # Council notes (newest first)
 
+## 2026-11-16 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live. The paper bots read the market holidays and early closes from the shared cal.js (2026–2028), the same file as the page clock. Before, the bot list stopped at Feb 15 2027, so on Good Friday (Mar 26 2027) the bots would trade a closed day. No trading rule changes. Pages build: success. The relay starts the Nov 17 runs from this code.
+- Cohort Sniper: yes, live. The Bet lab has one key per coin (kPEPE, kSHIB and kBONK were in the list two times, so their bets counted two times). The lab reuses the frozen market list only on the same UTC day, and it starts by 20:00 UTC when the daily schedule does not run. Pages builds: success.
+- LETF Sniper: yes, live. Reversal flags stay muted while the test loses on both halves (rev.js v9). Before, the 7-day window moved, the mute came off, and the scanner showed "⤾ reversal" flags again with a negative EV. Pages build: success.
+
+### Scoreboard (ev.json 23:19 UTC, with Nov 16 data and the 22:34 lab run)
+- SOXX: 11 muted, 4 cut, 8 backed. Gain: spot bot live trades +0.45 % per trade (n 21, BACK); spot bot test trades now BACK (+0.18 %, n 39). Loss: spot squeeze 11:00–11:30 ET −0.42 % (cut); funds squeeze 12:00–12:30 ET now CUT (−0.14 %, n 195, newer half −0.22 %). Paper bots Nov 16 (first day with the best-score pick): spot 2 trades +$10.8; letf 4 trades −$16.2 (LABU stop −$9.9, LABD −$9.9); both 6 trades −$5.4. Stop exits lose on all 3 bots again (record only).
+- Cohort: 3 muted, 22 cut, 6 backed, 20 changed (the new lab run without the duplicate coins). Gain: cohort score 50+, +1.49 % per 24 h (BACK). Loss: Outlook momentum 24 h −1.49 % (cut). New MUTE: lab.rs-peer.1d (−0.25 %), lab.rs-peer.2d (−0.50 %), lab.rule.1d.gate (−0.16 %). lab.young-small.2d left MUTE (−0.05 % now): the agent said this would happen. The live pick "half" at 1 d is now CUT (decay); 1 d and 2 d stay gated on the sites.
+- LETF: 0 muted, 6 cut, 0 backed. Gain: 🚀 rule with the time gate +0.55 % per 15 min (n 25, watch, both halves above 0). Loss: HARD reversals −0.19 % (cut, both halves below 0; the page keeps the flag muted). Fund-page plans: all −0.08 % (cut, newer half −0.17 %); full SETUP plans now CUT for decay (older +0.18 %, newer −0.10 %; Nov 16 alone −0.57 %); LEAN −0.12 % (cut, gate shut).
+
+### Agents
+- SOXX agent: ran, good work. It did all 3 tasks. It compared k and plan per signal on the 3 bots (same version on the same signal: yes). It found and fixed the holiday list. It did not act on the funds 11:30 rule (3 of 4 days below 0, its rule needs 4 of 5): correct. It used createRequire for cal.js; I checked that Node 20 reads cal.js from scripts/ (29 holidays, Mar 26 2027 in the list).
+- Cohort agent: ran, very good work. It found a real data bug (3 coins two times in the lab list). It checked the Nov 13 step (+10.8 %): real, but one bet. Its mute-filter test is walk-forward and showed no difference, so no live change: correct. It did not see the 22:34 lab run (20 rulings changed after its note). See tasks.
+- LETF agent: ran, good work. It found negative EV that came back on the page and stopped it. The mute hold has no fitted value and is supported by 28 of 28 scorecards. It split the stop exits by day, market and signal hour (record only, no stop change). It did not gate full plans after one bad day: correct (the gate cannot be tested on one shut day).
+- My check of the mute hold on all three trackers (28 scorecards): 6 times a MUTE came off while both halves were below 0; on today's scorecard 5 of the 6 still lose. This supports the hold. I do not make it a general rule today: the scorecard does not keep a mute history yet, and on a 7-day window the scorecards overlap, so the 6 cases are not independent.
+- Checks by me: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright 0 page errors on SOXX, Mastermind, LETF (live, ?demo, #/f/TSLL, #/f/SOXL) and Cohort, also with the new ev.json. The 16 shared files are the same in all repos that use them; cal.js is the same in SOXX and LETF. All pages builds: success. No revert.
+- All agents kept the order rules (limit entries that count only when touched, no stop change, the same bet size, Schwab-only and long-only bots).
+- Yesterday's "Watch next": SOXX Monday run on the new pick (yes; the 3 bots agree). Cohort list check by day (yes) and 2 d gate shut (yes). LETF "regular" 09:30–16:00 ET (yes). fast.15m.alert.tgate.days: the item was missing on the 21:51 scorecard (no time of day won); fixed by me (now n 0, keep none). 🚀 push stays off (yes).
+
+### Lessons shared
+- A mute can come off only because the 7-day window moved (LETF). SOXX and Cohort agents: before a muted rule comes back on a page or in a bot, check that one half of its test is above 0.
+- Count signals per hour, not only per market (LETF). The new record shows it: plans when 3+ underlyings gave the same side at the same time: n 430, −0.10 % (newer half −0.22 %); plans with 1–2 underlyings: n 44, +0.12 % (newer half +0.26 %). SOXX agent: the bots take up to 3 positions; check if your stop exits come in the same crowded hours.
+- Check the instrument list for two keys of one instrument (Cohort). I checked the other Cohort scripts: backtest.mjs, outlookbt.mjs and cycle.mjs read latest.m (one key per coin), so only lab.mjs had the problem. SOXX and LETF agents: check that a fund and its alias are not two rows (LETF fund list, SOXX bot universe).
+- A step with one bet can be the largest step (Cohort). Read the bet count before you trust a few dates.
+
+### Tasks for tomorrow
+- SOXX agent: 1) Nov 17: funds from 11:30, day 5; act only on your 4-of-5 rule with a walk-forward check on the shadow record. 2) Split the live and shadow stop exits by signal half hour and by how many signals came in the same half hour (as LETF did); record only, no stop change. 3) half.funds.sqz.5 is CUT (factor 0.5): confirm what the bots do with a CUT half hour (trade, skip, or smaller is not allowed: same bet size).
+- Cohort agent: 1) Act on the new rulings of the 22:34 run: lab.rs-peer.1d and .2d MUTE, lab.rule.1d.gate MUTE, lab.pick.1d.half CUT (decay). Confirm that the lab gives rs-peer weight 0 and that the sites show no 1 d or 2 d setup. 2) Write nb (filled bets per procedure) into wfHist[].pk.<h> in lab.mjs. The scorecard reads it as lab.pickday.*.bets (now null). 3) Backlog 1 (weight steps by bets) only after nb has 5+ dates.
+- LETF agent: 1) Read plan.setup.60m.crowd3 / .crowd12 and .hour. Test walk-forward: "at most N plans on one side per signal time" (fit N on the older days, check on the newer days) against the current plans. 2) Full plans: if the newer half stays below 0 after Nov 17, test the gate again (backlog 1). 3) Count new days for fast.15m.15m.tgate and fade.rev.15m.tgate (1 of 3 each now).
+
+### Changes I made
+- Hyperdash-Cohort-Tracker b43928b (scripts/ev.mjs): (a) a .tgate item is written also when no time of day won (n 0, keep none, watch, factor 1), for the LETF request; (b) new record items plan.setup.60m.crowd3 and .crowd12, and .hour on plan.setup.60m (per signal time: long and short signals, fills, stop exits), for the LETF request; (c) lab.pickday.*.bets per date from wfHist pk nb (lab.mjs must write it), for the Cohort request. I did not use wfPick.det for the bet count: det is the replay of the current run, and on Nov 13 it shows 2 bets for "cur" where the dated value came from a run with 1 bet. Offline check (branch files, seeded synthetic bars): every old item in all three trackers keeps the same ruling, n and EV; the factors are the same. EV governor run 23:19 UTC: success.
+- SOXX request (ev.mjs and cal.js): ev.mjs has no holiday list of its own (the LETF test uses the Yahoo bars, which have only market days; SOXX reads the bot files). No change needed. The skip.<bot>.<why> items wait for 5 days of the skip record (Nov 20).
+- LETF request (mute hold in evrules.js): not now (see Agents). The hold stays in rev.js. Next step for me: a mute history in the scorecard, then a test of a general hold.
+- No shared-file change today. No revert of agent work.
+
+### What Steven should know
+- Nothing to paste. No Worker change. No decision is necessary.
+- On the LETF page the reversal card says "MUTED · both test halves lose". This is correct: the turns still lose on both halves.
+- Full LONG / SHORT SETUP plans on the LETF fund page lost on Nov 16 (−0.57 % per plan) and are now CUT. LEAN plans stay shut. Use full plans with care until the newer half is above 0 again.
+- New lead (record only, not a rule yet): fund-page plans lose when many stocks give the same side at the same time (one market move), and do better when only 1–2 do.
+
 ## 2026-11-15 · Council
 
 ### Shipped today
