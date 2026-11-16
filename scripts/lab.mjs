@@ -36,7 +36,11 @@ const prevU = new Set(PREV && PREV.prof ? Object.keys(PREV.prof) : []);
 // changed the 1 d pick (recent -> cur) and its gate (on -> off), and 203 -> 201 on Nov 15 changed the 2 d pick (cur -> strict).
 // A first run with no stored list builds it as before.
 const EVENT = process.env.GITHUB_EVENT_NAME || "local", PU = PREV && PREV.uni && Array.isArray(PREV.uni.list) ? PREV.uni : null;
-const frozen = EVENT !== "schedule" && PU ? PU.list.filter(c => CTX[c]) : null;
+// Council task (2026-11-16): reuse the stored list only when it is from today (UTC). On Nov 16 the 12:41 schedule did not start;
+// a push or hand run on the next day must not reuse the list of an earlier day. Else: a new list, and the log says why.
+const TODAY = new Date().toISOString().slice(0, 10), puOld = PU && PU.day !== TODAY;
+const frozen = EVENT !== "schedule" && PU && !puOld ? PU.list.filter(c => CTX[c]) : null;
+if (EVENT !== "schedule" && puOld) log("universe: the stored list is from", PU.day, "not today (" + TODAY + "): new list");
 const universe = frozen || Object.keys(CTX).filter(c => (CTX[c].v || 0) >= 5e5 || (prevU.has(c) && (CTX[c].v || 0) >= 1e5)).sort((a, b) => CTX[b].v - CTX[a].v).slice(0, 220);
 const UNI = frozen ? { ...PU, list: universe, reused: (PU.reused || 0) + 1 } : { day: new Date().toISOString().slice(0, 10), t: new Date().toISOString(), src: EVENT, list: universe };
 log("universe", universe.length, frozen ? `frozen: the list of the ${PU.src} run of ${PU.t} (event ${EVENT})` : `new list (event ${EVENT})`, "kept from the last run by the lower floor:", universe.filter(c => (CTX[c].v || 0) < 5e5).length);
@@ -152,8 +156,9 @@ function wfReplay(h, sel) { const rows = []; let orders = 0, fills = 0, nI = 0;
     const base = baseAt(F, U, d, h);
     const S = U.map(c => { let s = 0; for (const k in W) s += W[k] * HYP[k].f(F[c], M[c]); return { c, s: s / tw }; }).filter(x => Math.abs(x.s) >= 0.05);
     const Lg = S.filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 6), Sh = S.filter(x => x.s < 0).sort((a, b) => a.s - b.s).slice(0, 6); if (!Lg.length && !Sh.length) continue;
-    const res = (x, side) => { orders++; const b = bet(M[x.c], F[x.c], d, side, h); if (b.open || !b.fill || b.r == null) return null; fills++; return side * b.r - base[side] - 0.001; };
-    const all = Lg.map(x => res(x, 1)).concat(Sh.map(x => res(x, -1))).filter(v => v != null); if (all.length) { rows.push({ d, v: mean(all), n: all.length }); nI += Object.keys(W).length; } }
+    // bl: each filled bet of the step [market, side, raw return, net result], so a large step can be checked (Cohort agent, 2026-11-16)
+    const bl = [], res = (x, side) => { orders++; const b = bet(M[x.c], F[x.c], d, side, h); if (b.open || !b.fill || b.r == null) return null; fills++; const v = side * b.r - base[side] - 0.001; bl.push([x.c, side, r4(b.r), r4(v)]); return v; };
+    const all = Lg.map(x => res(x, 1)).concat(Sh.map(x => res(x, -1))).filter(v => v != null); if (all.length) { rows.push({ d, v: mean(all), n: all.length, b: bl, base: [r4(base[1]), r4(base[-1])] }); nI += Object.keys(W).length; } }
   return { rows, orders, fills, nI }; }
 const SEL = { cur: P => { const x = st(P), sec = P.slice(Math.floor(P.length / 2)); return x.t > 0.5 && mean(sec) > 0 ? Math.min(3, x.t) : 0; } };
 for (const h of [1, 2, 7]) { const { rows, orders, fills, nI } = wfReplay(h, SEL.cur); WROWS[h] = rows;
@@ -170,10 +175,14 @@ for (const h of [1, 2, 7]) { const { rows, orders, fills, nI } = wfReplay(h, SEL
 // of the steps only (best mean); its NEWER half is the unseen check. Nothing on the sites uses this block yet.
 SEL.strict = P => { const x = st(P), sec = st(P.slice(Math.floor(P.length / 2))); return x.t > 0.5 && sec && sec.t >= 1 ? Math.min(3, x.t) : 0; };
 SEL.recent = (P, R, d) => { const Q = R.filter(r => r.d >= d - 120).map(r => r.v); if (Q.length < 10) return 0; const x = st(Q); return x.t > 0.5 && x.m > 0 ? Math.min(3, x.t) : 0; };
-const WFALT = {}, WSER = {};
+const WFALT = {}, WSER = {}, WDET = {};
 for (const h of [1, 2, 7]) { const steps = []; for (let d = days[0] + 150; d + h <= lastDay; d += h) steps.push(d);
   const toMap = rows => Object.fromEntries(rows.map(r => [r.d, r.v]));
-  const S = { cur: toMap(WROWS[h]), strict: toMap(wfReplay(h, SEL.strict).rows), recent: toMap(wfReplay(h, SEL.recent).rows), gate: {}, none: {} };
+  const RS = { cur: WROWS[h], strict: wfReplay(h, SEL.strict).rows, recent: wfReplay(h, SEL.recent).rows };
+  const S = { cur: toMap(RS.cur), strict: toMap(RS.strict), recent: toMap(RS.recent), gate: {}, none: {} };
+  // the bets of the last 5 steps with a closed exit bar, per rule (record only; to check a large step such as 1 d Nov 13 +10.8 %)
+  WDET[h] = Object.fromEntries(steps.filter(d => d + h < lastDay).slice(-5).map(d => [new Date(d * D).toISOString().slice(0, 10),
+    Object.fromEntries(Object.entries(RS).map(([k, R]) => { const r = R.find(q => q.d === d); return [k, r ? { v: r4(r.v), base: r.base, b: r.b } : null]; }))]));
   for (const r of WROWS[h]) { const past = WROWS[h].filter(q => q.d + h <= r.d).slice(-20).map(q => q.v); if (past.length >= 10 && mean(past) >= 0) S.gate[r.d] = r.v; }
   const first = WROWS[h].length ? WROWS[h][0].d : null, grid = steps.filter(d => first != null && d >= first); if (grid.length < 20) { WFALT[h] = null; continue; }
   WSER[h] = { S, grid };
@@ -206,7 +215,7 @@ for (const h of [1, 2, 7]) { const W = WSER[h]; if (!W) { WFPICK[h] = null; cont
   // the newest step whose exit bar is closed (d + h < lastDay; the last daily bar is still open): one result per procedure, for
   // the dated record (wfHist.pk), so new days can be counted (Cohort agent, 2026-11-15; council task 3)
   { let j = SD.length - 1; while (j >= 0 && SD[j] + h >= lastDay) j--; if (j >= 0) o.last = { d: new Date(SD[j] * D).toISOString().slice(0, 10), v: Object.fromEntries(Object.keys(R).map(p => [p, Math.round(R[p].v[j] * 1e6) / 1e6])), rule: Object.fromEntries(Object.keys(R).map(p => [p, R[p].picks[j]])) }; }
-  WFPICK[h] = o;
+  o.det = WDET[h] || null; WFPICK[h] = o;
   log("pick procedures", h + "d", Object.entries(o.v).map(([p, x]) => `${p} all ${(x.all.m * 100).toFixed(3)}% 1st ${(x.first.m * 100).toFixed(3)}% 2nd ${(x.second.m * 100).toFixed(3)}% t ${x.all.t.toFixed(1)} sw ${x.switches} now ${x.now}`).join(" | ")); }
 // Gate (same rule as the Outlook gates): a horizon whose walk-forward setups lost on BOTH halves (10+ days) gets no setup
 // (side 0) on any site; it comes back by itself when either half turns positive. First run (2026-11-10): 7 d lost on both
