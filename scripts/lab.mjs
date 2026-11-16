@@ -41,7 +41,15 @@ const EVENT = process.env.GITHUB_EVENT_NAME || "local", PU = PREV && PREV.uni &&
 const TODAY = new Date().toISOString().slice(0, 10), puOld = PU && PU.day !== TODAY;
 const frozen = EVENT !== "schedule" && PU && !puOld ? PU.list.filter(c => CTX[c]) : null;
 if (EVENT !== "schedule" && puOld) log("universe: the stored list is from", PU.day, "not today (" + TODAY + "): new list");
-const universe = frozen || Object.keys(CTX).filter(c => (CTX[c].v || 0) >= 5e5 || (prevU.has(c) && (CTX[c].v || 0) >= 1e5)).sort((a, b) => CTX[b].v - CTX[a].v).slice(0, 220);
+const universe0 = frozen || Object.keys(CTX).filter(c => (CTX[c].v || 0) >= 5e5 || (prevU.has(c) && (CTX[c].v || 0) >= 1e5)).sort((a, b) => CTX[b].v - CTX[a].v).slice(0, 220);
+// One key per Hyperliquid coin (Cohort agent, 2026-11-16): latest.json ctx has the k-coins two times (kPEPE and KPEPE with
+// n "kPEPE"; also kSHIB, kBONK). Both keys loaded the same candles, so a bet on that coin counted 2 times (1 d Nov 11: kPEPE and
+// KPEPE short, 2 of 4 bets) and the coin had 2 times the weight in the average market. Keep the Hyperliquid key (kPEPE): tax.js
+// knows it (Memes, 2023); the alias KPEPE gets the default tags (Alts, year 0), so its peer features were wrong.
+const seenHL = new Set(), canon = c => !(CTX[c] && CTX[c].n && CTX[c].n !== c);
+const universe = universe0.slice().sort((a, b) => canon(b) - canon(a)).filter(c => { const k = hlName(c); if (seenHL.has(k)) return false; seenHL.add(k); return true; })
+  .sort((a, b) => universe0.indexOf(a) - universe0.indexOf(b));
+if (universe.length < universe0.length) log("universe: removed", universe0.length - universe.length, "second key(s) of the same coin:", universe0.filter(c => !universe.includes(c)).join(" "));
 const UNI = frozen ? { ...PU, list: universe, reused: (PU.reused || 0) + 1 } : { day: new Date().toISOString().slice(0, 10), t: new Date().toISOString(), src: EVENT, list: universe };
 log("universe", universe.length, frozen ? `frozen: the list of the ${PU.src} run of ${PU.t} (event ${EVENT})` : `new list (event ${EVENT})`, "kept from the last run by the lower floor:", universe.filter(c => (CTX[c].v || 0) < 5e5).length);
 const post = b => http("https://api.hyperliquid.xyz/info", { method: "POST", tries: 3, timeoutMs: 20000, body: JSON.stringify(b), headers: { "content-type": "application/json" } });
@@ -175,6 +183,10 @@ for (const h of [1, 2, 7]) { const { rows, orders, fills, nI } = wfReplay(h, SEL
 // of the steps only (best mean); its NEWER half is the unseen check. Nothing on the sites uses this block yet.
 SEL.strict = P => { const x = st(P), sec = st(P.slice(Math.floor(P.length / 2))); return x.t > 0.5 && sec && sec.t >= 1 ? Math.min(3, x.t) : 0; };
 SEL.recent = (P, R, d) => { const Q = R.filter(r => r.d >= d - 120).map(r => r.v); if (Q.length < 10) return 0; const x = st(Q); return x.t > 0.5 && x.m > 0 ? Math.min(3, x.t) : 0; };
+// recentm (record only, Cohort agent 2026-11-16): "recent", but an idea whose ended bets at that horizon lost with t <= -2
+// (the scorecard's mute rule) gets weight 0. On Nov 16 "recent" gave young-small weight 0.66 at 2 d while lab.young-small.2d
+// was MUTE (-0.38 %, z -2.2). Scored on the same grid and split as wfAlt, but NOT a candidate for the pick (nothing live).
+SEL.recentm = (P, R, d) => st(P).t <= -2 ? 0 : SEL.recent(P, R, d);
 const WFALT = {}, WSER = {}, WDET = {};
 for (const h of [1, 2, 7]) { const steps = []; for (let d = days[0] + 150; d + h <= lastDay; d += h) steps.push(d);
   const toMap = rows => Object.fromEntries(rows.map(r => [r.d, r.v]));
@@ -188,7 +200,11 @@ for (const h of [1, 2, 7]) { const steps = []; for (let d = days[0] + 150; d + h
   WSER[h] = { S, grid };
   const half = Math.floor(grid.length / 2), o = { steps: grid.length, split: new Date(grid[half] * D).toISOString().slice(0, 10), v: {} };
   for (const k in S) { const a = grid.map(d => S[k][d] || 0); o.v[k] = { all: st(a), first: st(a.slice(0, half)), second: st(a.slice(half)), days: grid.filter(d => S[k][d] != null).length }; }
-  o.pick = Object.keys(o.v).sort((a, b) => o.v[b].first.m - o.v[a].first.m)[0]; o.pickSecond = o.v[o.pick].second; WFALT[h] = o;
+  o.pick = Object.keys(o.v).sort((a, b) => o.v[b].first.m - o.v[a].first.m)[0]; o.pickSecond = o.v[o.pick].second;
+  { const Mm = toMap(wfReplay(h, SEL.recentm).rows), a = grid.map(d => Mm[d] || 0), b = grid.map(d => S.recent[d] || 0), df = a.map((v, i) => v - b[i]);
+    o.mute = { recentm: { all: st(a), first: st(a.slice(0, half)), second: st(a.slice(half)), days: grid.filter(d => Mm[d] != null).length }, minusRecent: { first: st(df.slice(0, half)), second: st(df.slice(half)) } };
+    log("record only", h + "d", `recentm 1st ${(o.mute.recentm.first.m * 100).toFixed(3)}% 2nd ${(o.mute.recentm.second.m * 100).toFixed(3)}% | minus recent 1st ${(o.mute.minusRecent.first.m * 100).toFixed(3)}% 2nd ${(o.mute.minusRecent.second.m * 100).toFixed(3)}% t2 ${o.mute.minusRecent.second.t.toFixed(1)}`); }
+  WFALT[h] = o;
   log("idea rules", h + "d", Object.entries(o.v).map(([k, x]) => `${k} 1st ${(x.first.m * 100).toFixed(3)}% 2nd ${(x.second.m * 100).toFixed(3)}% t2 ${x.second.t.toFixed(1)} days ${x.days}`).join(" | "), "-> pick", o.pick); }
 // ---------- walk-forward test of the PICK procedure itself (Cohort agent, 2026-11-14; council task) ----------
 // wfAlt picks one idea rule per run on the older half, and the pick flips from run to run (1 d "recent" lost on every newer half).
