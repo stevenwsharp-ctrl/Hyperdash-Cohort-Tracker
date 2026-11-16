@@ -1,5 +1,65 @@
 # LETF agent notes
 
+## 2026-11-16 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev (2026-11-16 21:51 UTC), trackers.letf, 24 of 24 underlyings, 9 of 9 funds. This scorecard has the Nov 16 data (first new market day for the 🚀 record).
+- NEGATIVE EV THAT CAME BACK ON THE PAGE: the 7-day window moved and the two reversal rules lost their mute.
+  - rev.all.15m: MUTE → WATCH. n 98, −0.039% per 15 min, z −0.76, older −0.069%, newer −0.008%.
+  - rev.hard.15m: MUTE → CUT (factor 0.5). n 24, −0.187%, z −1.6, older −0.281%, newer −0.093%.
+  - With these rulings rev.js gave factor 1 to normal turns and 0.5 to HARD turns, so the scanner showed "⤾ reversal" follow flags again, with a negative EV.
+  - History (28 scorecards, Nov 8 18:06 to Nov 16 21:51): both halves of rev.all.15m and of rev.hard.15m were below 0 on every scorecard. The older-half sign agreed with the newer-half sign 28 of 28 times. The mute came off only because z went above −2, not because a half turned positive.
+  - Nov 16 itself: fade.rev.15m day record +0.076% (n 13), so the turns of today also tended to fail.
+- plan.setup.full.60m: WATCH → CUT (decay). n 126, +0.036%, older +0.181%, newer −0.108%. Nov 16 alone: −0.567% (n 18). Newer days: Nov 4 −0.17, Nov 5 +0.01, Nov 6 +0.20, Nov 9 +0.13, Nov 10 −0.47, Nov 11 +1.62, Nov 12 +0.02, Nov 13 +0.13, Nov 16 −0.57 (%).
+- plan.setup.lean.60m: CUT, −0.118%, newer −0.209% (gate stays shut). plan.setup.60m: CUT, −0.077%, newer −0.172%.
+- 🚀: fast.15m.15m.tgate BACK → WATCH (+0.545%, n 25, older +0.35%, newer +0.73%; Nov 16 +0.17%, n 7). fast.15m.alert.tgate is NOT in the scorecard today: on the new older half no time of day had n ≥ 8 and a mean above 0, so ev.mjs gives no item. fast.15m.alert: CUT, newer −0.077%, so the push stays off (fastPushOn reads the newer half).
+- fade.rev.15m.tgate (mid-day only): WATCH, +0.119%, n 20, z 1.4, both halves above 0; Nov 16 +0.075% (n 11). New-day record: 1 positive day of 3.
+- Council task 3 (stop exits split, record only): run on branch letf-research of LETF-Sniper (research/stopsplit.mjs, Actions run 43969607843, true New York clock, same plan engine). It reproduces the plan test: n 476, −0.091%; exits target 28 +1.04%, stop 76 −1.04%, time 372 +0.02%.
+  - By day: stops on 15 of 16 days; the most on Nov 16 (13 of 49 plans, 5 of them full plans), then Nov 2 and Nov 4 (7 each). The top 3 days hold 27 of 76 stops (36%). The loss is NOT from one bad day.
+  - By underlying: 23 of 24 underlyings have stops; the most are AXTI 7, COIN 5, RGTI 5, APLD 5. SPY has 0. The loss is NOT from one market.
+  - By signal hour: 48 of 76 stops (63%) are in 10 signal hours where 3 to 7 underlyings stopped in the same hour (example: Nov 16 18Z, 7 stops: COIN AXTI BE RGTI IONQ IREN AVGO; Nov 10 17Z, 6 stops). The stops come from one market move that hits many plans at the same time, on the same side.
+  - Stop distance: median 1.32 × 5-min ATR (q25 0.74, q75 2.29), the same as on Nov 14.
+
+### Shipped today
+- LETF-Sniper 61644a4 (rev.js v8 → v9, index.html ?v= bump): "mute hold". A follow flag for turns stays muted while its test mean, its older half and its newer half are all below 0 (and the ruling is not BACK). It applies to rev.all.15m and rev.hard.15m. The flag comes back by itself when one half goes above 0. The card shows "MUTED · both test halves lose" and "kept muted: both halves of the test still lose, no flags in the scanner". The scanner cell tooltip says "negative EV on both halves of the test".
+  - Why: priority 1. Without it, the page flagged turns as trades in the new direction from tonight, with a negative EV on both halves.
+  - Walk-forward: no fitted value (fixed level 0, the same "same sign in both halves" rule as the council lesson of Nov 15). Check on history: on 28 of 28 scorecards the older half (the part before) and the newer half had the same sign (below 0). rev.js detect is NOT changed, so ev.mjs still tests the same detector.
+  - Checks: node --check rev.js OK. Playwright ?demo with today's ev.json at Nov 16 09:29, 09:31, 10:00, 16:01 ET and Nov 26: 0 page errors; card muted; 0 ⤾ flags. With a copy of ev.json where the newer half is +0.1%: the card is not muted (the hold lets go). Fund page #/f/TSLL: 0 page errors.
+  - Pages build and deployment: success (run 43969489423, 61644a4).
+- Council task 1: confirmed. With cal.js the page phase on Nov 16 is "pre" at 09:29 ET, "regular" at 09:31 and 10:00 ET, "post" at 16:01 ET; Nov 26 "closed". 0 page errors.
+- Branch letf-research (not main, no deploy): research/stopsplit.mjs, record only. index.html on that branch is now the main copy (setupCore is the same text).
+- worker.js not changed. Steven does not need to paste anything.
+
+### Not changed
+- Full plans: no gate. Walk-forward of "shut full plans while the newer half < 0" with the per-day record (gate state from the days before each day, Nov 2 – Nov 16): the gate never shut before today, so there is no test of it. Open days +0.012% (n 79). The newer half went below 0 because of Nov 16 (−0.57%, n 18). I do not add a gate on one day. If tomorrow the newer half stays below 0, I test again with 2 shut days.
+- LEAN gate: same check on the per-day record (LEAN = all minus full): shut on all 11 days, LEAN on those days −0.17% per plan (n 234). The gate is correct; no change.
+- No stop change (Steven's rule; the stop split is record only, and no stop variant won walk-forward on Nov 14).
+- 🚀 push: stays off (fast.15m.alert newer half < 0). Flag text: no change.
+- Fast-move items: fast.5m.15m and fast.1m.15m have halves that disagree; the page already says "no clear edge". The mute hold is only for the turn rules (the fade text of fast moves needs its limit test).
+
+### Lessons for the other agents
+- A mute can come off when the test window moves, also when the rule still loses on both halves. The z of a 7-day window falls when the worst days leave the window. Keep a mute while both halves are below 0; let it go only when one half is above 0. SOXX and Cohort agents: check that your page does not show a muted rule again only because z went above −2.
+- Split the stop losses by signal hour, not only by day and by market. Here 63% of the stop exits came in hours where 3 to 7 markets stopped together. One market move hits many plans on the same side. SOXX agent: check if your funds stop exits are on the same hours as the spot stops.
+
+### For the council
+- ev.mjs (data, small): when the time gate keeps no time of day, please still write the .tgate item (n 0, keep [], why "no time of day won on the older half"). Today fast.15m.alert.tgate is missing, and a missing item looks like "no data" on the page.
+- ev.mjs (record only, new item request): plan.setup.60m.hour = per signal hour (ET day + hour) the count of plans and stops across the 24 underlyings, and the plan mean when 3+ plans are on the same side in the same hour against 1–2 plans. Question to test walk-forward: do the plans lose when many underlyings give the same side at the same time (one market move)? A rule "at most N plans on one side per hour" needs this test first.
+- Please confirm the mute hold (rev.js 61644a4). If you agree, it can be a general rule in evrules.js (shared): factor 0 while ev < 0, older < 0 and newer < 0 for an item that was MUTE on an earlier scorecard. I did not edit evrules.js.
+
+### Backlog
+1. Full plans: if the newer half stays below 0 on Nov 17, test the full-plan gate again on the per-day record (2+ shut days needed).
+2. Plan crowding by hour: after the council adds plan.setup.60m.hour, test a limit of plans on one side per hour, walk-forward.
+3. fast.15m.15m.tgate and fade.rev.15m.tgate: count positive new days from Nov 16 (each has 1 of 3 now).
+4. rev.js backtest(): use the true New York clock for the day split before Mar 14 2027.
+5. Audit leverage and underlying of the fund list against instruments.json (needs the Worker list).
+6. 🚀 threshold per fund kind (fund move ÷ leverage), needs an ev.mjs test first.
+
+### Watch next
+- Pages: the reversal card says "MUTED · both test halves lose" and the scanner shows no ⤾ flags, while rev.all.15m and rev.hard.15m have both halves below 0. If one half goes above 0, the flags come back and the card says WATCH or CUT.
+- fade.rev.15m day record: Nov 17 positive (the turns keep failing) supports the hold.
+- plan.setup.full.60m newer half: above 0 again, or a second day below 0 (then backlog 1).
+- fast.15m.15m.tgate: Nov 17 positive (2 of 3 new days).
+
 ## 2026-11-15 · LETF agent
 
 ### Evidence
