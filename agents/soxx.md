@@ -1,52 +1,53 @@
 # SOXX agent notes (newest first)
 
-## 2026-11-15 · SOXX agent
+## 2026-11-16 · SOXX agent
 
 ### Evidence
-- Scorecard: ev.json of 01:06 UTC Nov 15 (Sunday, no new market day). SOXX: 0 changes. bot.spot.live BACK (+0.44 %, n 19, z 2.25). bot.both.bt CUT (newer half −0.03 %). Best versions BACK: funds sqz 0.25 t3s (z 3.91), funds sqz 1 t6a (+0.34 %, z 3.45). Losses: half.spot.sqz.5 MUTE (−0.30 %, z −3.73); half.spot.sqz.3 CUT (−0.42 %, z −2.0).
-- Council task 3 (funds bot stop exits): 19 live stop exits −$112.3. 8 of them are from before Nov 7 (explore trades and muted ideas pull, mom, vrev): −$48.7. Since Nov 7: 11 stop exits −$63.6, all sqz, spread over 4 plans and 3 limit sizes (largest: t6a 1 ATR, 3 stops, −$16.6; this plan is +$69.6 in total over 10 live trades). 6 of the 11 stops are on one day (Nov 9, −$39.1). Result: the stop loss does not come from one plan or one limit size. It comes from one bad day and from the old explore trades.
-- Walk-forward check of the stop (dated.json, funds sqz, older 6 days against newer 6 days, mean per trade): the no-stop plan "tim" is worse than the stop plans on the newer half at every limit size (1 ATR: tim +24.6 bp; t6s +43.4, run +41.5, t6a +39.8, t3s +29.1). The stop plans win. No stop change.
-- Council task 1 (same version on the same signal, live.<bot>.pick): no market day yet. First check on Nov 16.
-- Paper bots workflow: all runs since Nov 14 success (Nov 15 00:08, 05:33, 10:59, 16:24 UTC). Run 86 (21:49 UTC) sleeps (relay). The relay dispatches the next runs from main, so the Monday open run uses c12e20e.
+- Scorecard: ev.json of 21:51 UTC Nov 16 (with Nov 16 data). SOXX: 144 items, 11 muted, 4 cut, 8 backed, 3 changed. Changes: bot.spot.bt watch → BACK (+0.18 %, n 39, z 2.22); bot.both.bt cut → watch (−0.02 %, newer half +0.03 %); half.funds.sqz.5 (12:00–12:30) watch → CUT (−0.14 %, n 195, newer half −0.22 %, factor 0.5).
+- bot.spot.live stays BACK (+0.45 %, n 21, z 2.52). bot.letf.live +0.21 % (n 21, newer half +0.04 %). bot.both.live +0.05 % (newer half +0.01 %).
+- Live exits (record items): stop exits are MUTE on all 3 bots (spot −0.28 % n 13, letf −0.61 % n 20, both −0.42 % n 29). Time and target exits make the profit. This is the same result as on Nov 14 and Nov 15. No stop change (Steven's rule; the Nov 15 walk-forward: the no-stop plan loses on the newer half at every limit size).
+- Council task 1 (same version on the same signal): done. Live Nov 16: spot 2 trades +$10.8 (AAPL, TSLA: sqz 0.25 ATR run); letf 4 trades −$16.2 (LABD, LABU, TSLQ, LABD: sqz 1 ATR t6a); both 6 trades −$5.4. The both bot traded the same 6 signals with the same limit depth and plan as spot and letf. live.<bot>.pick: spot n 2 +0.54 %, letf n 4 −0.41 %, both n 6 −0.09 % (1 day; too few).
+- Council task 1 (skip record): dated.json has skipn| and skip| keys for Nov 16 (muted on all half hours, time at 10:30 and 11:30). Day 1 of the gates: muted blocked fills letf 7 fills +$15.8, both 16 fills +$16.9, spot 9 fills +$1.1; the time gate blocked 2 fills −$7.2 (letf and both). One day only: no conclusion.
+- Council task 3 (funds from 11:30, live): Nov 11 −$6.3, Nov 12 −$2.9, Nov 13 +$27.7, Nov 16 −$6.3 (LABU stop −$9.9). 3 of 4 watch days below 0. My rule needs 4 of 5; day 5 is Nov 17. All live days since Nov 3: letf late below 0 on 5 of 8 days, letf early above 0 on 4 of 7.
+- Big swings Nov 16: caught 0 of 30. The largest (PLTU +4.9 % at 10:25 ET) had vrev signals at −9 and +1 min (vrev is MUTE). Two SOXL swings (13:35, 14:41 ET) had no signal. Same pattern as Nov 13: the signals near the lows are mostly muted ideas.
+- Holiday bug (council task 2): scripts/bots.mjs had its own HOLI list only to Feb 15 2027 and HALF only for 2026. From Mar 26 2027 (Good Friday) the bots and the relay would see a closed day as a market day.
+- Paper bots workflow Nov 16: runs 88–91 success (03:15, 08:40, 14:05, 19:46 UTC; the morning run started 9:05 ET). Run 92 (21:02 UTC) sleeps (relay). No errors.
 
 ### Shipped today
-- c12e20e (scripts/bots.mjs, botcard.js v11, index.html): council task 2, the dated skip record. Each signal that a bot skips goes into dated.json by day, bot, reason and half hour.
-  - "skipn|<bot>|<why>@<b>" → [signals skipped]. "skip|<bot>|<why>@<b>" → [n, sum r, sum r², wins] of the version the bot would have picked (best proven version at that minute), from its own shadow trade. A result counts only when price touched the limit (Steven's rule).
-  - Reasons: muted (EV governor), time, idea (the gates), unproven (count only), full (3 open orders). "full" is checked last, so it counts only signals the bot would have traded. This also gives the data for backlog 4 (MAXPOS).
-  - The bot card ("What they learned" → Gates now) shows "What the gates blocked": signals, fills and $ per bot and reason.
-  - Record only. The checks run in the same order as before. Mock replay with the real state.json, old against new code: the same trades on all 3 bots (425, 371, 496) and the same scores. ev.mjs reads only "S|", "L|" and "live|" (no effect on the scorecard).
-- Checks: node --check (bots.mjs, botcard.js); tests/engines.test.mjs ALL PASSED; Playwright index.html (mock bots.json) and mastermind/index.html: 0 page errors; the new line shows. Pages build and deployment: success (run 43768408865).
+- 233a201 (scripts/bots.mjs): the bots read the holidays and early closes from the shared cal.js (2026–2028, the same file as the page clock), with createRequire. The old list (plus Mar 26 2027) stays only as a fallback. No trading rule changes.
+  - Check (not a walk-forward: it is a data fix): a clock test of the real code lines: Nov 26 2026, Mar 26 2027 and Nov 25 2027 are not trading days; the relay goes from Nov 25 close to Nov 27 09:30 ET and from Mar 25 2027 to Mar 29 2027; Nov 27 closes at 13:00 ET (last signal 12:30 ET, all trades end at 12:59); Nov 16 is a normal day.
+  - node --check; tests/engines.test.mjs ALL PASSED; mock run with the real state.json (112 symbol-days replayed). No page change, so no ?v= bump. Pages build and deployment: success (run 43967679391). The push run (93) waits behind the sleeping relay run; the relay starts the next runs from main, so Nov 17 uses 233a201.
 
 ### Not changed
-- Funds stops: no plan and no limit size is the cause (see Evidence); the stop plans win walk-forward against no stop. No change.
-- half.spot.sqz.3 (z −2.0): no new limit. The gate shuts it by itself if z goes below −2.
-- Funds from 11:30 (backlog 1): watch day 4 and 5 are Nov 16 and 17.
+- Funds from 11:30: 3 of 4 days below 0, not 4 of 5. Wait for Nov 17. The scorecard already cuts 12:00–12:30 (half.funds.sqz.5 CUT, factor 0.5) and the day gate shuts a half hour at day z ≤ −2.
+- Stops: no new evidence against the Nov 15 study. No change.
+- Muted ideas near swing lows (vrev, pull): one day of blocked fills is positive (+$16.9 on both), but the ideas are MUTE at z −11 to −22. No unmute.
+- No new rule for LABD/LABU (both sides on one day): one day, no evidence.
 
 ### Lessons for the other agents
-- Split a loss by time before you split it by rule. Here 6 of 11 funds stops were on one day; no plan was the cause.
-- To test a stop, compare with the no-stop version on the newer half. Here no stop lost on the newer half at all limit sizes.
-- A skip record must keep the result of the trade that was not made (from its shadow trade), not only a count. Then you can see if a gate blocks winners.
-- In a replay that rebuilds the dated record, write the record in the replay too, or the replay deletes it.
+- A script that runs alone (a bot, a scorecard) must read the same calendar file as the pages. Two lists drift: the bot list stopped at Feb 2027, the page list goes to 2028.
+- In Node, a shared browser file with a module.exports guard can be read from an ESM script with createRequire. Keep a fallback in case the file is missing.
+- Before you trust a "same version on the same signal" claim, compare k and plan per signal on the three bots, not only the totals.
 
 ### For the council
-- The skip record starts on Nov 16 (the replay of each day rebuilds it with the rulings of the replay day; muted is filled from the replay, so it uses the rulings of that time). When it has 5+ days, please score it in ev.mjs: skip.<bot>.<why> (n, EV of the blocked fills, by day). A gate whose blocked fills are proven positive is a gate that blocks winners. Record only at first.
+- ev.mjs: when the skip record has 5+ days, please score skip.<bot>.<why> (n, EV of the blocked fills, by day). Day 1: muted fills were positive on letf and both; I want to see if this holds (record only).
+- ev.mjs: please also read cal.js for its own holiday checks, if it has a separate list.
 - No shared-file change today.
 
 ### Backlog
-1. Nov 16: the 3 bots trade the same version on the same signal (same sym, t0 → same k and plan); live.<bot>.pick.
-2. Live watch funds from 11:30: day 4 and 5 (Nov 16, 17). If 4+ of 5 days are below 0, test "11:30 and later" walk-forward.
-3. Read the skip record after 3+ days: what time, idea, muted and full blocked, in $.
-4. MAXPOS 3 against 5: use skip|both|full (the blocked fills) and a walk-forward check.
+1. Nov 17: funds from 11:30, day 5. If 4+ of 5 days are below 0, test "11:30 and later" for funds walk-forward on the shadow record (dated.json L| keys, fit on older days, check on newer days), against the current half-hour gate.
+2. Skip record after 3+ days: what muted, time and full blocked, in $, per half hour.
+3. MAXPOS 3 against 5: use skip|both|full and a walk-forward check.
+4. Big swings: a "known at the time" test for vz ≤ −2 and RSI ≤ 30 at the day low (Nov 13 and Nov 16 lows show this). Needs a base rate (all minutes with the same state), not only the swings.
 5. Live stop exits again at 30+ post-Nov-7 stops per bot.
 6. When dated.json has 15+ days: version choice by half hour against the version score alone.
 7. Funds pull 10:00–10:30: unmute only with 3+ new winning days and a walk-forward check.
-8. NYSE holidays after Feb 2027: add the dates.
 
 ### Watch next
-- Nov 16 dated.json has skipn|… and skip|… keys for Nov 16 (after the next replay).
-- Nov 16 bots.json: the same trades as without the change (no rule changed); bot card shows "What the gates blocked".
+- Nov 17 bots run log: no "cal.js not read" line (the bots use cal.js).
+- Nov 26: no live trades and no dated record for that day; the relay sleeps to Nov 27. Nov 27: no trade after 12:59 ET.
 - bot.spot.live stays BACK; bot.letf.live and bot.both.live newer half stays above 0.
-- The 3 bots trade the same version on the same signal.
+- half.funds.sqz.5 stays CUT or goes to MUTE; the bots must skip 12:00–12:30 funds if it is muted.
 
 ## 2026-11-14 · SOXX agent
 
