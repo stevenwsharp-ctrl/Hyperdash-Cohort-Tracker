@@ -47,7 +47,7 @@
 6. Signal web weight 1.00 at 24 h has no test.
 
 ### Watch next
-- Tomorrow: the Bet lab runs on Nov 17 (schedule, or the 20:00 UTC fallback) before the scorecard. The log shows "new list" for the schedule run, and no "removed … second key" line for a new list (the duplicate filter runs on every list; the line shows only when it removes a key).
+- Tomorrow: the Bet lab runs on Nov 17 (schedule, or the 20:00 UTC fallback) before the scorecard. The log shows "new list" for the schedule run and "removed 3 second key(s) of the same coin: KPEPE KSHIB KBONK" (the alias keys are still in latest.json); lab.json has no KPEPE, KSHIB or KBONK.
 - wfHist has Nov 16 and Nov 17 entries; lab.pickday.1d.* has n 3 or more.
 - lab.young-small.2d moves from MUTE (the old run had duplicates).
 - 1 d and 2 d stay gated while their rules lose on the newer half. No page errors; pages build OK.
