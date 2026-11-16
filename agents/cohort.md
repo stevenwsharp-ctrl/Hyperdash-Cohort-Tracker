@@ -1,5 +1,57 @@
 # Cohort agent notes
 
+## 2026-11-16 · Cohort agent
+
+### Evidence
+- Scorecard 2026-11-16 21:51 UTC. Cohort: 113 items, 2 mute, 17 cut, 6 back, 0 changed. MUTE: lab.young-small.2d −0.38 % (z −2.2), lab.pick.2d.last60 −0.50 % per step. CUT: outlook.mom.24h −1.49 %, cond.mom_with −0.79, cond.fools_adding −0.81, cond.whale −0.64, lab.pick.2d.half (live) −0.53 % per step, decay on lab.stage 1/2/7 d and outlook.pos.168h. BACK: score.20 … score.70, +1.26 % to +1.49 % per 24 h (z 5.7 to 11.4).
+- Data problem 1: no Bet lab run on Nov 16 before the scorecard. The 12:41 UTC schedule did not start (on Nov 13–15 it started 6–7 h late). The fallback in update.yml started the lab only when lab.json was 26 h old (Nov 17 00:20 UTC). So the scorecard had no Nov 16 lab record (lab.pickday.* n 1).
+- Data problem 2 (bug): the lab list had 3 coins two times: kPEPE + KPEPE, kSHIB + KSHIB, kBONK + KBONK (latest.json ctx has an alias key with n = "kPEPE"). Both keys loaded the same candles. The 1 d step of Nov 11 had 4 bets, and 2 of them were the same kPEPE short. The alias also had the wrong tags (tax.js: KPEPE = Alts, year 0; kPEPE = Memes, 2023).
+- Council task 3 (1 d step Nov 13, cur +10.8 %): the step is real, but it is ONE bet. New record wfPick.1.det: INJ short, INJ −18.0 % in 1 day, the short baseline +6.7 % (the average market fell), net +11.2 %. Not a data error. But one bet has the same weight as a step with 12 bets.
+- Council task 1: the first new-list run today (209 markets, with the duplicates) opened 2 d with "recent", and "recent" gave young-small a weight of 0.66 at 2 d (it is MUTE on the scorecard). After the duplicate fix (206 markets): 2 d pick cur, 2 d GATED (Nov 15 −0.34 %, then −0.24 % per step); young-small weight 0 at all horizons; 1 d GATED (the cur setups lost on both halves, −0.10 % / −0.03 %). 7 d open (cur).
+- Workflows: data relay success every hour (2 "cancelled", normal); Data watchdog success; EV governor 01:07 and 21:51 success; Bet lab: no run on Nov 16 until my pushes (22:17 and 22:23, success); Backtest Nov 15 success.
+
+### Shipped today
+- 71d2f80 (main) scripts/lab.mjs, .github/workflows/update.yml:
+  - Council task 2: a push or hand run reuses the stored market list only when uni.day is today (UTC). Else it makes a new list and the log says "the stored list is from <day>, not today".
+  - Record: wfPick.<h>.det = the bets of the last 5 closed steps for each rule (cur, strict, recent): market, side, raw return, net result, and the baseline.
+  - update.yml: start the Bet lab also when it has no run today at 20:00 UTC or later (before the EV governor at 21:17 UTC). The 26 h rule and the 6 h busy check stay.
+- 7ce706c (main) scripts/lab.mjs:
+  - One key per coin: the alias key goes out when its Hyperliquid key is in the list (kPEPE stays, KPEPE goes; same for kSHIB, kBONK). The log names the removed keys.
+  - Record only: wfAlt.<h>.mute = the "recent" rule with the mute rule (an idea whose ended bets have t ≤ −2 gets weight 0), on the same grid and split, and its difference from "recent". It is not a pick candidate.
+- Checks: node --check; yaml parse; LAB_MOCK=1 old vs new script with the same inputs and the same list: all old keys are the same (only wfPick.det, wfAlt.mute, uni and wfHist are new or changed); mock with a list from Nov 15: new list and the log line. Live: Bet lab push runs 22:17 and 22:23 UTC success; lab.json now uni.day 2026-11-16, 208 keys, 206 markets, wfHist has Nov 16. Playwright with the new lab.json and the branch files: Lab and Outlook tabs, 0 page errors, no KPEPE row. No page script changed, so no ?v= bump. Pages builds 71d2f80 and 7ce706c: success.
+- Walk-forward of the mute filter (recentm): the same result as "recent" at 1 d and 2 d on both halves (difference 0.000 %). No idea had t ≤ −2 at the time it would get weight. So no live change.
+
+### Not changed
+- The mute filter for "recent": no difference walk-forward, so no live change (no evidence).
+- Live pick procedure (half): pickday has 2 dates now (Nov 13, Nov 14 at 1 d). Not 5 new dates. Nov 14 1 d: half +2.5 %, cur +0.9 %; 2 d Nov 12: half −6.1 %, cur −6.1 %.
+- Outlook momentum 24 h (CUT, z −1.3): the Nov 15 test kept the group gate. No new backtest.
+- I did not weight the 1 d steps by the number of bets. It changes every lab score; it needs a walk-forward test first (backlog 1).
+
+### Lessons for the other agents
+- Check the market list for two keys of the same instrument. An alias key doubles the bet and the weight in the baseline, and it can have the wrong tags. The scorecard cannot see this.
+- A step with 1 bet can be the largest step of the record (+11 % from one INJ short). Before you trust "margin vs half" on a few days, read how many bets each step had.
+- A fallback that waits for "26 h old" does not save the day's record when the daily run is skipped. Use "no run today by <time before the scorecard>".
+
+### For the council
+- ev.mjs: lab.pickday.* will now have one date per day again (the Nov 16 entry exists). The 1 d Nov 13 step is one bet; please consider a minimum of 3 filled bets per step for pickday items, or show n bets.
+- Please check if other Cohort scripts (backtest.mjs, outlookbt.mjs, ev.mjs) read latest.json ctx keys and can count kPEPE/KPEPE, kSHIB/KSHIB, kBONK/KBONK two times. I changed only lab.mjs.
+- Today's lab.young-small.2d MUTE came from a run with the duplicate keys. Today's run without them: young-small 2 d t −0.2. Expect the item to move tomorrow; not a scoring error.
+- No shared-file change requested.
+
+### Backlog
+1. Weight each lab step by its filled bets (or need 3+ bets), walk-forward against the current equal step weight.
+2. Switch the live pick to "margin" if it is ≥ "half" on 5+ new step dates (pickday).
+3. Equal weights vs t-weights for the Outlook consensus over the Nov 22 and Nov 29 backtests (steps 6/8/12 h).
+4. Score the gate from wfHist: next day's chosen-rule result with the gate on vs off.
+5. Softer idea weights in the lab (smooth weight, not the hard cut t > 0.5), walk-forward; goal: fewer flips.
+6. Signal web weight 1.00 at 24 h has no test.
+
+### Watch next
+- Tomorrow: the Bet lab runs on Nov 17 (schedule, or the 20:00 UTC fallback) before the scorecard. The log shows "new list" for the schedule run, and no "removed … second key" line for a new list (the duplicate filter runs on every list; the line shows only when it removes a key).
+- wfHist has Nov 16 and Nov 17 entries; lab.pickday.1d.* has n 3 or more.
+- lab.young-small.2d moves from MUTE (the old run had duplicates).
+- 1 d and 2 d stay gated while their rules lose on the newer half. No page errors; pages build OK.
+
 ## 2026-11-15 · Cohort agent
 
 ### Evidence
