@@ -1,9 +1,9 @@
 {
- "t": "2026-11-16T23:19:32.633Z",
+ "t": "2026-11-17T03:58:56.538Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; agents read this file every market day",
  "trackers": {
   "soxx": {
-   "at": 1794862942018,
+   "at": 1794882461791,
    "items": [
     {
      "id": "bot.spot.live",
@@ -3337,8 +3337,8 @@
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.stage.7d",
@@ -3369,8 +3369,8 @@
      "status": "mute",
      "factor": 0,
      "why": "proven negative EV",
-     "prev": "cut",
-     "changed": true
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "lab.rs-peer.2d",
@@ -3385,8 +3385,8 @@
      "status": "mute",
      "factor": 0,
      "why": "proven negative EV",
-     "prev": "watch",
-     "changed": true
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "lab.rs-peer.7d",
@@ -3449,8 +3449,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.group-mom.1d",
@@ -3577,8 +3577,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.ath.7d",
@@ -3641,8 +3641,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.beta-tide.1d",
@@ -3657,8 +3657,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.beta-tide.2d",
@@ -3673,8 +3673,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.beta-tide.7d",
@@ -3689,8 +3689,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.vol-squeeze.1d",
@@ -3737,8 +3737,8 @@
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.young-small.1d",
@@ -3769,8 +3769,8 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "mute",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.young-small.7d",
@@ -3821,8 +3821,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.setup.7d",
@@ -3907,8 +3907,8 @@
      "status": "mute",
      "factor": 0,
      "why": "proven negative EV",
-     "prev": "watch",
-     "changed": true
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "lab.setup.1d.chosen",
@@ -3925,8 +3925,8 @@
      "why": "positive, not proven",
      "prev": "watch",
      "changed": false,
-     "rulePrev": "recent",
-     "ruleChanged": true
+     "rulePrev": "none",
+     "ruleChanged": false
     },
     {
      "id": "lab.rule.2d.cur",
@@ -3942,8 +3942,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.rule.2d.strict",
@@ -3993,8 +3993,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.setup.2d.chosen",
@@ -4031,8 +4031,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.pick.1d.best",
@@ -4131,8 +4131,8 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.pick.2d.best",
@@ -4171,8 +4171,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "mute",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.pick.2d.margin",
@@ -4191,8 +4191,8 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.pick.2d.cur",
@@ -4211,8 +4211,8 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.pickday.1d.half",
@@ -4470,7 +4470,7 @@
     "mute": 3,
     "cut": 22,
     "back": 6,
-    "changed": 20
+    "changed": 0
    },
    "rules": {
     "outlook.mom.24h": 0.5,
@@ -4507,7 +4507,7 @@
    }
   },
   "letf": {
-   "at": "2026-11-16T23:19:32.631Z",
+   "at": "2026-11-17T03:58:56.536Z",
    "items": [
     {
      "id": "rev.all.15m",
@@ -4549,8 +4549,8 @@
      "ev": 0.0005908936878196248,
      "z": 0.27277211999328516,
      "hit": 0.3548387096774194,
-     "older": -0.0010234446740856897,
-     "recent": 0.0021043359021058567,
+     "older": -0.001045702568949473,
+     "recent": 0.002125202678540654,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -4563,10 +4563,10 @@
      "desc": "Fast 1-minute move (4σ+) of the underlying: follow it, next 15 min (negative EV = fade it)",
      "unit": "ret",
      "n": 26,
-     "ev": -0.0022565222219298776,
+     "ev": -0.002256522221929878,
      "z": -0.6941880135368408,
      "hit": 0.3076923076923077,
-     "older": -0.0062111821529824,
+     "older": -0.006211182152982401,
      "recent": 0.001698137709122645,
      "status": "watch",
      "factor": 1,
@@ -4737,8 +4737,8 @@
       "2026-11-09": 6,
       "2026-11-11": 2,
       "2026-11-12": 8,
-      "2026-11-16": 3,
       "2026-11-10": 3,
+      "2026-11-16": 3,
       "2026-11-06": 4
      },
      "prev": "watch",
@@ -4980,18 +4980,20 @@
      "why": "no time of day won on the older half (n 8+ and mean above 0)",
      "keep": [],
      "of": 35,
-     "days": {}
+     "days": {},
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "plan.setup.60m",
      "desc": "Fund page trade plan (setupOf on the underlying's 5-min bars, LONG/SHORT SETUP and LEAN): LIMIT entry 0.5 × 5-min ATR, alive 60 min, counts only when touched; exit at the plan's stop or target or 60 min after the fill; cost 0.02% of the underlying; one per underlying per hour",
      "unit": "ret",
      "n": 474,
-     "ev": -0.0007679556058148072,
-     "z": -1.4336196712887441,
-     "hit": 0.5,
-     "older": 0.00018005989854465347,
-     "recent": -0.001715971110174268,
+     "ev": -0.0007469179586005942,
+     "z": -1.3944676576418713,
+     "hit": 0.5042194092827004,
+     "older": 0.00018005989854465358,
+     "recent": -0.0016738958157458423,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -5002,7 +5004,7 @@
       },
       "mid": {
        "n": 317,
-       "m": -0.00065
+       "m": -0.00062
       },
       "close": null
      },
@@ -5069,21 +5071,21 @@
       },
       "2026-11-16": {
        "n": 48,
-       "m": -0.00214
+       "m": -0.00193
       }
      },
      "byExit": {
       "tgt": {
-       "n": 26,
-       "m": 0.01099
+       "n": 25,
+       "m": 0.01128
       },
       "stop": {
-       "n": 68,
-       "m": -0.01011
+       "n": 67,
+       "m": -0.01021
       },
       "time": {
-       "n": 380,
-       "m": 0.0001
+       "n": 382,
+       "m": 0.00013
       }
      },
      "nostop": {
@@ -5095,9 +5097,9 @@
      "fill": 0.733,
      "tried": 647,
      "exits": {
-      "tgt": 26,
-      "stop": 68,
-      "time": 380
+      "tgt": 25,
+      "stop": 67,
+      "time": 382
      },
      "markets": 24,
      "hour": {
@@ -5561,7 +5563,7 @@
        "L": 0,
        "S": 14,
        "fill": 13,
-       "stop": 6
+       "stop": 5
       },
       "2026-11-16 14:25": {
        "L": 0,
@@ -5578,11 +5580,11 @@
      "desc": "Fund page trade plan, only LONG / SHORT SETUP (all three filters agree): as plan.setup.60m",
      "unit": "ret",
      "n": 126,
-     "ev": 0.0003628285252543713,
-     "z": 0.36901412474941897,
+     "ev": 0.0003628285252543714,
+     "z": 0.3690141247494191,
      "hit": 0.5793650793650794,
-     "older": 0.0017493273963771882,
-     "recent": -0.0010236703458684458,
+     "older": 0.001749327396377188,
+     "recent": -0.0010236703458684463,
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
@@ -5691,11 +5693,11 @@
      "desc": "Fund page trade plan, only LEAN LONG / LEAN SHORT (2 of 3 filters): as plan.setup.60m",
      "unit": "ret",
      "n": 348,
-     "ev": -0.001177377446374337,
-     "z": -1.850402232203979,
-     "hit": 0.47126436781609193,
-     "older": -0.0002684489848838718,
-     "recent": -0.002086305907864803,
+     "ev": -0.0011487227199963575,
+     "z": -1.8054244891963844,
+     "hit": 0.47701149425287354,
+     "older": -0.0002684489848838719,
+     "recent": -0.0020289964551088433,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -5706,7 +5708,7 @@
       },
       "mid": {
        "n": 247,
-       "m": -0.00083
+       "m": -0.00079
       },
       "close": null
      },
@@ -5773,21 +5775,21 @@
       },
       "2026-11-16": {
        "n": 30,
-       "m": -0.00002
+       "m": 0.00031
       }
      },
      "byExit": {
       "tgt": {
-       "n": 21,
-       "m": 0.01219
+       "n": 20,
+       "m": 0.01262
       },
       "stop": {
-       "n": 58,
-       "m": -0.01009
+       "n": 57,
+       "m": -0.01021
       },
       "time": {
-       "n": 269,
-       "m": -0.0003
+       "n": 271,
+       "m": -0.00026
       }
      },
      "nostop": {
@@ -5804,11 +5806,11 @@
      "desc": "Fund page trade plan (as plan.setup.60m), only when 3+ underlyings gave a plan on the same side at the same signal time",
      "unit": "ret",
      "n": 430,
-     "ev": -0.0009683518386554526,
-     "z": -1.6737265852547862,
-     "hit": 0.5023255813953489,
-     "older": 0.0002292090833528094,
-     "recent": -0.002165912760663714,
+     "ev": -0.0009451615019588553,
+     "z": -1.6337389483807296,
+     "hit": 0.5069767441860465,
+     "older": 0.00022920908335280927,
+     "recent": -0.0021195320872705197,
      "status": "watch",
      "factor": 1,
      "why": "record only (would be cut)",
@@ -5876,23 +5878,25 @@
       },
       "2026-11-16": {
        "n": 48,
-       "m": -0.00214
+       "m": -0.00193
       }
      },
      "byExit": {
       "tgt": {
-       "n": 20,
-       "m": 0.01283
+       "n": 19,
+       "m": 0.01331
       },
       "stop": {
-       "n": 64,
-       "m": -0.0103
+       "n": 63,
+       "m": -0.01041
       },
       "time": {
-       "n": 346,
-       "m": -0.00004
+       "n": 348,
+       "m": -0.00001
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "plan.setup.60m.crowd12",
@@ -5975,7 +5979,9 @@
        "n": 34,
        "m": 0.00152
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     }
    ],
    "extra": {
