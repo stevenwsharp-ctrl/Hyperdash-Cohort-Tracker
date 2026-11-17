@@ -1,5 +1,55 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-17 · SOXX agent
+
+### Evidence
+- Scorecard: ev.json of 03:58 UTC Nov 17 (data to Nov 16; the Nov 17 scorecard is not written yet). SOXX: 11 muted, 4 cut, 8 backed, 0 changed. bot.spot.live BACK (+0.45 %, n 21, z 2.52). bot.spot.bt BACK (+0.18 %, n 39). bot.letf.live +0.21 % (newer half +0.04 %). bot.both.live +0.05 % (newer half +0.01 %).
+- Negative EV items: the 10 muted ideas (brk, pull, vrev, rsi, mom on spot and funds; z −5 to −22). half.spot.sqz.5 MUTE (−0.30 %). Stop exits on all 3 bots (spot −0.28 % n 13, letf −0.61 % n 20, both −0.42 % n 29). live.letf.4 (11:30–12:00) −0.49 % n 5 and live.letf.5 (12:00–12:30) −0.24 % n 5.
+- Bots data Nov 17 (bots branch 21:02 UTC): 0 live trades on the 3 bots. Cause: no squeeze signal on Nov 17 (dated.json has no S|sqz or L|sqz key for the day). All signals were muted ideas: EV muted skips spot 92, letf 42, both 134. This is correct behaviour, not a bug.
+- The market fell 7–12 % from the open (SOXL −12 %) and turned at 10:44–10:51 ET. The largest swings: SOXL +9.2 %, AMDL +6.8 %, MSTU +6.7 %, NVDL +5.2 %, TECL +4.6 %, TQQQ +4.6 %. Each one started at the day low with vrev and rsi signals from −8 to +5 min, vz −2.3 to −3.1, RSI 11 to 22. Caught live: 0 of 30 (the ideas are muted). The muted shadow fills that the gate blocked: spot 10:30–11:00 126 fills +$1,162 (110 wins); both, all day 239 fills +$3,162; letf 92 fills +$1,783. These counts have many fills per symbol (a new signal on each bar); a bot can hold only 3 positions. One day: no rule.
+- Council task 1 (funds from 11:30, day 5): Nov 17 has no funds trade. Live days with trades from 11:30: Nov 11 −$6.3, Nov 12 −$2.9, Nov 13 +$27.7, Nov 16 −$6.3: 3 of 4 below 0. My rule needs 4 of 5: not met. Walk-forward check on the shadow record (L|sqz@b, all versions, b ≥ 4 = from 11:30): older days Oct 29 – Nov 5: n 350, sum −0.031 (−0.009 % per fill, 4 of 6 days below 0); newer days Nov 9 – Nov 16: n 705, sum −0.651 (−0.09 % per fill, 4 of 5 below 0, most of it on Nov 9). On the older days the loss is near 0, so the rule would not be chosen there. No change.
+- Council task 2 (stop exits by half hour and crowding; record only). Crowd = the bot's own trades that started in the same half hour of the same day (1, 2, 3+). Live: spot stop share 27 % / 29 % / 24 %, $ per trade +0.55 / +4.35 / +2.43; letf 47 % / 50 % / 17 %, $ per trade +1.51 / −1.58 / +4.87; both 45 % / 29 % / 38 %, +1.37 / +1.74 / −2.00. Bot replay trades (bt, all ideas): letf crowd 3+ n 164, stop share 33 %, −$1.73 per trade, crowd 1 n 40, +$2.40; both crowd 3+ n 295, −$0.99, crowd 2 +$0.97; spot no clear pattern. Stops by half hour (live letf): 11:30–12:00 3 of 5, 1:30–2:30 4 of 4, 3:00–3:30 2 of 2. Result: in the replay, crowded half hours lose on funds (the same lead as LETF); live does not show it (n 12). No stop change.
+- Council task 3 (what a CUT half hour does): the bots read only the idea.* factors from ev.json (factor 0 = skip, shadow only). They do not read half.* factors. A CUT half hour (0.5) trades as normal with the same bet size. A half hour is shut only by the bots' own time gate (badTime: the same mute rule, z over days ≤ −2 on 4+ days, or 200+ trades). Today it shuts spot 12:00–12:30 and funds 11:30–12:00. half.spot.sqz.5 MUTE and the bot gate agree.
+- Paper bots workflow Nov 17: runs 97–100 success (02:27, 07:52, 13:18, 18:59 UTC); run 101 (21:01 UTC) sleeps to the next open (relay). EV rules read: 23. No errors. Scheduled runs 102 cancelled by the concurrency group (normal).
+
+### Shipped today
+- d92bcc5 (scripts/bots.mjs): each paper trade keeps the market state at the signal bar (known at that minute): d1 = 2σ or more under VWAP and RSI ≤ 30; o1 = the day is down 3 % or more from the 9:30 open. dated.json gets "ctx|class|idea|state" keys (all versions) and "ctx|class|idea|state|limit|plan" keys for the rare states (not d0o0). Days still in the 7-day bar window are replayed one time (dated record version 2) to fill the keys; the skip record of those days stays.
+  - Why: Nov 17 shows that the muted vrev and rsi signals at a deep low can win, but the record has no market state, so no walk-forward test is possible. The d1 limits are from my backlog of Nov 16 (written before the Nov 17 sell-off), so they are not fitted on this result. The test runs only on days that come after the limits were set.
+  - Record only: no bot rule and no scorecard item reads ctx| (the ev.mjs regex reads S|, L| and live| only). No page change, so no ?v= bump.
+  - Checks: node --check; tests/engines.test.mjs ALL PASSED; mock run with the real state.json: ctx keys made, the skip keys of Nov 16 and Nov 17 are the same as before, days outside the bar window are not changed. File size: about +80 bytes per key, about 200 keys per day.
+  - Pages build and deployment: success (run 44187964007). The sleeping relay run (101) started on the old code; the next run that it dispatches from main uses d92bcc5.
+
+### Not changed
+- Funds from 11:30: not 4 of 5 days, and the shadow record does not show the loss on the older days. The bot gate already shuts 11:30–12:00.
+- Muted vrev and rsi: one day of blocked fills is positive, but the ideas lose at z −15 to −22 over all signals. No unmute. Wait for the ctx record.
+- Stops: no change (Steven's rule; no new walk-forward evidence).
+- half.* CUT factors in the bots: the same bet size is the rule, so a CUT cannot make a trade smaller. I did not make the bots skip a CUT half hour: CUT is "negative or decaying, not proven", and a skip on weak evidence can block winners (Nov 9 lesson).
+
+### Lessons for the other agents
+- A day with 0 trades is not a bug if no traded signal came. Check the signal keys of the day before you look for a fault.
+- Write a hypothesis with its limits BEFORE the data that tests it (here: the d1 rule of Nov 16). Then a big day after it is a fair test, not a fit.
+- Blocked shadow fills count each bar's signal again. Divide by symbols and by the position limit before you compare them with live $.
+
+### For the council
+- ev.mjs (later, at 5+ days of ctx keys): please score ctx.<class>.<idea>.<state> (n, EV, z over days, older and newer half), record only. I want to see if vrev/rsi in state d1o1 or d1o0 has a positive EV while the idea is muted. Keys: "ctx|S|vrev|d1o1" (all versions) and "ctx|S|vrev|d1o1|0.25|tim" (per version).
+- ev.mjs: the bots do not read half.* factors; they use their own time gate (same mute rule). If you want the bots to obey half.* = 0 directly, tell me; today the two agree.
+- No shared-file change today.
+
+### Backlog
+1. Nov 20+: read ctx keys over 5+ days (the 7-day backfill gives about 7 days by Nov 18). Walk-forward: fit "trade vrev/rsi only in state d1 (and o1)" on the older days, check on the newer days, against the mute. A rule only if both halves are above 0 and the per-day z is ≥ 2.
+2. Crowded half hours on funds (replay: crowd 3+ −$1.73 per trade): test "at most N funds positions opened in one half hour" walk-forward on the bt trades (fit N on older days).
+3. Skip record after 5 days: muted, time and full, in $, per half hour, divided by symbols.
+4. MAXPOS 3 against 5: use skip|both|full and a walk-forward check.
+5. Live stop exits again at 30+ post-Nov-7 stops per bot.
+6. When dated.json has 15+ days: version choice by half hour against the version score alone.
+7. Funds pull 10:00–10:30: unmute only with 3+ new winning days and a walk-forward check.
+
+### Watch next
+- Nov 18 bots log: "dated record: N past days filled" with N about 6–7 (the one-time replay), and dated.json has ctx| keys on Nov 10 – Nov 17. The skip| keys of Nov 16 and Nov 17 must stay the same.
+- The scorecard items must not change because of ctx| keys (same n and EV on idea.* and half.* items).
+- bot.spot.live stays BACK; bot.letf.live and bot.both.live newer half stays above 0.
+- Nov 26: no live trade and no dated record for that day.
+
 ## 2026-11-16 · SOXX agent
 
 ### Evidence
