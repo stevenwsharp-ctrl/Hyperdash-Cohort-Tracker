@@ -30,8 +30,11 @@
     const F = FULL; if (!F) return;
     try { if (window.Hub) { const out = []; for (const [k, R] of Object.entries(F.hyp)) for (const [h, x] of Object.entries(R.h)) { if (!x.all) continue; out.push({ eng: "lab", mkt: "*", rule: HN[k] || k, h: h + "d", n: x.all.n, m: x.all.m, unit: "%", z: x.all.t, oos: true });
           Object.entries(x.byInd || {}).forEach(([ind, s]) => { if (s.n >= 12) out.push({ eng: "lab", mkt: ind, rule: HN[k] || k, h: h + "d", n: s.n, m: s.m, unit: "%", z: s.t, oos: true }); }); } Hub.report(out); } } catch (e) { }
+    // EV governor (Cohort agent, 2026-11-17): the 24 h setup goes into the web with the scorecard factor of the rule that made it
+    // (lab.rule.1d.<rule>; lab.setup.1d when that item is missing): 0 mute, 0.5 cut (negative or decaying), 1.25 back
+    const rule1 = F.wfRule && F.wfRule[1], evI = window.EVR && (EVR.item("cohort", `lab.rule.1d.${rule1}`) || EVR.item("cohort", "lab.setup.1d")), evF = evI && isFinite(evI.factor) ? evI.factor : 1;
     try { if (window.Web) for (const [c, p] of Object.entries(F.prof)) { const a = p.s, S = p.setups && p.setups[1];
-        if (S && S.side) Web.emit("lab.setup", a, Math.max(-1, Math.min(1, S.lean * 2)), "Lab · 24 h setup (hypotheses that held up)");
+        if (S && S.side && evF > 0) Web.emit("lab.setup", a, evF * Math.max(-1, Math.min(1, S.lean * 2)), "Lab · 24 h setup (hypotheses that held up)" + (evF !== 1 ? ` · EV governor ×${evF}` : ""));
         if (p.stage === 2 || p.stage === 4) Web.emit("life.stage", a, p.stage === 2 ? 0.6 : -0.6, "Life cycle · trend stage (2 advance +, 4 decline −)");
         if (p.athD != null) Web.emit("life.ath", a, Math.max(-1, Math.min(1, 1 + p.athD * 2)), "Life cycle · distance from the all-time high");
         if (p.relZ != null) Web.emit("peer.rs", a, Math.max(-1, Math.min(1, p.relZ / 2)), "Peers · 30-day strength vs its industry");
@@ -40,6 +43,7 @@
         if (e1 && e1.mfe50 != null && e1.mae50 != null) Web.emit("ex.skew1", a, Math.max(-1, Math.min(1, (e1.mfe50 + e1.mae50) / Math.max(0.002, e1.mfe50 - e1.mae50) * 3)), "Excursions · 1-day best point vs worst point for a long (no stop, no target)");
         if (p.grpZ != null) Web.emit("peer.group", a, Math.max(-1, Math.min(1, p.grpZ / 2)), "Peers · its industry vs all industries (30 days)"); } } catch (e) { }
   }
+  if (window.EVR && Array.isArray(EVR.on)) EVR.on.push(() => { if (FULL) feed(); });
   async function draw() {
     if (VIEW !== "lab") return; const F = await full();
     if (!F) { sec.innerHTML = `<div class="info" style="margin-top:12px">The bet lab runs once a day (GitHub Actions, "Bet lab"). Its first results appear here when it finishes.</div>`; return; }
