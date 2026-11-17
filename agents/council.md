@@ -1,5 +1,46 @@
 # Council notes (newest first)
 
+## 2026-11-17 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live (bots code; no page change). Each paper trade now keeps the market state at the signal bar (d1 = 2σ+ under VWAP and RSI ≤ 30; o1 = day down 3 %+ from the open) in the dated record. Record only: no bot rule reads it yet. Pages build: success. The relay run that started before the push uses the old code; the next run uses the new code.
+- Cohort Sniper: yes, live. (1) The 24 h Lab setup goes into the signal web with the EV factor of its rule (today ×0.5, because lab.rule.1d.recent is CUT). Before, the web took it at full weight. bets.js v8. (2) The Bet lab writes the filled bets per pick procedure into the dated record. Pages build and Bet lab run: success.
+- LETF Sniper: yes, live. The 🚀 text reads the time of day. Open hour: "held on in the walk-forward test, limit entry only". Mid-day: "lost in the test, do not chase". Before, all 🚀 flags had one text. Pages build: success.
+
+### Scoreboard (ev.json 22:08 UTC, with Nov 17 data)
+- SOXX: 11 muted, 7 cut, 9 backed, 6 changed. Gain: spot bot live +0.45 % per trade (n 21, BACK); funds VWAP snap-back 11:00–11:30 ET now BACK (+0.58 %, n 410); 5 vrev versions with the time exit are BACK (+0.10 to +0.36 %). Loss: funds VWAP snap-back 12:00–12:30 ET −0.52 % (n 415, CUT); live stop exits (letf bot −0.61 %, n 20). Big change: VWAP snap-back (vrev) on spot and on funds went MUTE → WATCH. The bots trade it again from Nov 18 (see "What Steven should know"). Paper bots Nov 17: 0 live trades (no squeeze signal came; correct). spot bot test trades BACK → WATCH (newer half +0.07 %).
+- Cohort: 1 muted, 23 cut, 6 backed, 22 changed. Gain: cohort score 50+, +1.3 to +1.5 % per 24 h (BACK). Loss: lab.young-small.2d −0.44 % (MUTE, lab weight 0); live 24 h rule "recent" now CUT (newer half −0.01 %). rs-peer went MUTE → CUT (still lab weight 0). 2 d stays gated; 1 d is open on a flat rule.
+- LETF: 1 muted, 5 cut, 0 backed, 3 changed. Gain: 🚀 open hour with the walk-forward time gate +0.91 % per 15 min (n 18, both halves above 0; new days 2 of 2 positive). Loss: LEAN plans now MUTE (−0.13 %; gate already shut); mid-day 🚀 −0.35 %; 🚀 fade −0.34 % (both halves below 0).
+
+### Agents
+- SOXX agent: ran, good work, with one problem. Its ctx record is a fair design: it wrote the d1 limits on Nov 16, before the Nov 17 sell-off, so the test is not fitted on the result. It did all 3 council tasks and kept the 4-of-5 rule for funds after 11:30 (not met: no change). Problem: it read the 03:58 scorecard and wrote "the Nov 17 scorecard is not written yet", but the 22:08 scorecard was there 7 minutes before its note. It missed 6 changed items, and the most important one: vrev MUTE → WATCH (the bots read that factor).
+- Cohort agent: ran, good work. It found a real leak: a CUT rule still fed the signal web at full weight. The nb record checks are clean (0 mismatches). One small defect (not a revert): if the page feeds the web before the scorecard loads (first visit, or no cache for 2 days), the setup goes in at factor 1, and if the factor later is 0 the old value stays until it expires. Task below.
+- LETF agent: ran, very good work. It found negative EV on the page (one text for a +0.72 % and a −0.35 % rule) and fixed it with no new fitted value. It tested the crowding limit and the full-plan gate walk-forward and correctly made no rule (both would lose on the older half or on the shut day).
+- Checks by me: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright 0 page errors on SOXX, Mastermind, LETF (live, ?demo, #/f/SOXL, #/f/TSLL) and Cohort (main, #lab). The 16 shared files are the same in all repos that have them; cal.js is the same in SOXX and LETF. All pages builds: success. No revert.
+- Order rules: all agents kept them (limit entries that count only when touched, no stop change, same bet size, Schwab-only and long-only bots).
+- Yesterday's "Watch next": SOXX Nov 17 run on the new calendar (yes, runs 97–100 success). Cohort rs-peer weight 0 (yes) and nb written (yes, newest date). LETF fast.15m.15m.tgate new days: 2 of 2 positive (yes); fade.rev.15m.tgate 1 of 2 (mixed).
+
+### Lessons shared
+- Read the newest scorecard (SOXX). The EV governor writes ev.json at about 22:08 UTC. All agents: fetch branch ev again just before you write your note, and print the "t" field of ev.json in your Evidence line.
+- One big day can lift a mute (SOXX). vrev was muted at trade z −15, but the day z was never below 0 (+0.25). Nov 17 (1,660 spot and 1,085 funds trades) moved the trade mean above 0. Without Nov 17 the trade mean is still −0.06 % (spot) and −0.17 % (funds); positive days: 7 of 14 (spot), 6 of 13 (funds). LETF and Cohort agents: when a ruling changes, check if one day made the change (leave the newest day out).
+- A scored part must read its factor at each place it leaves its tab (Cohort). LETF and SOXX agents: check that the page text, the alerts and the bots all read the same item.
+- Give one rule one text per time of day (LETF). SOXX agent: the squeeze half hours are scored; check that the Mastermind and SOXX text for each half hour says what the half-hour item says.
+
+### Tasks for tomorrow
+- SOXX agent: 1) vrev is tradable again in the bots (WATCH, factor 1). Report the Nov 18 vrev live trades per bot. Do a walk-forward check on the dated record: on each past day, use only the days before it to decide mute or not (the governor rule), and score the next day; compare with "keep the mute". If the unmute loses on the newer days, ask me for a scorecard guard (for example: a mute comes off only when the day mean is also above 0). 2) Check that the Nov 18 run filled ctx keys for Nov 10–17 and that the skip keys did not change. 3) Read the 22:08 scorecard (not 03:58) before your note.
+- Cohort agent: 1) bets.js: when the scorecard is not loaded yet, do not emit lab.setup (or emit again with the final factor and clear the old value when the factor is 0). Test with no EVR cache. 2) Read lab.pickday.*.bets on the Nov 18 scorecard (Nov 16 step dates must have bets). 3) If 1 d stays open on a rule with the newer half below 0, report it; the gate test waits for 10+ dates.
+- LETF agent: 1) The scorecard now has fast.15m.15m.todH and fast.15m.alert.todH (per time of day: n, mean, older half o, newer half r). Do backlog 1: the mid-day "lost in the test" text only while both halves are below 0. 2) plan.setup.60m.hour now has mL and mS (mean of filled long and short plans per signal time). Fit "at most N plans on one side per signal time" per size class on the older days, check on the newer days. 3) Count new days for fast.15m.15m.tgate (3 of 3 if Nov 18 is positive).
+
+### Changes I made
+- Hyperdash-Cohort-Tracker 11d6233 (scripts/ev.mjs), for the LETF requests, record only: todH on fast.15m.15m and fast.15m.alert; mL / mS on plan.setup.60m.hour. Offline check (branch files, seeded synthetic bars, same stub for the old and the new script): every item in all three trackers is the same except the new fields; the factors are the same; the hour fills add up to the item n. The EV governor runs on the push.
+- Not done today: the SOXX ctx scoring (waits for 5+ days, Nov 20+); the Cohort "min 3 bets" pickday rule (waits for 5+ dates with nb); the Cohort 1 d / 2 d gate item (on / off from wfHist and pk) — next council run, when wfHist has more dates.
+- No shared-file change. No revert.
+
+### What Steven should know
+- Nothing to paste. No Worker change.
+- The paper bots trade the VWAP snap-back (vrev) again from Nov 18, on spot and on funds. The scorecard took off the mute because the Nov 17 rebound (SOXL +9 % from the low) made the trade mean positive. Without that one day the idea still loses (−0.06 % spot, −0.17 % funds per trade), and only half of the days were positive. This is "not proven", not a win. The SOXX agent tests it tomorrow. If you want the mute kept until it is tested, that is your decision; tell the SOXX agent or me.
+- LETF page: a mid-day 🚀 now says "lost in the test: do not chase". An open-hour 🚀 says "limit entry only". Push alerts stay off.
+
 ## 2026-11-16 · Council
 
 ### Shipped today
