@@ -191,6 +191,10 @@ const nyOff = t => { const h = Math.floor(t / 36e5); let o = _nyO.get(h); if (o 
 const nyT = t => t + nyOff(t);   // a UTC-ms value whose UTC fields read as New York wall time
 const etMin = t => { const d = new Date(nyT(t)); return d.getUTCHours() * 60 + d.getUTCMinutes(); };   // ET minute of the day (DST-aware)
 const tod = t => { const m = etMin(t); return m < 630 ? "open" : m < 900 ? "mid" : "close"; };   // 09:30–10:30, 10:30–15:00, 15:00–16:00
+// Council, Nov 17 2026 (LETF agent request): time of day with the same older / newer split as the item (sorted by time, half = floor(n/2)).
+// Record only: per time of day n, mean, and the mean of its trades in the older half (o) and the newer half (r) of the whole list.
+const splitsH = a => { const s = a.slice().sort((x, y) => x.t - y.t), h = Math.floor(s.length / 2), o = {}, f = v => v.length ? { n: v.length, m: +mean(v).toFixed(5) } : null;
+  for (const p of ["open", "mid", "close"]) { const all = s.filter(x => x.p === p).map(x => x.v); o[p] = all.length ? { n: all.length, m: +mean(all).toFixed(5), o: f(s.slice(0, h).filter(x => x.p === p).map(x => x.v)), r: f(s.slice(h).filter(x => x.p === p).map(x => x.v)) } : null; } return o; };
 const splits = a => { const o = {}; for (const p of ["open", "mid", "close"]) { const v = a.filter(x => x.p === p).map(x => x.v); o[p] = v.length ? { n: v.length, m: +mean(v).toFixed(5) } : null; } return o; };
 // a LIMIT order (Steven's rule): it counts only when price touches it; exit at market 15 minutes after the fill
 function limitTrade(D, S, i, d, k, alive, cost = COST_U) { const L = S.c[i] * Math.exp(-d * k);
@@ -273,8 +277,8 @@ async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [],
   // n and mean per bucket: a record only (no ruling), for the SOXX lesson that big swings cluster at 10:20–10:40 ET.
   const open10 = a => { const o = {}; a.filter(x => x.m >= 570 && x.m < 630).forEach(x => { const b = Math.floor((x.m - 570) / 10) * 10 + 570, k = `${Math.floor(b / 60)}:${String(b % 60).padStart(2, "0")}`; (o[k] || (o[k] = [])).push(x.v); });
     return Object.fromEntries(Object.entries(o).sort().map(([k, w]) => [k, { n: w.length, m: +mean(w).toFixed(5) }])); };
-  add("fast.15m.15m", "🚀 rule: the fund moved 4%+ (single-stock fund) or 2%+ (index fund) in 15 min: follow it, next 15 min, cost 0.05% (one long fund per underlying)", R.f15, { tod: splits(R.f15), open10: open10(R.f15) });
-  add("fast.15m.alert", "🚀 ALERT level: the fund moved 5%+ (single-stock fund) or 2.5%+ (index fund) in 15 min with $1M+ traded today: follow it, next 15 min, cost 0.05%", R.f15a, { tod: splits(R.f15a) });
+  add("fast.15m.15m", "🚀 rule: the fund moved 4%+ (single-stock fund) or 2%+ (index fund) in 15 min: follow it, next 15 min, cost 0.05% (one long fund per underlying)", R.f15, { tod: splits(R.f15), todH: splitsH(R.f15), open10: open10(R.f15) });
+  add("fast.15m.alert", "🚀 ALERT level: the fund moved 5%+ (single-stock fund) or 2.5%+ (index fund) in 15 min with $1M+ traded today: follow it, next 15 min, cost 0.05%", R.f15a, { tod: splits(R.f15a), todH: splitsH(R.f15a) });
   add("fade.15m.15m", "Fade the 🚀 move: LIMIT entry against the move 0.5 × the fund's 5-min σ past the close, alive 5 min, counts only when touched; exit 15 min after the fill; cost 0.05%", R.ff15, { fill: tried.ff15 ? +(R.ff15.length / tried.ff15).toFixed(3) : null, tod: splits(R.ff15) });
   perDay("fade.15m.15m", R.ff15);
   tgate("fast.15m.15m", R.f15, "🚀 rule (as fast.15m.15m)"); tgate("fast.15m.alert", R.f15a, "🚀 alert level (as fast.15m.alert)");
@@ -340,7 +344,9 @@ async function letfPlan() { const setupCore = await pageSetup(); if (!setupCore)
     rec("plan.setup.60m.crowd12", "Fund page trade plan (as plan.setup.60m), only when 1-2 underlyings gave a plan on the same side at the same signal time", all.filter(x => x.crowd < 3));
     const H = {}; const hk = t => { const d = new Date(nyT(t)); return d.toISOString().slice(0, 10) + " " + d.toISOString().slice(11, 16); };
     sigAll.forEach(x => { const o = H[hk(x.t)] || (H[hk(x.t)] = { L: 0, S: 0, fill: 0, stop: 0 }); x.d > 0 ? o.L++ : o.S++; });
-    all.forEach(x => { const o = H[hk(x.t)]; if (o) { o.fill++; if (x.why === "stop") o.stop++; } });
+    all.forEach(x => { const o = H[hk(x.t)]; if (o) { o.fill++; if (x.why === "stop") o.stop++; const k = x.d > 0 ? "sL" : "sS"; o[k] = (o[k] || 0) + x.v; o[x.d > 0 ? "nL" : "nS"] = (o[x.d > 0 ? "nL" : "nS"] || 0) + 1; } });
+    // Council, Nov 17 2026 (LETF agent request): mean return of the filled plans per signal time and side (mL long, mS short; record only)
+    Object.values(H).forEach(o => { if (o.nL) o.mL = +(o.sL / o.nL).toFixed(5); if (o.nS) o.mS = +(o.sS / o.nS).toFixed(5); delete o.sL; delete o.sS; delete o.nL; delete o.nS; });
     const it = items.find(i => i.id === "plan.setup.60m"); if (it) it.hour = Object.fromEntries(Object.entries(H).sort()); }
   console.log("plan.setup.60m: markets", got, "plans", tried, "filled", all.length, "exits", JSON.stringify(ex));
   return { items, got }; }
