@@ -1,5 +1,66 @@
 # LETF agent notes
 
+## 2026-11-17 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev (2026-11-17 22:08 UTC), trackers.letf: 18 items, 1 mute, 5 cut, 0 back, 3 changed. This scorecard has the Nov 17 data.
+- rev.all.15m: WATCH, n 115, +0.043% per 15 min, older −0.073%, newer +0.157%. One half is now above 0, so the mute hold (rev.js v9) lets go, as designed: the scanner shows "⤾ reversal" flags again at factor 1 ("positive, not proven"). Nov 17: fade.rev.15m day −0.173% (n 28), so the turns of today held on.
+- rev.hard.15m: CUT, −0.129%, older −0.221%, newer −0.037%. Both halves below 0: the hold keeps HARD flags muted.
+- plan.setup.lean.60m: CUT → MUTE (−0.134%, z −2.1, newer −0.246%). The LEAN gate is already shut.
+- plan.setup.full.60m: CUT (decay), +0.046%, older +0.171%, newer −0.079%. Nov 17: +0.689% (n 2).
+- plan.setup.60m: CUT, −0.087%, newer −0.188%. Exits: target 26 +1.07%, stop 75 −1.04%, time 387 +0.02%.
+- 🚀 by time of day (fast.15m.15m tod): open hour n 49 +0.724%; mid-day n 69 −0.353%; last hour n 4 +0.387%. Alert level (fast.15m.alert tod): open n 33 +0.688%; mid-day n 40 −1.021%.
+- 🚀 walk-forward gate (fast.15m.15m.tgate, open hour chosen on the older half, scored on the newer half): n 18, +0.914%, z 1.78, both halves above 0 (+0.86%, +0.97%). Days: Nov 13 +1.97%, Nov 16 +0.17%, Nov 17 +0.36%.
+- fade.15m.15m (limit fade of 🚀): CUT, −0.336%, both halves below 0. Fading a fast move also loses: the useful reading of a mid-day 🚀 is "do not trade it", not "fade it".
+- fade.fast5m.15m: WATCH → CUT (decay: older +0.39%, newer −0.25%).
+- NEGATIVE EV ON THE PAGE (found today): every 🚀 flag, alert and post had the same text "no proven edge, do not chase" all day. In the test the mid-day 🚀 loses (−0.35% per 15 min; the alert level −1.02%) and the open-hour 🚀 wins on the walk-forward gate. The page did not show this difference.
+
+### Shipped today
+- LETF-Sniper 14fc5fd (index.html inline code; no script file changed, so no ?v= bump): the 🚀 text (scanner flag tooltip, alert list, "Moving fast now" post) reads the time of day of the move, with the same buckets as ev.mjs tod() (open 09:30–10:30, mid 10:30–15:00, close 15:00–16:00 ET).
+  - In a time of day that the .tgate item keeps, with n ≥ 8 and the gate mean, its older half and its newer half all above 0: "in the open hour fast moves held on in the walk-forward test (+0.91% per 15 min, n 18), not proven: limit entry only".
+  - In a time of day that the gate does not keep, with tod n ≥ 8 and tod mean below 0: "mid-day fast moves lost in the test (−0.35% per 15 min, n 69): do not chase".
+  - The alert at 5% / 2.5% uses its own items (fast.15m.alert and .tgate). Other cases: no change ("no proven edge, do not chase"). BACK and MUTE rulings: no change.
+  - Why: priority 1 and 3. It stops a mid-day signal with negative EV from looking the same as the open-hour signal with positive walk-forward EV.
+  - Walk-forward: no new fitted value. The kept windows are the .tgate choice on the older half, scored on the newer half only. The text reads the scorecard each time, so it changes by itself when the windows or the numbers change. The 🚀 push rule (fastPushOn) is not changed: the push stays off (fast.15m.alert newer half −0.32%).
+  - Checks: node --check on all inline scripts OK. Playwright with today's ev.json, clock at Nov 17 09:45, 12:00, 15:30 ET, ?demo, #/f/TSLL and #/f/SOXL: 0 page errors; the text is correct at each time.
+  - Pages build and deployment: success (run 44189275894, 14fc5fd).
+- worker.js not changed. Steven does not need to paste anything.
+
+### Council tasks
+1. Plan crowding (plan.setup.60m.crowd3 / .crowd12 / .hour). crowd3: n 444, −0.105%, older +0.024%, newer −0.235%. crowd12: n 44, +0.104%, older +0.001%, newer +0.207%. On the older half the crowded plans did NOT lose against the 1–2 plans (+0.024% against +0.001%). A limit "at most N plans on one side per signal time" that is fitted on the older half keeps all plans (no limit). Result: no rule. The .hour record has counts and stops per signal time, but no return, so I cannot fit N per size class. Stop share by the largest side per signal time: 1–2 plans 14%, 3–5 12%, 6–8 24%, 9+ 15%: no clear order. 60% of the plans come in signal times with 9+ plans on one side.
+2. Full plans: the newer half stays below 0 (−0.079%). Gate test on the per-day record (gate state from the days before each day): the gate was shut on 1 day only (Nov 17), and on that day full plans made +0.689% (n 2). Open days: +0.060% (n 104). The gate would lose. No gate.
+3. New days (from Nov 16): fast.15m.15m.tgate 2 of 2 positive (+0.17%, +0.36%). fast.15m.alert.tgate 1 of 2 (−0.61%, +0.01%). fade.rev.15m.tgate 1 of 2 (+0.075%, −0.158%).
+
+### Not changed
+- Reversal flags: the hold let go (newer half +0.157%). I did not mute them again: there is no rule that both halves must be above 0 for a WATCH flag, and the flag says "not proven". The halves disagree, so I watch it.
+- Full-plan gate and crowding limit: no walk-forward win (see Council tasks).
+- No stop change (Steven's rule; no stop variant wins walk-forward).
+- 🚀 push: stays off. Fade text for fast moves: no change (fade.15m.15m loses on both halves; the page does not show a fade trade).
+- Shared files and ev.mjs: not edited.
+
+### Lessons for the other agents
+- Read a rule by time of day before you give it one text. Here one 🚀 rule is +0.72% in the open hour and −0.35% mid-day; one sentence for both hides a positive part and a negative part. SOXX agent: your squeeze half hours already do this; check that the page text for each half hour also says it.
+- When the opposite reading also loses (follow and fade of a mid-day 🚀 both lose), the useful instruction is "no trade", not "fade".
+
+### For the council
+- ev.mjs (record only, small): on plan.setup.60m.hour add the plan mean per signal time and side ("mL", "mS"). Then "at most N plans on one side per signal time" can be fitted per size class on the older half. Today the crowd3 / crowd12 split shows no gain on the older half.
+- ev.mjs (record only): add .tgate items per time of day with halves (tod older and newer), for fast.15m.15m and fast.15m.alert, so the mid-day loss can be checked on both halves (today only the full-window tod mean is there; my estimate of the newer-half mid-day mean is about −0.1%, not measured).
+- No shared-file change.
+
+### Backlog
+1. Mid-day 🚀: when tod has halves, show the mid-day loss only while both halves are below 0 (now: full-window mean).
+2. Plan crowding: fit N per size class after "mL"/"mS" are in the hour record.
+3. 🚀 push in the open hour only, after 3 positive new days of fast.15m.alert.tgate (1 of 2 now).
+4. rev.js backtest(): true New York clock for the day split before Mar 14 2027.
+5. Audit leverage and underlying of the fund list against instruments.json (needs the Worker list).
+6. 🚀 threshold per fund kind (fund move ÷ leverage), needs an ev.mjs test first.
+
+### Watch next
+- Pages: a 🚀 flag in the open hour says "held on in the walk-forward test … limit entry only"; a mid-day 🚀 says "lost in the test … do not chase". The text follows the scorecard.
+- fast.15m.15m.tgate: Nov 18 positive (3 of 3 new days). fast.15m.15m tod mid stays below 0.
+- rev.all.15m: does the newer half stay above 0? If both halves go below 0 again, the hold mutes the flags by itself.
+- plan.setup.full.60m newer half; plan.setup.lean.60m stays MUTE (gate shut).
+
 ## 2026-11-16 · LETF agent
 
 ### Evidence
