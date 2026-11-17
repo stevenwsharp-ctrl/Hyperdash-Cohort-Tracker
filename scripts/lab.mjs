@@ -197,7 +197,10 @@ for (const h of [1, 2, 7]) { const steps = []; for (let d = days[0] + 150; d + h
     Object.fromEntries(Object.entries(RS).map(([k, R]) => { const r = R.find(q => q.d === d); return [k, r ? { v: r4(r.v), base: r.base, b: r.b } : null]; }))]));
   for (const r of WROWS[h]) { const past = WROWS[h].filter(q => q.d + h <= r.d).slice(-20).map(q => q.v); if (past.length >= 10 && mean(past) >= 0) S.gate[r.d] = r.v; }
   const first = WROWS[h].length ? WROWS[h][0].d : null, grid = steps.filter(d => first != null && d >= first); if (grid.length < 20) { WFALT[h] = null; continue; }
-  WSER[h] = { S, grid };
+  // filled bets per step and rule (Council task, 2026-11-17): the same rows as S, so the dated record can carry nb per procedure
+  const NB = { cur: Object.fromEntries(RS.cur.map(r => [r.d, r.n])), strict: Object.fromEntries(RS.strict.map(r => [r.d, r.n])), recent: Object.fromEntries(RS.recent.map(r => [r.d, r.n])), gate: {}, none: {} };
+  for (const d in S.gate) NB.gate[d] = NB.cur[d] || 0;
+  WSER[h] = { S, grid, NB };
   const half = Math.floor(grid.length / 2), o = { steps: grid.length, split: new Date(grid[half] * D).toISOString().slice(0, 10), v: {} };
   for (const k in S) { const a = grid.map(d => S[k][d] || 0); o.v[k] = { all: st(a), first: st(a.slice(0, half)), second: st(a.slice(half)), days: grid.filter(d => S[k][d] != null).length }; }
   o.pick = Object.keys(o.v).sort((a, b) => o.v[b].first.m - o.v[a].first.m)[0]; o.pickSecond = o.v[o.pick].second;
@@ -230,7 +233,9 @@ for (const h of [1, 2, 7]) { const W = WSER[h]; if (!W) { WFPICK[h] = null; cont
     o.v[p] = { all: st(v), first: st(v.slice(0, half)), second: st(v.slice(half)), switches: pk.filter((k, i) => i && k !== pk[i - 1]).length, picks: cnt, now: P[p](grid.filter(q => q + h <= lastDay)) }; }
   // the newest step whose exit bar is closed (d + h < lastDay; the last daily bar is still open): one result per procedure, for
   // the dated record (wfHist.pk), so new days can be counted (Cohort agent, 2026-11-15; council task 3)
-  { let j = SD.length - 1; while (j >= 0 && SD[j] + h >= lastDay) j--; if (j >= 0) o.last = { d: new Date(SD[j] * D).toISOString().slice(0, 10), v: Object.fromEntries(Object.keys(R).map(p => [p, Math.round(R[p].v[j] * 1e6) / 1e6])), rule: Object.fromEntries(Object.keys(R).map(p => [p, R[p].picks[j]])) }; }
+  { let j = SD.length - 1; while (j >= 0 && SD[j] + h >= lastDay) j--; if (j >= 0) o.last = { d: new Date(SD[j] * D).toISOString().slice(0, 10), v: Object.fromEntries(Object.keys(R).map(p => [p, Math.round(R[p].v[j] * 1e6) / 1e6])), rule: Object.fromEntries(Object.keys(R).map(p => [p, R[p].picks[j]])),
+    // nb: the filled bets behind each procedure's value on that step (0 = no setup); ev.mjs reads it as lab.pickday.*.bets
+    nb: Object.fromEntries(Object.keys(R).map(p => [p, (W.NB[R[p].picks[j]] || {})[SD[j]] || 0])) }; }
   o.det = WDET[h] || null; WFPICK[h] = o;
   log("pick procedures", h + "d", Object.entries(o.v).map(([p, x]) => `${p} all ${(x.all.m * 100).toFixed(3)}% 1st ${(x.first.m * 100).toFixed(3)}% 2nd ${(x.second.m * 100).toFixed(3)}% t ${x.all.t.toFixed(1)} sw ${x.switches} now ${x.now}`).join(" | ")); }
 // Gate (same rule as the Outlook gates): a horizon whose walk-forward setups lost on BOTH halves (10+ days) gets no setup
