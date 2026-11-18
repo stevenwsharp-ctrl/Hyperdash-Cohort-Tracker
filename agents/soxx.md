@@ -1,5 +1,61 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-18 · SOXX agent
+
+### Evidence
+- Scorecard: ev.json t = 2026-11-18T22:14:27Z (with Nov 18 data). SOXX: 163 items, 11 muted, 10 cut, 8 backed, 3 changed. Changes: bot.spot.live BACK → WATCH (+0.31 %, n 20, z 1.85); half.funds.sqz.2 (10:30–11:00) WATCH → CUT (+0.44 %, newer half −0.04 %); live.both.2 WATCH → CUT.
+- Negative EV: the 9 muted ideas (brk, pull, rsi, mom on spot and funds; brk, pull, mom on funds z −7 to −27). idea.spot.vrev stays CUT (newer half −0.00 %). half.spot.vrev.5, .9 and half.spot.sqz.5 MUTE. Stop exits stay negative on all 3 bots (record only).
+- Paper bots Nov 18 (bots branch 21:02 UTC): live trades: spot 1 (META vrev 10:36 ET, −$0.74); letf 1 (TECS sqz 10:24 ET, +$18.77); both 2 (the same two, +$18.03). Runs 02:27, 07:52, 13:17, 18:58 UTC: success. The 21:01 run sleeps (relay). EV rules read: 28. No errors.
+- Big swings Nov 18: caught 0 of 30 (replay 0).
+- Data problem: bot.<bot>.live in ev.mjs reads only the last 60 trades in bots.json (live and replay mixed). The replay trades push old live trades out: spot live n went 21 → 20 with 1 new live trade. The spot bot has 51 live trades (+$127, +0.25 % per trade). The BACK → WATCH change of bot.spot.live is mostly the window, not a loss. See "For the council".
+
+Council task 1 (vrev after the unmute):
+- Nov 18 live vrev trades: spot 1 (META −$0.74), letf 0, both 1 (META −$0.74). Replay (bt): funds TZA vrev +$2.54.
+- Walk-forward of the governor mute rule on the dated record (each day decided only with the days before it; pooled trade mean and trade z, as ev.mjs): on this record vrev stays muted on every day (pooled mean below 0 to Nov 18: spot −0.018 %, funds −0.050 %). The ev.mjs arms (a longer memory) took the mute off; the dated record would not. But the loss is all in Oct 29 – Nov 2: from Nov 3 to Nov 18 vrev is positive (spot +0.11 % per trade, 7 of 12 days above 0; funds +0.15 %, 6 of 11 days). Nov 18 after the unmute: spot +0.08 %, funds +0.29 % per trade. Result: the unmute does not lose on the newer days. No guard request today. The day z is low (spot about +0.6): it is "not proven", as the scorecard says.
+- Split by market state (ctx record, Nov 9 – Nov 18): the funds vrev loss is in state d0o0 (no capitulation). See "Shipped today".
+
+Council task 2: the Nov 18 02:27 run log says "dated record: 7 past days filled". dated.json has ctx| keys on Nov 9 – Nov 18. The skip| keys of Nov 16 and Nov 17 are the same as in my Nov 17 note (Nov 16: letf muted 7 fills +$15.8, both 16 fills +$16.9, spot 9 fills +$1.1, time 2 fills −$7.2; Nov 17: spot 136 fills +$1,191, letf 92 +$1,783, both 239 +$3,162). Note: the bots branch has one commit only, so I compared with my note, not with the old file.
+
+Council task 3: I read the 22:14 UTC scorecard (above), fetched after my push.
+
+### Shipped today
+- 7ee461a (scripts/bots.mjs, botcard.js v12, index.html): the 2×/3× bots (letf and both) skip a VWAP snap-back (vrev) signal in state d0o0: not 2σ+ under VWAP with RSI ≤ 30, and the day not down 3 %+ (ctxTag; limits written Nov 16, before the test days). The skipped signals go into the dated skip record as "state", so the gate keeps its own score. The bot card names the gate in "Gates now", "Skipped today" and "What the gates blocked". Spot is not gated.
+  - Why: vrev came back (WATCH) after one big day. In the funds the loss is in d0o0 and the gain is in the capitulation states.
+  - Walk-forward (dated ctx record, per version; d0o0 = all-state key minus the rare-state keys). Fit on the older days Nov 9–13: 1 ATR tim d0o0 −0.10 % (n 19) vs other states +0.31 % (n 39); 0.5 ATR tim −0.24 % vs +0.27 %. Check on the newer days Nov 16–18: 1 ATR tim d0o0 −0.68 % (n 22) vs +1.36 % (n 97); 0.5 ATR tim −0.97 % vs +1.18 %. All 5 funds vrev versions: d0o0 is below the other states in both halves. All versions pooled, day means of d0o0: older −0.13 %, newer −0.43 %. Spot fails the fit (older half d0o0 −0.08 % vs other states −0.21 %), so no spot rule.
+  - Limits: the sample is small (about 40 d0o0 trades per version) and the day z of d0o0 is about −1.4. The gate removes trades from an unproven idea only; it adds no trade and no new fitted number.
+  - Checks: node --check (bots.mjs, botcard.js); tests/engines.test.mjs ALL PASSED; a unit check of gate() and ctxTag() (L vrev d0o0 → "state"; d1o1, d0o1, spot and sqz → no skip); a mock run with the real state.json (no error); Playwright on index.html and mastermind/ with the real bots.json: 0 page errors, the gate text shows. Pages build and deployment: success (run 44409581790). The push run of Paper bots waits behind the relay; the next run uses 7ee461a.
+
+### Not changed
+- Spot vrev: no state gate (the fit fails on the older half).
+- Muted rsi on funds: Nov 17 +0.92 %, Nov 18 +0.82 % per trade, but z −6 over all trades. No unmute. The ctx state d1o1 for rsi is positive (+0.89 % funds, +1.03 % spot) only from Nov 17; wait.
+- Stops: no change (Steven's rule; no new evidence).
+- Funds 11:30 and later: the time gate already shuts 11:30–2:30 for funds.
+
+### Lessons for the other agents
+- A mute can come off because of a long memory, not because the idea improved. Compare the scorecard memory with a dated walk-forward before you trust or fight an unmute. Here the dated record showed that vrev turned positive from Nov 3, not only on Nov 17.
+- Split a returned idea by the market state at the signal. The loss can sit in one state and the gain in another.
+- A "live" score that reads a fixed window of mixed trades can fall when nothing lost. Read the n before you read the ruling.
+
+### For the council
+- ev.mjs (data fix, please): bot.<bot>.live reads trades from bots.json, which keeps only the last 60 trades (live and replay mixed). Score live trades from all live trades (bots.json bots.<bot>.all has n and usd only; state.json bots.<bot>.trades has every trade with bt = 0). Today spot has 51 live trades, the item sees 20.
+- ev.mjs (record only, when 5+ days): score skip.<bot>.state (the new gate) by day, as for muted and time. If the blocked fills are positive on the newer days, I remove the gate.
+- ev.mjs (as asked Nov 17): ctx.<class>.<idea>.<state> items, now 8 days (Nov 9 – Nov 18).
+- No shared-file change today.
+
+### Backlog
+1. Read skip|letf|state and skip|both|state each day. Remove the gate if the blocked fills are above 0 over 5+ new days.
+2. ctx d1 states for rsi and vrev on spot: walk-forward at 5+ days after Nov 16 (Nov 23).
+3. Crowded half hours on funds (replay crowd 3+ −$1.73 per trade): test "at most N funds positions opened in one half hour" walk-forward.
+4. MAXPOS 3 against 5: skip|both|full and a walk-forward check.
+5. Live stop exits again at 30+ post-Nov-7 stops per bot.
+6. Version choice by half hour against the version score alone (15+ days in dated.json).
+
+### Watch next
+- Nov 19 bots log: no error; skipn|letf|state and skipn|both|state keys appear when a funds vrev signal in d0o0 comes.
+- Funds vrev live trades only in states d1 or o1.
+- arm.L.vrev.1.tim and 0.5.tim stay BACK (the shadow record still trades every state).
+- bot.letf.live and bot.both.live newer half stays above 0.
+
 ## 2026-11-17 · SOXX agent
 
 ### Evidence
