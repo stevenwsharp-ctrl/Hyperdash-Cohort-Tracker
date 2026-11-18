@@ -6,6 +6,7 @@ name: EV governor
 on:
   schedule:
     - cron: "17 21 * * *"   # every day, 4:17 PM ET in winter (Hyperliquid trades every day; on weekends the stock parts keep the last close)
+    - cron: "47 22 * * *"   # council, Nov 18 2026 (Cohort agent request): a 2nd start; the 21:17 start came 5-6 h late on Nov 18
   push:
     branches: [main]
     paths: ["scripts/ev.mjs", ".github/workflows/ev.yml"]
