@@ -1,5 +1,46 @@
 # Council notes (newest first)
 
+## 2026-11-18 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live. The 2×/3× bots (letf, both) skip a VWAP snap-back (vrev) signal when the market is not at a capitulation (state d0o0). Walk-forward: fitted on Nov 9–13, checked on Nov 16–18; d0o0 lost in both halves (newer half −0.68 % and −0.97 % per trade against +1.36 % and +1.18 % in the other states). Spot is not gated (the fit failed). Pages build: success. Council fix (live): the bots keep the last good scorecard rules; if the scorecard cannot load, no muted idea trades.
+- Cohort Sniper: yes, live. The 24 h Lab setup goes into the signal web only after this visit loads the scorecard. The Lab tab shows MUTE / CUT / BACK for each idea and for the live setup rule (today: 7 d setups CUT). Council fix (live): a setup whose factor goes to 0 now leaves the signal web at once. Pages build: success.
+- LETF Sniper: yes, live. The mid-day 🚀 text "lost in the test" shows only while both test halves lose. No 🚀 push before the scorecard loads. Pages build: success.
+
+### Scoreboard (ev.json 23:29 UTC, Nov 18 data)
+- SOXX: 11 muted, 10 cut, 9 backed. Gain: spot bot live trades +0.25 % per trade (n 51, z 2.8, BACK; now scored on all live trades, see "Changes I made"); funds vrev 10:30–11:00 ET BACK. Loss: 9 muted ideas (brk, pull, rsi, mom; z −7 to −27); funds squeeze 10:30–11:00 ET went WATCH → CUT (newer half −0.04 %). Paper bots Nov 18: spot 1 trade (META vrev −$0.74); letf 1 (TECS squeeze +$18.77); both 2 (+$18.03). Big swings caught: 0 of 30. All bot runs: success.
+- Cohort: 2 muted, 21 cut, 6 backed. Gain: cohort score 20–70, +1.25 % to +1.49 % per 24 h (BACK). Live 24 h rule "recent" went CUT → WATCH (newer half +0.11 %). Loss: 7 d setups went to CUT (older +2.49 % → newer −0.45 %, n 18); lab.young-small.1d MUTE (lab weight 0, no live effect).
+- LETF: 3 muted, 4 cut, 0 backed. Loss: 🚀 alert went WATCH → MUTE (−0.63 % per 15 min, both halves below 0); open-hour 🚀 gate went WATCH → CUT (−0.76 %, n 21). Without Nov 18 the gate is +0.97 %: one day made this. Mid-day 🚀 loses in both halves. Gain: none proven; 🚀 fade went CUT → WATCH (newer half +0.43 %).
+
+### Agents
+- SOXX agent: ran, very good work. It did all 3 council tasks. The vrev test on the dated record was correct: the long scorecard memory took off the mute, but vrev is positive from Nov 3 on. The state gate was fitted on older days and checked on newer days, adds no trade and keeps its own skip score. Checks passed (node --check, engines test, mock run, Playwright). It found a real data fault in ev.mjs (live score read only 60 mixed trades). I fixed it.
+- Cohort agent: ran, good work. It fixed the leak from yesterday (no web emit before the scorecard loads) and tested it with a slow and a failed scorecard. It started the late EV governor by hand. Correct "no change" on 7 d (n 18, not proven negative).
+- LETF agent: ran, very good work. It found negative EV on the page: a 🚀 push could go out before the scorecard loaded, also for a muted alert. It made push OFF by default. Correct "no rule" on plan crowding (signal counts are not fills).
+- My checks: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright 0 page errors on SOXX, Mastermind, Cohort (main, #lab), LETF (live, ?demo, #/f/SOXL). The 16 shared files are the same in all repos. All pages builds: success. Order rules kept by all (limit entries, no stop change, same bet size, Schwab-only, long-only). No revert.
+- Yesterday's "Watch next": SOXX ctx keys filled for Nov 9–18, skip keys not changed (yes). Cohort pickday has bets on the Nov 16 step date (yes). LETF open-hour gate 3 of 3 new days (no: Nov 18 −2.06 %, gate now CUT). vrev after the unmute: spot −$0.74 on 1 live trade; the newer days stay positive; the funds loss is in state d0o0 (now gated).
+
+### Lessons shared
+- Default OFF when the scorecard is not loaded (LETF). The same fault was in the paper bots: a failed fetch made all muted ideas trade at full size. I fixed it today. All agents: check each part that trades, pushes or votes for this case.
+- Split a returned idea by market state (SOXX). The loss of funds vrev is in d0o0; the gain is at a capitulation. LETF agent: test the 🚀 fade and follow rules by the same state (deep under VWAP, day down 3 %+).
+- One day can make or break a gate (LETF). Read each ruling with and without the newest day before you act on it. The scorecard now gives per-day results for every time of day on the .tgate items (daysTod).
+- Read the n before the ruling (SOXX). A window of mixed trades can fall when nothing lost.
+
+### Tasks for tomorrow
+- SOXX agent: 1) Read skip|letf|state and skip|both|state in the Nov 19 dated record; report the blocked fills. 2) Check the Nov 19 bots log for "EV rules: 29" (normal fetch) and that state.json now has evf. 3) bot.spot.live is BACK on all 51 live trades: tell me if any page or bot text must show it.
+- Cohort agent: 1) Check that the Lab withdraws lab.setup from the web (Web.clear) when the 1 d factor is 0 (test with a scorecard where lab.rule.1d.recent is MUTE). 2) Report if the 22:47 UTC EV governor start came on time. 3) If lab.setup.7d stays CUT on Nov 19 and Nov 20, start backlog 3 (7 d gate walk-forward).
+- LETF agent: 1) plan.setup.60m.hour now has fL / fS: redo the crowding test weighted by fills (older half fit, newer half check). 2) Use daysTod on fast.15m.15m.tgate and fast.15m.alert.tgate: mid-day per day, is the loss one day or many? 3) Count new days for the open-hour gate (now CUT; Nov 19 decides "one-day loss" or "edge gone").
+
+### Changes I made
+- SOXX-Sniper 80d5ecf, Hyperdash-Cohort-Tracker 993203b, LETF-Sniper a0b62ee: shared web.js v21. Web.emit(id, a, 0) or Web.clear(id, a) removes the old vote at once (before: up to 1 h). Cohort bets.js v10 calls it for lab.setup when the factor is 0.
+- Hyperdash-Cohort-Tracker 5d54d23 (scripts/ev.mjs, ev.yml): bot.<bot>.live reads all live trades in state.json (spot n 20 → 51). plan.setup.60m.hour gets fL / fS. .tgate items get daysTod. A 2nd daily EV governor start at 22:47 UTC. Offline run with the branch files: only the 3 bot.live items changed. The EV governor ran on the push (success, 23:29 UTC).
+- SOXX-Sniper d461dcf (scripts/bots.mjs): the bots save the last good scorecard rules; with no scorecard and no saved rules, the live bots trade no idea. Mock runs: both paths OK. No change when the fetch works.
+- No revert.
+
+### What Steven should know
+- Nothing to paste. No Worker change.
+- The 2×/3× paper bots now take the VWAP snap-back only at a capitulation (deep under VWAP with RSI ≤ 30, or the day down 3 %+). The spot bot is not changed.
+- LETF: the open-hour 🚀 edge is CUT after one bad day (Nov 18). The page now says "no proven edge, do not chase" in the open hour. Push alerts stay off.
+
 ## 2026-11-17 · Council
 
 ### Shipped today
