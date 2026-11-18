@@ -41,6 +41,7 @@
     // scorecard gave factor 1 (or an old factor) first, and the web keeps an emitted value for up to 1 h even if the factor becomes 0.
     try { if (window.Web) for (const [c, p] of Object.entries(F.prof)) { const a = p.s, S = p.setups && p.setups[1];
         if (S && S.side && evLive && evF > 0) Web.emit("lab.setup", a, evF * Math.max(-1, Math.min(1, S.lean * 2)), "Lab · 24 h setup (hypotheses that held up)" + (evF !== 1 ? ` · EV governor ×${evF}` : ""));
+        else if (evLive && Web.clear) Web.clear("lab.setup", a);   // council Nov 18: factor 0 or no setup → withdraw the old vote now
         if (p.stage === 2 || p.stage === 4) Web.emit("life.stage", a, p.stage === 2 ? 0.6 : -0.6, "Life cycle · trend stage (2 advance +, 4 decline −)");
         if (p.athD != null) Web.emit("life.ath", a, Math.max(-1, Math.min(1, 1 + p.athD * 2)), "Life cycle · distance from the all-time high");
         if (p.relZ != null) Web.emit("peer.rs", a, Math.max(-1, Math.min(1, p.relZ / 2)), "Peers · 30-day strength vs its industry");

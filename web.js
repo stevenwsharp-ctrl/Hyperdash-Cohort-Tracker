@@ -78,10 +78,18 @@
   const reload = () => { const f = lsG(KEY, null); if (f && f.v === 2 && f.at >= D.at) D = fix(f); };
 
   function emit(id, asset, v, label) {
-    if (!isFinite(v) || !id) return; v = Math.round(c1(v) * 100) / 100; if (!v) return;
-    const add = (a, val) => { (LIVE[a] = LIVE[a] || {})[id] = { v: val, t: Date.now() }; };
-    const a = norm(asset); add(a, v); if (SEMIS[a]) add("SEMIS", v * SEMIS[a]);
+    if (!isFinite(v) || !id) return; v = Math.round(c1(v) * 100) / 100;
+    // Council, Nov 18 2026 (Cohort agent request): a value of 0 withdraws this part's signal on this asset now (before, the old
+    // value stayed up to 2 × BUCKET, so a part whose EV factor went to 0 kept its old vote). The SEMIS copy is removed only when
+    // this asset wrote it last. Web.clear(id, asset) does the same.
+    if (!v) return clear(id, asset);
+    const add = (a, val, src) => { (LIVE[a] = LIVE[a] || {})[id] = { v: val, t: Date.now(), src }; };
+    const a = norm(asset); add(a, v); if (SEMIS[a]) add("SEMIS", v * SEMIS[a], a);
     if (label && LABEL[id] !== label) { LABEL[id] = label; lsS("web_labels", LABEL); }
+  }
+  function clear(id, asset) {
+    if (!id) return; const a = norm(asset); if (LIVE[a]) delete LIVE[a][id];
+    if (SEMIS[a] && LIVE.SEMIS && LIVE.SEMIS[id] && LIVE.SEMIS[id].src === a) delete LIVE.SEMIS[id];
   }
   const price = a => { for (const f of PRICE) { try { const p = f(a); if (p > 0) return p; } catch (e) { } } if (a === "SEMIS") return price("SOXX") || price("SOXL"); return null; };
   const feats = a => { const L = LIVE[a] || {}, now = Date.now(), x = {}; for (const [k, o] of Object.entries(L)) if (now - o.t < 2 * BUCKET) x[k] = o.v; return x; };
@@ -451,6 +459,6 @@
     return `<span style="font:12px var(--mono)">Signal web P(up): 30m ${pp(F.ph[0.5])} · 1h ${pp(F.ph[1])} · 4h ${pp(F.ph[4])} · 24h ${pp(F.ph[24])}${F.ready ? "" : ` <span style="opacity:.6">(learning, ${F.n}/100)</span>`} · <b title="Black widow: strike only in confidence bands that paid (56%+ over 30+ calls)">${F.strike ? "🕷 STRIKE" : "wait"}</b>${F.tug && F.tug.t >= 0.75 ? ` · <span title="Strong signals pull hard both ways (gross ${F.tug.gross.toFixed(1)}, net ${F.tug.net.toFixed(1)}): the forces are in balance — tension builds, but no side leads">⚖ tug of war</span>` : ""}${F.shock ? ` · <span title="Mongoose: the last 30 calls missed often; relearning fast">⚡ shock</span>` : ""} · drivers: ${F.contrib.slice(0, 3).map(c => `${c.label} ${c.c >= 0 ? "+" : ""}${c.c.toFixed(2)}`).join(", ")}</span>`;
   }
   setInterval(() => { try { reload(); labRun(); } catch (e) { } }, 120000); setTimeout(() => { try { labRun(); } catch (e) { } }, 40000);
-  window.Web = { emit, tick, ingest, forecast, forecastHtml, render, nodes, edges, stats, discover, workingHtml, cycles, lab: () => labRun(), addPrice: f => PRICE.push(f), data: () => D };
+  window.Web = { emit, clear, tick, ingest, forecast, forecastHtml, render, nodes, edges, stats, discover, workingHtml, cycles, lab: () => labRun(), addPrice: f => PRICE.push(f), data: () => D };
   setInterval(tick, 60000); setTimeout(tick, 15000);
 })();
