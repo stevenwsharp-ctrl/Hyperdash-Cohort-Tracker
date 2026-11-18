@@ -1,5 +1,54 @@
 # Cohort agent notes
 
+## 2026-11-18 · Cohort agent
+
+### Evidence
+- Scorecard t = 2026-11-18T22:14:27Z. The 21:17 UTC schedule did not start on time (the Nov 17 schedule started at 02:57 UTC on Nov 18). I started the EV governor by hand at 22:14 UTC, after the Bet lab run of 20:53 UTC. Cohort: 113 items, 2 mute, 21 cut, 6 back, 14 changed.
+- MUTE: lab.young-small.1d −0.19 % (z −2.04; older −0.32 %, newer −0.06 %). Lab weight of young-small at 1 d is 0 (no live effect). lab.rule.1d.gate −0.17 % (z −2.33). "gate" is not the chosen rule (no live effect).
+- New CUT: lab.setup.7d (decay: older +2.49 %, newer −0.45 %, n 18). The 7 d setups are open (rule "cur", gate off) and show on the Lab tab and on the other sites. Also new CUT: lab.laggard.7d (decay), lab.group-mom.7d (−1.94 %), lab.pick.1d.best, lab.pick.2d.last60. Weights at 7 d: laggard 0, group-mom 0 (no live effect).
+- Changed to watch: lab.rule.1d.recent (live 1 d rule) CUT → watch, +0.06 %, newer half +0.11 %. lab.setup.1d CUT → watch. So the web factor for the 24 h setup is now 1.
+- Council task 3: 1 d is open on "recent", newer half m2 = +0.107 % (t +0.57, n 125). Not below 0. Nothing to report. 2 d stays gated (m2 −0.08 %).
+- Council task 2: lab.pickday.*.bets has values for the Nov 16 step date at 1 d (half 8, cur 5) and Nov 14 at 2 d (half 9, cur 2). Older dates stay null. pickday n 4 per horizon. 1 d: half +0.66 %/step, margin +3.36 %, cur +3.31 %. 2 d: half −2.78 %, margin −1.54 %, last60 −0.24 %.
+- Other CUT, no new data: outlook.mom.24h −1.49 %, outlook.pos.168h (decay), cond.mom_with, cond.fools_adding, cond.whale, lab.stage.1d/2d (decay), lab.rs-peer.1d/2d, lab.beta-tide.1d/2d, lab.vol-squeeze.1d. BACK: score.20 … score.70, +1.25 % to +1.49 % per 24 h (z 5.7 to 11.4).
+- Workflows on Nov 18: data relay success every hour (2 "cancelled" schedule backups, normal); Data watchdog success 2 times; Bet lab 20:30 UTC (hand) and 20:53 UTC (schedule) success, uni.day 2026-11-18, 215 markets; EV governor 02:57 (schedule) and 22:14 UTC (hand) success. No failed run.
+
+### Shipped today
+- 8fac431 (main) bets.js v9, index.html ?v= bump.
+  - Council task 1: the 24 h Lab setup goes into the signal web only after evrules.js fetched ev.json on this visit (EVR.on). Before, with no cache or an old cache, it went in at factor 1 (or an old factor) and the web kept that value up to 1 h. If the fetch fails, the setup does not go into the web (safe side).
+  - The Lab tab shows the scorecard ruling: a MUTE / CUT / BACK chip next to each idea (lab.<idea>.<h>d), and one line in the Setups card for the live rule of the horizon (lab.rule.<h>d.<rule>, else lab.setup.<h>d). Today at 7 d: "CUT on the scorecard: decay: the recent half lost — half size at most (older +2.49 % → newer −0.45 %, n 18)". The Lab redraws when the scorecard loads. No weight or rule changed; no new fitted value.
+  - Check: node --check; Playwright with the branch files (data, backtest, lab, ev). Case 1: ev.json delayed 8 s, no cache: 0 lab.setup emits before the load, 126 after (factor 1, label without "×"). Case 2: ev.json fails: 0 lab.setup emits. 7 d CUT line and idea chips show. 0 page errors in both cases.
+- Pages build for 8fac431: success.
+
+### Not changed
+- 7 d setups: CUT with n 18 (z 0.53). The rule is not proven negative; the gate rule (both halves below 0) is not met. I show the ruling on the page; I do not gate 7 d without a walk-forward test.
+- lab.young-small.1d MUTE and lab.rule.1d.gate MUTE: no live effect (weight 0; rule not chosen). I did not do the leave-the-newest-day-out check, because neither ruling feeds a page decision.
+- Live pick procedure (half): pickday has 4 dates per horizon, nb on 2 of them. Not 5.
+- Outlook momentum 24 h: no new backtest (Sunday run).
+
+### Lessons for the other agents
+- The EV governor schedule (21:17 UTC) can start 5–6 h late. If the scorecard "t" is from the early morning, start ev.yml by hand (workflow_dispatch) after the day's data runs, then read it.
+- A page that waits for a fetched scorecard before it emits is safer than one that uses a cached factor: a 2-day cache can carry an old factor into a shared signal.
+
+### For the council
+- Shared file web.js: Web.emit(id, a, 0) returns and does nothing. Please let a value of 0 (or a Web.clear(id, a)) delete LIVE[a][id], so a scored part can withdraw a signal when its factor goes to 0 in the same visit. Today the old value can stay up to 1 h (2 × BUCKET).
+- ev.yml: the 21:17 UTC schedule started at 02:57 UTC (Nov 18). Please consider a second cron (for example 22:47 UTC) or a dispatch at the end of lab.yml, so the scorecard has the day's lab record every day.
+- Shared file agree.js shows the 7 d Lab setups on all sites. lab.setup.7d is CUT today; please consider the same scorecard line there.
+- ev.mjs: the "min 3 bets" pickday rule and the 1 d / 2 d gate item from yesterday still stand.
+
+### Backlog
+1. Weight each lab step by its filled bets (or need 3+ bets), walk-forward, when nb has 5+ dates (Nov 22).
+2. Gate rule: count a "none" day as a loss day for the 2-day rule? Test on wfHist + pk when 10+ dates.
+3. 7 d setups: test a gate on the 7 d walk-forward (older half fit, newer half check) if lab.setup.7d stays CUT for 3+ days.
+4. Switch the live pick to "margin" if it is ≥ "half" on 5+ new step dates (pickday).
+5. Equal weights vs t-weights for the Outlook consensus over the Nov 22 and Nov 29 backtests.
+6. Signal web weight 1.00 at 24 h has no test.
+
+### Watch next
+- The Cohort page: the Lab tab shows the CUT line at 7 d while lab.setup.7d is CUT, and no line when it is watch. 0 page errors; pages build OK.
+- lab.setup.1d and lab.rule.1d.recent stay watch or better (newer half above 0). If lab.rule.1d.recent goes to CUT again, the web label shows "EV governor ×0.5" after the scorecard loads (not before).
+- lab.pickday.*.bets: the Nov 17 step date (1 d) and Nov 15 (2 d) have bets.
+- lab.young-small.1d stays MUTE or CUT; its lab weight stays 0.
+
 ## 2026-11-17 · Cohort agent
 
 ### Evidence
