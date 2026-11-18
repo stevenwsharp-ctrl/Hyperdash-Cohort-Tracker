@@ -1,5 +1,59 @@
 # LETF agent notes
 
+## 2026-11-18 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev, t 2026-11-18T22:14:27Z (has the Nov 18 data). trackers.letf: 18 items, 3 mute, 4 cut, 0 back, 5 changed.
+- fast.15m.alert: WATCH → MUTE (−0.63% per 15 min, n 83, z −2.09; older −0.33%, newer −0.93%). fast.15m.alert.tgate (open hour): MUTE, −1.42%, n 17. Nov 18 open hour alone: −2.31% (n 11). Without Nov 18 the gate is +0.23% (n 6). One day made this mute, but both halves of the full item are below 0, so the mute is fair.
+- fast.15m.15m.tgate (open-hour 🚀 gate): WATCH → CUT, −0.76%, n 21. Nov 18: −2.06% (n 12). Without Nov 18: +0.97% (n 9). New days: 2 of 3 positive (Nov 16 +1.45%, Nov 17 +0.36%, Nov 18 −2.06%).
+- fast.15m.15m.todH (new): open older +0.49% / newer −0.76%; mid older −0.62% / newer −0.18%. Mid-day 🚀 loses on both halves.
+- fade.15m.15m: CUT → WATCH (−0.05%, older −0.53%, newer +0.43%; Nov 18 +1.50%, n 8). Not proven.
+- rev.all.15m: WATCH, +0.044%, older −0.07%, newer +0.16%. rev.hard.15m: CUT, both halves below 0 (the rev.js hold keeps HARD flags muted).
+- Plans: plan.setup.60m CUT (−0.08%, newer −0.19%); full CUT (decay; +0.07%, newer −0.002%); LEAN MUTE (gate shut). Full plans with no stop: +0.08%, both halves above 0 (record only).
+- NEGATIVE EV ON THE PAGE (found today): fastPushOn() returned "push" while the scorecard was not loaded (first visit, or no cache for 2 days). In that gap the page could push a 🚀 alert on the phone or desktop, also now that fast.15m.alert is MUTE.
+
+### Shipped today
+- LETF-Sniper 87ac8ca (index.html inline code; no script file changed, so no ?v= bump):
+  1. Council task 1. The mid-day text "lost in the test … do not chase" shows only while BOTH halves of that time of day lose (fast.15m.15m.todH o and r below 0). The text gives the two halves. Without todH the old rule applies. No new threshold. Today: mid-day text stays (−0.61% / −0.18%). The open hour now says "no proven edge, do not chase" by itself, because the open-hour gate went below 0.
+  2. No 🚀 push before the scorecard is loaded. The alert stays in the list with "not pushed: the test scorecard is not loaded yet".
+- Checks: node --check on all inline scripts OK. Playwright with the Nov 18 ev.json, clock at 09:45, 12:00, 15:30 ET, ?demo, #/f/TSLL, #/f/SOXL, and with no scorecard (live and ?demo): 0 page errors; texts and push state correct.
+- Pages build and deployment: success (run 44410811190, 87ac8ca).
+- worker.js not changed. Steven does not need to paste anything.
+
+### Council tasks
+1. todH text: done (above).
+2. Plan crowding with mL / mS (plan.setup.60m.hour, 88 signal times, 18 days; older = Oct 26 – Nov 5). Rule "skip a side with more than N signals at one signal time", fitted on the older days: best N 10 (older +0.25% against +0.17% for all), newer +0.16% against +0.11%. BUT the weights are signal counts, not fills: the signal-weighted mean of all plans is +0.14%, the true item mean is −0.08%. One-side signal times weighted by fills give −0.13%. The test is not reliable, so no rule. Per size class the means jump (5 signals: −0.41% / −0.47%; 8: +0.74% / +1.25%): no order. Request below.
+3. New days for fast.15m.15m.tgate: 2 of 3 positive (Nov 18 −2.06%). The gate is now CUT; the page reads it by itself.
+
+### Not changed
+- Open-hour 🚀: no new text. The page already falls back to "no proven edge" when the gate mean or one gate half is below 0. I did not add a "fade" text: fade.15m.15m is positive only on the newer half.
+- 🚀 alert MUTE: text already "fast moves tended to come back: do not chase"; push was already off (newer half below 0).
+- Reversal flags, plans, stops: no change (no walk-forward win; Steven's stop rule).
+- Shared files, ev.mjs and worker.js: not edited.
+
+### Lessons for the other agents
+- A part that can push or trade must default to OFF until the scorecard is loaded. A default of "on" leaks a muted rule in the load gap (same family as the Cohort lab.setup leak). SOXX agent: check what the bots and the page alerts do when ev.json cannot load.
+- One day can make a gate (Nov 18 open hour: +0.97% without it, −0.76% with it). Read the gate with and without the newest day before you build on it.
+- Signal counts are not fills. A crowding test weighted by signals gave the wrong sign of the total.
+
+### For the council
+- ev.mjs (record only): on plan.setup.60m.hour add the filled plans per side (fL, fS). Then the crowding test can weight mL / mS by fills.
+- ev.mjs (record only): fast.15m.15m.tgate and fast.15m.alert.tgate with the days field per time of day also for the left-out windows, so the "one day" check is possible for mid-day.
+- No shared-file change.
+
+### Backlog
+1. Plan crowding: fit N per size class when fL / fS are in the hour record.
+2. 🚀 push in the open hour only after 3 positive new days of fast.15m.alert.tgate (now MUTE; 1 of 3).
+3. rev.js backtest(): true New York clock for the day split before Mar 14 2027.
+4. Audit leverage and underlying of the fund list against instruments.json (needs the Worker list).
+5. 🚀 threshold per fund kind (fund move ÷ leverage), needs an ev.mjs test first.
+
+### Watch next
+- Pages: with no cached scorecard, a 🚀 alert says "not pushed: the test scorecard is not loaded yet". Mid-day 🚀 text shows both halves.
+- fast.15m.15m.tgate Nov 19: is it positive again (one-day loss) or below 0 (the open-hour edge is gone)?
+- fast.15m.15m.todH mid: both halves stay below 0. fast.15m.alert stays MUTE.
+- fade.15m.15m: does the newer half stay above 0?
+
 ## 2026-11-17 · LETF agent
 
 ### Evidence
