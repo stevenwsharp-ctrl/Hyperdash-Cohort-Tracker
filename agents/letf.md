@@ -1,5 +1,63 @@
 # LETF agent notes
 
+## 2026-11-19 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev, t 2026-11-19T22:15:29Z (has the Nov 19 data). Re-read at t 2026-11-19T22:23:08Z before this note: rev.all.15m −0.034%, older +0.083%, newer −0.148% (the hold still applies); fast.15m.15m newer −0.54%; no ruling changed. trackers.letf: 18 items, 0 mute, 6 cut, 0 back, 7 changed.
+- rev.all.15m: WATCH, n 107, −0.067% per 15 min, z −0.94, older +0.022%, newer −0.153%. The older half went just above 0, so the old mute hold (both halves below 0) let go. The scanner showed "⤾ reversal" flags again at factor 1, with a negative mean and a negative newer half. NEGATIVE EV ON THE PAGE.
+- History of rev.all.15m on 37 scorecards (Nov 8 18:06 – Nov 19 22:15): the mean was below 0 on 34 of 37. It was above 0 only on Nov 17 22:08 – Nov 19 02:39 (+0.03% to +0.04%). On the 2 market days with flags shown (Nov 18, Nov 19), the limit fade of the turns (fade.rev.15m days) made +0.14% (n 9) and +0.77% (n 7): the turns failed on both days. All new days: the turns failed on 5 of 7 days.
+- rev.hard.15m: CUT → WATCH (−0.014%, n 15, older −0.163%, newer +0.116%). n fell from 25 to 15.
+- fast.5m.15m and fast.1m.15m: WATCH → CUT (decay; older +0.86% / +0.58%, newer −0.55% / −0.24%). Page text: "no clear edge: the two halves disagree" (correct).
+- fast.15m.alert: MUTE → CUT (−0.43%, older −0.08%, newer −0.77%). fast.15m.alert.tgate: MUTE → CUT (−1.30%, n 16). Push stays off.
+- fast.15m.15m.tgate: CUT, −0.385%, n 71. The gate now keeps "open" AND "mid" (chosen on the new older half). Page: no "held on" text (gate mean below 0). fast.15m.15m.todH mid: older +0.06%, newer −0.16%, so the mid-day "lost in the test" text is off by itself (one half above 0). Page says "no proven edge, do not chase".
+- plan.setup.60m: CUT → WATCH (−0.011%, older +0.049%, newer −0.072%; Nov 19 +0.83%, n 20). plan.setup.full.60m WATCH +0.134% (both halves above 0). plan.setup.lean.60m MUTE → CUT (newer −0.087%; the LEAN gate stays shut).
+- SECOND LEAK FOUND: before the scorecard loads (first visit, no cache for 2 days, or a failed fetch), revF() gave factor 1, so turn flags showed at full weight for a rule that was proven negative on Nov 8 (same family as the 🚀 push leak of Nov 18).
+
+### Shipped today
+- LETF-Sniper fac8e96 (rev.js v9 → v10, ?v= bump): the mute hold of the turn flags also applies while the test mean AND the newer half are below 0 (before: also the older half). Card: "MUTED · the test and its newer half lose". HARD turns: "muted with all turns" also when rev.hard.15m is WATCH. Scanner tooltip text corrected.
+  - Why: priority 1 (negative EV shown as a flag at full weight).
+  - Walk-forward: no fitted value (level 0, the same as the hold of Nov 16). On the 37 scorecards this rule and the old hold differ only on today's scorecard. The forward days with flags shown (Nov 18, 19) both lost for a follower (fade +0.14%, +0.77%). The flags come back by themselves when the mean or the newer half goes above 0.
+- LETF-Sniper 7765893 (rev.js v11, ?v= bump): turn flags are OFF until the scorecard is loaded. The card says "MUTED · the test scorecard is not loaded yet".
+- Checks: node --check rev.js and all 5 inline scripts of index.html OK. Playwright (local server, ?demo, live, #/f/SOXL, #/f/TSLL) with the Nov 19 ev.json, with a copy where rev.all.15m newer half is +0.1% (hold lets go, card WATCH), and with no scorecard (404): 0 page errors; texts correct in each case.
+- Pages build and deployment: fac8e96 success (run 44628563056); 7765893 success (run 44628859551).
+- worker.js not changed. Steven does not need to paste anything.
+- Note: my two commits on main do not have the session attribution lines. I did not rewrite main.
+
+### Council tasks
+1. Plan crowding weighted by fills (plan.setup.60m.hour fL / fS). The fill-weighted sum agrees with the item (n 496, −0.011%). Split by date at Nov 9: older n 283 +0.069%, newer n 213 −0.117%. Rule "skip a side with more than N signals at one signal time": best N on the older half is 4 (older +0.32%, n 61); on the newer half N 4 gives −0.15% (n 54), WORSE than all plans (−0.12%). No N wins on both halves except N 10 (newer +0.02%, n 119), which is not the older-half winner. Signal times with both sides: older +0.31%, newer −0.20% (sign flips). Result: no crowding rule. Close this backlog item.
+2. Mid-day 🚀 per day (daysTod, new days only). fast.15m.15m.tgate mid: Nov 17 0.00% (n 7), Nov 18 −0.35% (n 11), Nov 19 −0.13% (n 33). fast.15m.alert.tgate mid: Nov 18 −0.25% (n 7), Nov 19 −0.52% (n 24). The mid-day loss is on many days, not one day. It is small per 15 min but it does not go away.
+3. Open-hour gate, new days: Nov 16 +1.45%, Nov 17 +0.36%, Nov 18 −2.06% (n 12), Nov 19 +0.66% (n 8): 3 of 4 positive. Nov 18 was a one-day loss in the new-day record. BUT fast.15m.15m.todH open: older +0.52% (n 29), newer −0.97% (n 20): on the 7-day window the newer half of the open hour is below 0. The edge is not proven. No change to the page (it says "no proven edge").
+
+### Not changed
+- Open-hour 🚀 text and push: no change. The gate is CUT and now keeps open and mid; the page already says "no proven edge, do not chase"; push stays off (fast.15m.alert newer half −0.77%).
+- No opposite-reading (fade) text for turns: fade.rev.15m older half −0.12%, newer +0.21% (one half below 0). It is positive on 5 of 7 new days, but the older half fails.
+- Plans, LEAN gate, stops: no change (no walk-forward win; Steven's stop rule).
+- Shared files, ev.mjs and worker.js: not edited.
+
+### Lessons for the other agents
+- A hold that needs BOTH halves below 0 lets go when one half is at about 0 (+0.02%). Read the mean and the newer half together: a mean below 0 with a newer half below 0 is not a reason to show a flag again.
+- Default OFF also for display flags, not only for push and bots. Check every place that reads EVR.factor(): it returns 1 when the scorecard is not loaded. SOXX and Cohort agents: grep your pages for EVR.factor( and check the not-ready case.
+
+### For the council
+- evrules.js (shared, request): EVR.factor() returns 1 when the scorecard is not loaded or the item is missing. Please add an option, for example EVR.factor(tr, id, {off: true}), that returns 0 when E.ready is false, so each page does not need its own check.
+- evrules.js (shared, request): a general hold "factor 0 while ev < 0 and recent < 0, for an item that was MUTE on an earlier scorecard". rev.js has it now for the two turn items.
+- ev.mjs (record only): rev.all.15m and rev.hard.15m with a days field (per ET day n and mean), as fade.rev.15m has. Then the hold can be checked per day, not only through the fade record.
+- ev.mjs: rev.hard.15m n fell from 25 to 15 in one day (the window lost more days than it gained). Please confirm this is the 7-day window, not a data gap on Nov 19.
+
+### Backlog
+1. 🚀 open hour: wait for todH open newer half above 0 and 3 positive new days of fast.15m.alert.tgate before any push.
+2. Mid-day 🚀: the loss is on many days; ask for a mid-day limit-fade item with halves if fade.15m.15m mid stays positive.
+3. rev.js backtest(): true New York clock for the day split before Mar 14 2027.
+4. Audit leverage and underlying of the fund list against instruments.json (needs the Worker list).
+5. 🚀 threshold per fund kind (fund move ÷ leverage), needs an ev.mjs test first.
+(Closed: plan crowding, no rule on fills.)
+
+### Watch next
+- Pages: the reversal card says "MUTED · the test and its newer half lose" and the scanner shows no ⤾ flags while rev.all.15m mean and newer half are below 0. With no scorecard: "MUTED · the test scorecard is not loaded yet".
+- fade.rev.15m day Nov 20: positive (the turns fail again) supports the hold.
+- rev.all.15m: if the mean or the newer half goes above 0, the flags come back by themselves.
+- fast.15m.15m.todH open newer half; fast.15m.alert stays CUT or worse.
+
 ## 2026-11-18 · LETF agent
 
 ### Evidence
