@@ -1,5 +1,5 @@
 {
- "t": "2026-11-19T22:23:08.986Z",
+ "t": "2026-11-19T23:28:15.550Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; agents read this file every market day",
  "trackers": {
   "soxx": {
@@ -18,6 +18,13 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
+     "worst": {
+      "r": -0.09411,
+      "d": "2026-11-19",
+      "sym": "AMD",
+      "idea": "vrev",
+      "plan": "tim"
+     },
      "prev": "cut",
      "changed": false
     },
@@ -63,6 +70,13 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
+     "worst": {
+      "r": -0.18871,
+      "d": "2026-11-19",
+      "sym": "AMDL",
+      "idea": "vrev",
+      "plan": "tim"
+     },
      "prev": "watch",
      "changed": false
     },
@@ -108,6 +122,13 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
+     "worst": {
+      "r": -0.09411,
+      "d": "2026-11-19",
+      "sym": "AMD",
+      "idea": "vrev",
+      "plan": "tim"
+     },
      "prev": "watch",
      "changed": false
     },
@@ -2883,6 +2904,345 @@
      "why": "too few results",
      "prev": "watch",
      "changed": false
+    },
+    {
+     "id": "skip.both.full",
+     "desc": "Spot + 2×/3× funds: shadow fills BLOCKED by the \"full\" gate (dated record, by day; EV > 0 = the gate cost money) — record only",
+     "unit": "ret",
+     "n": 105,
+     "ev": 0.009261180952380953,
+     "z": 6.0293464579126335,
+     "zTrades": 6.0293464579126335,
+     "hit": 0.7333333333333333,
+     "days": 1,
+     "src": "dated.json",
+     "from": "2026-11-19",
+     "status": "watch",
+     "factor": 1,
+     "why": "record only (would be back)",
+     "ruling": "back",
+     "perDay": {
+      "2026-11-19": {
+       "n": 105,
+       "m": 0.00926,
+       "usd": 972.42
+      }
+     }
+    },
+    {
+     "id": "skip.both.muted",
+     "desc": "Spot + 2×/3× funds: shadow fills BLOCKED by the \"muted\" gate (dated record, by day; EV > 0 = the gate cost money) — record only",
+     "unit": "ret",
+     "n": 395,
+     "ev": 0.009872088607594936,
+     "z": 2.338217025373515,
+     "zTrades": 11.209493056070347,
+     "hit": 0.810126582278481,
+     "days": 4,
+     "older": 0.007143470188284519,
+     "recent": 0.0048909061624649855,
+     "src": "dated.json",
+     "from": "2026-11-16",
+     "status": "watch",
+     "factor": 1,
+     "why": "record only (would be back)",
+     "ruling": "back",
+     "perDay": {
+      "2026-11-16": {
+       "n": 16,
+       "m": 0.00106,
+       "usd": 16.88
+      },
+      "2026-11-17": {
+       "n": 239,
+       "m": 0.01323,
+       "usd": 3162.37
+      },
+      "2026-11-18": {
+       "n": 21,
+       "m": 0.00453,
+       "usd": 95.1
+      },
+      "2026-11-19": {
+       "n": 119,
+       "m": 0.00525,
+       "usd": 625.11
+      }
+     }
+    },
+    {
+     "id": "skip.both.state",
+     "desc": "Spot + 2×/3× funds: shadow fills BLOCKED by the \"state\" gate (dated record, by day; EV > 0 = the gate cost money) — record only",
+     "unit": "ret",
+     "n": 2,
+     "ev": 0.0232175,
+     "z": 3.4151620744865214,
+     "zTrades": 3.4151620744865214,
+     "hit": 1,
+     "days": 1,
+     "src": "dated.json",
+     "from": "2026-11-19",
+     "status": "watch",
+     "factor": 1,
+     "why": "record only (would be watch)",
+     "ruling": "watch",
+     "perDay": {
+      "2026-11-19": {
+       "n": 2,
+       "m": 0.02322,
+       "usd": 46.43
+      }
+     }
+    },
+    {
+     "id": "skip.both.time",
+     "desc": "Spot + 2×/3× funds: shadow fills BLOCKED by the \"time\" gate (dated record, by day; EV > 0 = the gate cost money) — record only",
+     "unit": "ret",
+     "n": 58,
+     "ev": 0.00764598275862069,
+     "z": -0.12904521126533203,
+     "zTrades": 7.549013032999303,
+     "hit": 0.8793103448275862,
+     "days": 3,
+     "older": -0.003589,
+     "recent": 0.0009186272727272726,
+     "src": "dated.json",
+     "from": "2026-11-16",
+     "status": "watch",
+     "factor": 1,
+     "why": "record only (would be watch)",
+     "ruling": "watch",
+     "perDay": {
+      "2026-11-16": {
+       "n": 2,
+       "m": -0.00359,
+       "usd": -7.18
+      },
+      "2026-11-18": {
+       "n": 1,
+       "m": -0.00647,
+       "usd": -6.47
+      },
+      "2026-11-19": {
+       "n": 55,
+       "m": 0.00831,
+       "usd": 457.12
+      }
+     }
+    },
+    {
+     "id": "skip.letf.full",
+     "desc": "2× and 3× funds only: shadow fills BLOCKED by the \"full\" gate (dated record, by day; EV > 0 = the gate cost money) — record only",
+     "unit": "ret",
+     "n": 27,
+     "ev": 0.025070814814814813,
+     "z": 10.085001873284213,
+     "zTrades": 10.085001873284213,
+     "hit": 1,
+     "days": 1,
+     "src": "dated.json",
+     "from": "2026-11-19",
+     "status": "watch",
+     "factor": 1,
+     "why": "record only (would be back)",
+     "ruling": "back",
+     "perDay": {
+      "2026-11-19": {
+       "n": 27,
+       "m": 0.02507,
+       "usd": 676.91
+      }
+     }
+    },
+    {
+     "id": "skip.letf.muted",
+     "desc": "2× and 3× funds only: shadow fills BLOCKED by the \"muted\" gate (dated record, by day; EV > 0 = the gate cost money) — record only",
+     "unit": "ret",
+     "n": 147,
+     "ev": 0.014499884353741499,
+     "z": 2.3871256435430803,
+     "zTrades": 6.98994783613978,
+     "hit": 0.7959183673469388,
+     "days": 4,
+     "older": 0.010816406832298137,
+     "recent": 0.006786804395604395,
+     "src": "dated.json",
+     "from": "2026-11-16",
+     "status": "watch",
+     "factor": 1,
+     "why": "record only (would be back)",
+     "ruling": "back",
+     "perDay": {
+      "2026-11-16": {
+       "n": 7,
+       "m": 0.00225,
+       "usd": 15.76
+      },
+      "2026-11-17": {
+       "n": 92,
+       "m": 0.01938,
+       "usd": 1783.05
+      },
+      "2026-11-18": {
+       "n": 13,
+       "m": 0.00647,
+       "usd": 84.15
+      },
+      "2026-11-19": {
+       "n": 35,
+       "m": 0.0071,
+       "usd": 248.52
+      }
+     }
+    },
+    {
+     "id": "skip.letf.state",
+     "desc": "2× and 3× funds only: shadow fills BLOCKED by the \"state\" gate (dated record, by day; EV > 0 = the gate cost money) — record only",
+     "unit": "ret",
+     "n": 2,
+     "ev": 0.0232175,
+     "z": 3.4151620744865214,
+     "zTrades": 3.4151620744865214,
+     "hit": 1,
+     "days": 1,
+     "src": "dated.json",
+     "from": "2026-11-19",
+     "status": "watch",
+     "factor": 1,
+     "why": "record only (would be watch)",
+     "ruling": "watch",
+     "perDay": {
+      "2026-11-19": {
+       "n": 2,
+       "m": 0.02322,
+       "usd": 46.43
+      }
+     }
+    },
+    {
+     "id": "skip.letf.time",
+     "desc": "2× and 3× funds only: shadow fills BLOCKED by the \"time\" gate (dated record, by day; EV > 0 = the gate cost money) — record only",
+     "unit": "ret",
+     "n": 5,
+     "ev": -0.004127400000000001,
+     "z": -4.6194499502373265,
+     "zTrades": -2.0234681332536546,
+     "hit": 0.2,
+     "days": 3,
+     "older": -0.003589,
+     "recent": -0.00498325,
+     "src": "dated.json",
+     "from": "2026-11-16",
+     "status": "watch",
+     "factor": 1,
+     "why": "record only (would be watch)",
+     "ruling": "watch",
+     "perDay": {
+      "2026-11-16": {
+       "n": 2,
+       "m": -0.00359,
+       "usd": -7.18
+      },
+      "2026-11-18": {
+       "n": 1,
+       "m": -0.00647,
+       "usd": -6.47
+      },
+      "2026-11-19": {
+       "n": 2,
+       "m": -0.00349,
+       "usd": -6.99
+      }
+     }
+    },
+    {
+     "id": "skip.spot.full",
+     "desc": "Spot only: shadow fills BLOCKED by the \"full\" gate (dated record, by day; EV > 0 = the gate cost money) — record only",
+     "unit": "ret",
+     "n": 62,
+     "ev": 0.0012798225806451618,
+     "z": 1.10551571518348,
+     "zTrades": 1.10551571518348,
+     "hit": 0.6129032258064516,
+     "days": 1,
+     "src": "dated.json",
+     "from": "2026-11-19",
+     "status": "watch",
+     "factor": 1,
+     "why": "record only (would be watch)",
+     "ruling": "watch",
+     "perDay": {
+      "2026-11-19": {
+       "n": 62,
+       "m": 0.00128,
+       "usd": 79.35
+      }
+     }
+    },
+    {
+     "id": "skip.spot.muted",
+     "desc": "Spot only: shadow fills BLOCKED by the \"muted\" gate (dated record, by day; EV > 0 = the gate cost money) — record only",
+     "unit": "ret",
+     "n": 231,
+     "ev": 0.006586398268398267,
+     "z": 1.873528050510559,
+     "zTrades": 11.425598850722144,
+     "hit": 0.8225108225108225,
+     "days": 4,
+     "older": 0.004441454248366012,
+     "recent": 0.0027247820512820518,
+     "src": "dated.json",
+     "from": "2026-11-16",
+     "status": "watch",
+     "factor": 1,
+     "why": "record only (would be watch)",
+     "ruling": "watch",
+     "perDay": {
+      "2026-11-16": {
+       "n": 9,
+       "m": 0.00012,
+       "usd": 1.12
+      },
+      "2026-11-17": {
+       "n": 136,
+       "m": 0.00876,
+       "usd": 1191.14
+      },
+      "2026-11-18": {
+       "n": 8,
+       "m": 0.00137,
+       "usd": 10.96
+      },
+      "2026-11-19": {
+       "n": 78,
+       "m": 0.00408,
+       "usd": 318.25
+      }
+     }
+    },
+    {
+     "id": "skip.spot.time",
+     "desc": "Spot only: shadow fills BLOCKED by the \"time\" gate (dated record, by day; EV > 0 = the gate cost money) — record only",
+     "unit": "ret",
+     "n": 53,
+     "ev": 0.00875667924528302,
+     "z": 9.103832851003848,
+     "zTrades": 9.103832851003848,
+     "hit": 0.9433962264150944,
+     "days": 1,
+     "src": "dated.json",
+     "from": "2026-11-19",
+     "status": "watch",
+     "factor": 1,
+     "why": "record only (would be back)",
+     "ruling": "back",
+     "perDay": {
+      "2026-11-19": {
+       "n": 53,
+       "m": 0.00876,
+       "usd": 464.1
+      }
+     }
     }
    ],
    "extra": {
@@ -2892,7 +3252,7 @@
     "caughtBt": 0
    },
    "summary": {
-    "n": 169,
+    "n": 180,
     "mute": 10,
     "cut": 13,
     "back": 10,
@@ -3798,8 +4158,8 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.rs-peer.7d",
@@ -4054,8 +4414,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.beta-tide.1d",
@@ -4234,8 +4594,8 @@
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.setup.7d",
@@ -4252,8 +4612,8 @@
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.rule.1d.cur",
@@ -4320,8 +4680,8 @@
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.setup.1d.chosen",
@@ -4544,8 +4904,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.pick.2d.best",
@@ -4913,7 +5273,7 @@
     "mute": 2,
     "cut": 18,
     "back": 6,
-    "changed": 6
+    "changed": 0
    },
    "rules": {
     "outlook.mom.24h": 0.5,
@@ -4945,7 +5305,7 @@
    }
   },
   "letf": {
-   "at": "2026-11-19T22:23:08.984Z",
+   "at": "2026-11-19T23:28:15.548Z",
    "items": [
     {
      "id": "rev.all.15m",
@@ -4960,6 +5320,36 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
+     "days": {
+      "2026-11-11": {
+       "n": 6,
+       "m": 0.00152
+      },
+      "2026-11-12": {
+       "n": 8,
+       "m": -0.00172
+      },
+      "2026-11-13": {
+       "n": 10,
+       "m": -0.00244
+      },
+      "2026-11-16": {
+       "n": 17,
+       "m": 0.0004
+      },
+      "2026-11-17": {
+       "n": 33,
+       "m": 0.00308
+      },
+      "2026-11-18": {
+       "n": 12,
+       "m": -0.00008
+      },
+      "2026-11-19": {
+       "n": 17,
+       "m": -0.00666
+      }
+     },
      "prev": "watch",
      "changed": false
     },
@@ -4976,6 +5366,32 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
+     "days": {
+      "2026-11-11": {
+       "n": 1,
+       "m": 0.00157
+      },
+      "2026-11-12": {
+       "n": 2,
+       "m": -0.00461
+      },
+      "2026-11-13": {
+       "n": 2,
+       "m": -0.0046
+      },
+      "2026-11-16": {
+       "n": 5,
+       "m": 0.00082
+      },
+      "2026-11-17": {
+       "n": 4,
+       "m": 0.0019
+      },
+      "2026-11-19": {
+       "n": 1,
+       "m": -0.00408
+      }
+     },
      "prev": "watch",
      "changed": false
     },
@@ -5582,7 +5998,7 @@
      "unit": "ret",
      "n": 496,
      "ev": -0.00023891979024006865,
-     "z": -0.45942714035509125,
+     "z": -0.45942714035509113,
      "hit": 0.5241935483870968,
      "older": 0.00043591737927297015,
      "recent": -0.0009137569597531079,
@@ -6534,7 +6950,7 @@
      "ev": 0.0013316060195978066,
      "z": 1.4459324089686219,
      "hit": 0.5984848484848485,
-     "older": 0.002318591531312736,
+     "older": 0.0023185915313127365,
      "recent": 0.00034462050788287656,
      "status": "watch",
      "factor": 1,
@@ -6655,8 +7071,8 @@
      "ev": -0.0008084511278735839,
      "z": -1.2976125324083134,
      "hit": 0.49725274725274726,
-     "older": -0.00047784079103791843,
-     "recent": -0.0011390614647092494,
+     "older": -0.0004581756415310108,
+     "recent": -0.0011587266142161572,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -6762,8 +7178,8 @@
      "nostop": {
       "n": 364,
       "m": -0.00004,
-      "older": -0.00012,
-      "recent": 0.00005
+      "older": 0.00002,
+      "recent": -0.0001
      },
      "prev": "cut",
      "changed": false
@@ -6773,10 +7189,10 @@
      "desc": "Fund page trade plan (as plan.setup.60m), only when 3+ underlyings gave a plan on the same side at the same signal time",
      "unit": "ret",
      "n": 450,
-     "ev": -0.0002923966907581717,
-     "z": -0.5231252136882171,
+     "ev": -0.0002923966907581714,
+     "z": -0.5231252136882165,
      "hit": 0.5311111111111111,
-     "older": 0.0005043671372975167,
+     "older": 0.000504367137297517,
      "recent": -0.0010891605188138595,
      "status": "watch",
      "factor": 1,
