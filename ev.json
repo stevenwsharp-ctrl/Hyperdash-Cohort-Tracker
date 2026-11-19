@@ -1,5 +1,5 @@
 {
- "t": "2026-11-19T23:28:15.550Z",
+ "t": "2026-11-19T23:28:42.954Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; agents read this file every market day",
  "trackers": {
   "soxx": {
@@ -2927,7 +2927,9 @@
        "m": 0.00926,
        "usd": 972.42
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "skip.both.muted",
@@ -2968,7 +2970,9 @@
        "m": 0.00525,
        "usd": 625.11
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "skip.both.state",
@@ -2992,7 +2996,9 @@
        "m": 0.02322,
        "usd": 46.43
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "skip.both.time",
@@ -3028,7 +3034,9 @@
        "m": 0.00831,
        "usd": 457.12
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "skip.letf.full",
@@ -3052,7 +3060,9 @@
        "m": 0.02507,
        "usd": 676.91
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "skip.letf.muted",
@@ -3093,7 +3103,9 @@
        "m": 0.0071,
        "usd": 248.52
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "skip.letf.state",
@@ -3117,7 +3129,9 @@
        "m": 0.02322,
        "usd": 46.43
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "skip.letf.time",
@@ -3153,7 +3167,9 @@
        "m": -0.00349,
        "usd": -6.99
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "skip.spot.full",
@@ -3177,7 +3193,9 @@
        "m": 0.00128,
        "usd": 79.35
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "skip.spot.muted",
@@ -3218,7 +3236,9 @@
        "m": 0.00408,
        "usd": 318.25
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "skip.spot.time",
@@ -3242,7 +3262,9 @@
        "m": 0.00876,
        "usd": 464.1
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     }
    ],
    "extra": {
@@ -5305,7 +5327,7 @@
    }
   },
   "letf": {
-   "at": "2026-11-19T23:28:15.548Z",
+   "at": "2026-11-19T23:28:42.953Z",
    "items": [
     {
      "id": "rev.all.15m",
@@ -5997,8 +6019,8 @@
      "desc": "Fund page trade plan (setupOf on the underlying's 5-min bars, LONG/SHORT SETUP and LEAN): LIMIT entry 0.5 × 5-min ATR, alive 60 min, counts only when touched; exit at the plan's stop or target or 60 min after the fill; cost 0.02% of the underlying; one per underlying per hour",
      "unit": "ret",
      "n": 496,
-     "ev": -0.00023891979024006865,
-     "z": -0.45942714035509113,
+     "ev": -0.00023891979024006843,
+     "z": -0.45942714035509075,
      "hit": 0.5241935483870968,
      "older": 0.00043591737927297015,
      "recent": -0.0009137569597531079,
@@ -6950,7 +6972,7 @@
      "ev": 0.0013316060195978066,
      "z": 1.4459324089686219,
      "hit": 0.5984848484848485,
-     "older": 0.0023185915313127365,
+     "older": 0.002318591531312736,
      "recent": 0.00034462050788287656,
      "status": "watch",
      "factor": 1,
@@ -7068,11 +7090,11 @@
      "desc": "Fund page trade plan, only LEAN LONG / LEAN SHORT (2 of 3 filters): as plan.setup.60m",
      "unit": "ret",
      "n": 364,
-     "ev": -0.0008084511278735839,
-     "z": -1.2976125324083134,
+     "ev": -0.000808451127873584,
+     "z": -1.2976125324083136,
      "hit": 0.49725274725274726,
-     "older": -0.0004581756415310108,
-     "recent": -0.0011587266142161572,
+     "older": -0.00047784079103791843,
+     "recent": -0.0011390614647092496,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -7178,8 +7200,8 @@
      "nostop": {
       "n": 364,
       "m": -0.00004,
-      "older": 0.00002,
-      "recent": -0.0001
+      "older": -0.00012,
+      "recent": 0.00005
      },
      "prev": "cut",
      "changed": false
@@ -7189,11 +7211,11 @@
      "desc": "Fund page trade plan (as plan.setup.60m), only when 3+ underlyings gave a plan on the same side at the same signal time",
      "unit": "ret",
      "n": 450,
-     "ev": -0.0002923966907581714,
-     "z": -0.5231252136882165,
+     "ev": -0.0002923966907581717,
+     "z": -0.523125213688217,
      "hit": 0.5311111111111111,
-     "older": 0.000504367137297517,
-     "recent": -0.0010891605188138595,
+     "older": 0.0005043671372975169,
+     "recent": -0.001089160518813859,
      "status": "watch",
      "factor": 1,
      "why": "record only (would be watch)",
