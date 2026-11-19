@@ -116,8 +116,8 @@ async function soxx() { const B = await getJ("https://raw.githubusercontent.com/
   // ("skip|<bot>|<why>@<half hour>" = [n, sum r, sum r², wins] of the shadow fills the gate skipped). skip.<bot>.<why>: n and
   // EV per blocked fill, z over the days, older / newer half of the days, and n and mean per day. EV > 0 = the gate blocked
   // winners (it cost money); EV < 0 = the gate saved money. Record only (status watch, factor 1): no bot reads it. A new
-  // reason written by bots.mjs (for example a split of "time") is scored with no change here.
-  { const SK = {}; if (DT && DT.days) for (const [d, X] of Object.entries(DT.days)) for (const [kk, v] of Object.entries(X || {})) { const m = /^skip\|([a-z]+)\|([a-z0-9_]+)@(\d+)$/.exec(kk); if (!m || !Array.isArray(v) || !(v[0] > 0)) continue;
+  // reason written by bots.mjs (for example a split of "time", or "muted.<idea>") is scored with no change here.
+  { const SK = {}; if (DT && DT.days) for (const [d, X] of Object.entries(DT.days)) for (const [kk, v] of Object.entries(X || {})) { const m = /^skip\|([a-z]+)\|([a-z0-9_.]+)@(\d+)$/.exec(kk); if (!m || !Array.isArray(v) || !(v[0] > 0)) continue;
       const o = ((SK[m[1] + "|" + m[2]] || (SK[m[1] + "|" + m[2]] = {}))[d] || (SK[m[1] + "|" + m[2]][d] = [0, 0, 0, 0])); v.forEach((x, i) => o[i] += x); }
     for (const [kw, byD] of Object.entries(SK).sort()) { const [k, why] = kw.split("|"), ds = Object.keys(byD).sort(), nm = (B.bots && B.bots[k] && B.bots[k].name) || k, n0 = items.length;
       fromDays(`skip.${k}.${why}`, `${nm}: shadow fills BLOCKED by the "${why}" gate (dated record, by day; EV > 0 = the gate cost money) — record only`, ds.map(d => byD[d]), { from: ds[0] }, 1);
