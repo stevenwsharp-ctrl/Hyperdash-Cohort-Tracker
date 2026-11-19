@@ -1,5 +1,61 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-19 · SOXX agent
+
+### Evidence
+- Scorecard: ev.json t = 2026-11-19T22:15:29Z (with Nov 19 data; I read it again after my push). SOXX changes: bot.spot.live BACK → CUT (+0.01 % per trade, n 54, newer half −0.10 %); idea.funds.rsi MUTE → WATCH (+0.03 %, older half −0.11 %, newer half +0.20 %, day z +0.38); idea.spot.vrev CUT → WATCH; half.spot.sqz.3 CUT → MUTE; half.funds.rsi.3 and .10 → BACK; half.funds.vrev.1, half.spot.vrev.6, .8, half.funds.rsi.2 → CUT.
+- Paper bots Nov 19 (bots branch 21:02 UTC), live: spot 3 trades −$120.96; letf 5 trades −$265.10; both 5 trades −$146.46. The loss is the VWAP snap-back (vrev) with the time exit at 10:16–10:21 ET: AMD −$94.11 (−9.4 % in 30 min, −17 ATR), AMDL −$188.71 (−18.9 %), ARM −$20.43, MSTU −$36.72, CONL −$14.17, AVGO −$6.42. Two funds squeeze stops: TSLQ −$11.98, AVL −$13.52. Live all: spot +$6.03 (n 54), letf −$187.59 (n 55), both −$120.42 (n 85). One trade (AMDL) is larger than all letf live profit before it.
+- Live vrev with the time exit, all live days: spot n 5, −2.35 % per trade; letf n 3, −7.99 %. The shadow record of the same versions stays positive (arm.S.vrev.1.tim +0.13 %, n 1,112). The live loss is one tail move, not the normal result.
+- Gates on Nov 19 (dated skip record): the state gate (funds vrev in d0o0) blocked 20 signals, 2 fills +$46.44. The shadow record of the day agrees with the gate: funds vrev d0o0 −0.79 % per fill (n 275); d0o1 +0.93 % (n 400), d1o1 +0.37 % (n 515). That is the 3rd newer day where d0o0 is the worst state. "full" (3 orders open) blocked spot 10:30–11:00 28 fills +$237.83 (28 wins) and both 12:00–12:30 21 fills +$602.87: the 3 slots were full with the 10:16 losers. The spot time gate 12:00–12:30 blocked 50 fills +$459.53 (one day; that half hour has day z −5.6 over the earlier days).
+- Big swings Nov 19: caught 0 of 30 (replay 0). The few with a signal near the low had rsi (MSTU rsi −8 min, CONL rsi +2 min); funds rsi was muted.
+- Bots workflow Nov 19: runs 116, 118, 119, 120 success; 121 (21:01 UTC) sleeps to the next open (relay); 117, 122 cancelled by the concurrency group (normal). Log: "EV rules: 30" (normal fetch). state.json has evf (30 rules, t 02:39 UTC).
+- AMD news: a web search found no clear Nov 19 AMD news (AMD fell many days in November). The crash was not known at 10:16 from the signal data.
+
+Council tasks:
+1) skip|letf|state and skip|both|state on Nov 19: 20 signals each (16 in 10:00–10:30, 4 in 10:30–11:00); 2 filled (both in 10:30–11:00), +$46.44 (2 of 2 won). One day, 2 fills: keep the gate (the shadow record supports it, see above).
+2) Log: "EV rules: 30" (one more than 29 because half.funds.sqz.2 and live.both.2 are in the list). state.json evf: yes.
+3) bot.spot.live: the page did not show any scorecard ruling (index.html did not load evrules.js). Done today, see "Shipped today". The bots do not need it: bot.*.live is a score of the bot, not an input. After Nov 19 it is CUT, so a "BACK" text would now be wrong; the card reads the live ruling.
+
+### Shipped today
+- 0a9c2d1 (botcard.js v13, index.html loads the shared evrules.js v1): each bot box shows "Scorecard (time): live RULING, EV per trade, n, z, newer half · backtest RULING ...", from bot.<bot>.live and bot.<bot>.bt. The scorecard time is on the line, because the scorecard comes after the close and today's trades count only from the next one.
+  - Why: the page showed only $; a bot with a proven edge and a bot with none looked the same. Today the spot bot went BACK → CUT, and the card now shows that.
+  - No fitted value, no rule change: no walk-forward test needed. No other page part reads EVR (checked with grep).
+  - Checks: node --check botcard.js; tests/engines.test.mjs ALL PASSED; Playwright with the real bots.json and ev.json: index.html and mastermind/ 0 page errors, the 3 lines show. Pages build and deployment: success (run 44626938481).
+
+### Not changed
+- Disaster stop on the time-exit plan (tim): walk-forward on 551 unique tim trades (stop at −k ATR, fill 0.1 ATR worse). Older half: k 2–4 a little better (+0.01 to +0.02 % per trade), k 5–8 worse. Newer half: better only because of Nov 19; without Nov 19 every k is worse (Nov 17: −8 % to −10 % summed, the stop sells the capitulation lows before the rebound). No stop change (Steven's rule: a stop needs a reason; the data does not give one).
+- Crowding limit ("at most N new positions in 10 or 30 min"): walk-forward fails. letf N1/30 min: dropped trades −0.16 % older, +0.45 % newer; spot and both: no sign that holds in both halves. No rule.
+- Spot vrev state gate (o1 only): Nov 16–19 o1 > o0 on 4 of 4 days, but the older half (Nov 9–13) shows o1 worse (n 20). Expanding-window test: +162 units, 2 of 5 days better, mostly Nov 19. No rule.
+- Funds time gate, the 200-trade rule: the half hours shut only by this rule (not by the day-z rule) blocked fills that won in both halves (older +0.54 % n 345, newer +0.69 % n 1,595; without Nov 19 +0.12 %, 4 of 7 days above 0; day z about +1.35, +0.77 without Nov 19). My bar is both halves above 0 and day z ≥ 2: not met. Backlog 1. Spot: older +0.49 %, newer −0.06 %: keep.
+- Same-underlying overlap in the both bot (council lesson Nov 16, e.g. AMD + AMDL at one time): live 5 trades +$7.4, replay 18 trades +$50.6. No loss, no change.
+- idea.funds.rsi comes back (WATCH) on Nov 20 by the scorecard: 3 positive days (Nov 17 +0.92 %, Nov 18 +0.82 %, Nov 19 +0.67 %) after 4 of 13 positive days. No market state explains it (all 4 ctx states positive on Nov 17–19, mixed before). The newer half is above 0, so the council's hold rule lets it come back. I did not block it. See "Watch next".
+
+### Lessons for the other agents
+- One tail trade can delete a whole live record. AMDL −18.9 % in 30 min on a no-stop plan was larger than all earlier letf live profit. Read the worst trade before you read the mean.
+- A gate that fills the slots early can block the winners later. On Nov 19 the three 10:16 vrev losers filled all 3 slots; "full" then blocked +$238 (spot) and +$603 (both) of later fills. Count "full" skips in your own trackers.
+- A stop that helps on a crash day hurts on a capitulation day. Test every exit change with and without the newest day.
+
+### For the council
+- ev.mjs (record only): score skip.<bot>.time split by the rule that shut the half hour (day-z mute vs the 200-trade rule). The 200-trade rule on funds blocked winners in both halves (see "Not changed"). If the score holds, I will remove the 200-trade rule for funds only.
+- ev.mjs (record only): score skip.<bot>.full by day. Nov 19 shows a large blocked gain; I want 5+ days before a MAXPOS test.
+- ev.mjs: a "worst trade" field on bot.<bot>.live (min r and its date). The mean hid the tail until today.
+- No shared-file change. I only added the shared evrules.js (unchanged, v1) to the SOXX index.html.
+
+### Backlog
+1. Funds time gate: the 200-trade rule against the day-z rule only, walk-forward on the skip record (5+ days of skip|*|time, from Nov 23).
+2. MAXPOS 3 against 5 and "full" skips: walk-forward on skip|*|full (5+ days, Nov 23).
+3. Read skip|letf|state and skip|both|state each day; remove the state gate if the blocked fills are above 0 over 5+ new days (now 1 day, 2 fills +$46).
+4. Funds rsi after the return: per-day live and shadow; if the newer half falls below 0, ask the council for the mute-hold.
+5. ctx d1 states for rsi and vrev on spot: walk-forward at 5+ days after Nov 16 (Nov 23).
+6. Live stop exits again at 30+ post-Nov-7 stops per bot.
+7. Version choice by half hour against the version score alone (15+ days in dated.json).
+
+### Watch next
+- The bot card shows "Scorecard (Nov 19 …): live CUT" for spot (and WATCH for letf and both) after a reload; no page error.
+- Nov 20: funds rsi live trades appear (it is WATCH now); report them per bot.
+- The state gate: funds vrev d0o0 stays the worst state in the shadow record (4th day).
+- bot.spot.live: does the newer half go back above 0 without a new tail loss?
+
 ## 2026-11-18 · SOXX agent
 
 ### Evidence
