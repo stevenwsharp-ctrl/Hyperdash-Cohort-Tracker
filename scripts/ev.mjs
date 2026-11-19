@@ -33,7 +33,10 @@ async function soxx() { const B = await getJ("https://raw.githubusercontent.com/
   for (const [k, b] of Object.entries(B.bots || {})) { const T = (b.trades || []).slice().reverse(); /* trades are newest first in the file */
     const sl = ST && ST.bots && ST.bots[k] && (ST.bots[k].trades || []).filter(x => !x.bt && isFinite(x.r) && x.t0).sort((x, y) => x.t0 - y.t0);
     const all = !!(sl && sl.length), live = all ? sl.map(x => x.r) : T.filter(x => !x.bt).map(x => x.r), bt = T.filter(x => x.bt).map(x => x.r);
-    if (live.length) items.push(fromList(`bot.${k}.live`, `${b.name}: live paper trades (per $1,000 bet${all ? ", all live trades" : ", last 60 in the file"})`, "ret", live));
+    // Council, Nov 19 2026 (SOXX agent request): the worst live trade (r, ET date, symbol, idea), because one tail trade
+    // (AMDL -18.9 % in 30 min on Nov 19) was larger than all earlier letf live profit and the mean hid it. Display field only.
+    const wst = all ? sl.reduce((p, x) => !p || x.r < p.r ? x : p, null) : null;
+    if (live.length) items.push({ ...fromList(`bot.${k}.live`, `${b.name}: live paper trades (per $1,000 bet${all ? ", all live trades" : ", last 60 in the file"})`, "ret", live), ...(wst ? { worst: { r: +wst.r.toFixed(5), d: new Date(wst.t0 - 5 * 36e5).toISOString().slice(0, 10), sym: wst.sym, idea: wst.idea, plan: wst.plan } } : {}) });
     if (bt.length) items.push(fromList(`bot.${k}.bt`, `${b.name}: walk-forward backtest trades (last 60 in the file)`, "ret", bt));
     items.push(rule({ id: `bot.${k}.all`, desc: `${b.name}: all trades (live ${b.all.n}, backtest ${b.bt ? b.bt.n : 0})`, unit: "usd", n: (b.all.n || 0) + (b.bt ? b.bt.n : 0), ev: ((b.all.usd || 0) + (b.bt ? b.bt.usd : 0)) / Math.max(1, (b.all.n || 0) + (b.bt ? b.bt.n : 0)), z: NaN })); }
   // versions grouped by idea and class (shadow trades: the biggest sample)
@@ -109,6 +112,16 @@ async function soxx() { const B = await getJ("https://raw.githubusercontent.com/
       items.push({ ...r, ruling: r.status, status: "watch", factor: 1, why: `record only (would be ${r.status})`, usd: +a.reduce((p, x) => p + (x.usd || 0), 0).toFixed(2), days: new Set(a.map(x => etP(x.t0).d)).size }); } }
   (B.arms || []).filter(a => a.n >= 30).sort((a, b) => b.t - a.t).slice(0, 5).forEach(a => items.push(rule({ id: `arm.${a.cl}.${a.idea}.${a.k}.${a.plan}`, desc: `best version: ${a.cl === "L" ? "funds" : "spot"} ${a.idea}, limit ${a.k} ATR, ${a.plan}`, unit: "ret", n: a.n, ev: a.m, z: a.t })));
   for (const cl of ["S", "L"]) (B.times && B.times[cl] || []).filter(x => x.n >= 50).forEach(x => items.push(rule({ id: `time.${cl}.${x.b}`, desc: `${cl === "L" ? "funds" : "spot"} trades started ${x.name} ET`, unit: "ret", n: x.n, ev: x.m, z: NaN })));
+  // Council, Nov 19 2026 (SOXX agent request): the fills that each live-bot gate BLOCKED, by day, from dated.json
+  // ("skip|<bot>|<why>@<half hour>" = [n, sum r, sum r², wins] of the shadow fills the gate skipped). skip.<bot>.<why>: n and
+  // EV per blocked fill, z over the days, older / newer half of the days, and n and mean per day. EV > 0 = the gate blocked
+  // winners (it cost money); EV < 0 = the gate saved money. Record only (status watch, factor 1): no bot reads it. A new
+  // reason written by bots.mjs (for example a split of "time") is scored with no change here.
+  { const SK = {}; if (DT && DT.days) for (const [d, X] of Object.entries(DT.days)) for (const [kk, v] of Object.entries(X || {})) { const m = /^skip\|([a-z]+)\|([a-z0-9_]+)@(\d+)$/.exec(kk); if (!m || !Array.isArray(v) || !(v[0] > 0)) continue;
+      const o = ((SK[m[1] + "|" + m[2]] || (SK[m[1] + "|" + m[2]] = {}))[d] || (SK[m[1] + "|" + m[2]][d] = [0, 0, 0, 0])); v.forEach((x, i) => o[i] += x); }
+    for (const [kw, byD] of Object.entries(SK).sort()) { const [k, why] = kw.split("|"), ds = Object.keys(byD).sort(), nm = (B.bots && B.bots[k] && B.bots[k].name) || k, n0 = items.length;
+      fromDays(`skip.${k}.${why}`, `${nm}: shadow fills BLOCKED by the "${why}" gate (dated record, by day; EV > 0 = the gate cost money) — record only`, ds.map(d => byD[d]), { from: ds[0] }, 1);
+      if (items.length > n0) { const it = items[items.length - 1]; Object.assign(it, { ruling: it.status, status: "watch", factor: 1, why: `record only (would be ${it.status})`, perDay: Object.fromEntries(ds.map(d => [d, { n: byD[d][0], m: +(byD[d][1] / byD[d][0]).toFixed(5), usd: +(byD[d][1] * 1000).toFixed(2) }])) }); } } }
   // swings of the last market day (swingDay): caught = a LIVE bot trade won in the swing; bt = only the replay caught it
   const sw = B.swings || []; return { at: B.at, items, extra: { swingDay: B.swingDay || null, swingsToday: sw.length, caught: sw.filter(x => x.caught).length, caughtBt: sw.filter(x => !x.caught && x.bt).length } }; }
 
@@ -276,6 +289,9 @@ async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [],
   function dayRec(list) { const byD = {}; list.forEach(x => { const d = new Date(nyT(x.t)).toISOString().slice(0, 10); (byD[d] || (byD[d] = [])).push(x.v); });
     return Object.fromEntries(Object.entries(byD).sort().map(([d, v]) => [d, { n: v.length, m: +mean(v).toFixed(5) }])); }
   perDay("fade.rev.15m", R.frev); perDay("fade.fast1m.15m", R.ff1); perDay("fade.fast5m.15m", R.ff5);
+  // Council, Nov 19 2026 (LETF agent request): the same per-day record for the two turn items, so the turn hold (rev.js) can
+  // be read per day. Record only. (n of these items moves with the 7-day bar window: old days drop, new days come in.)
+  perDay("rev.all.15m", R.rev); perDay("rev.hard.15m", R.hard);
   // fill rate per market day of the fast 1-minute fades (council, Nov 11 2026): tried signals per day from R.tf1
   { const tD = {}; R.tf1.forEach(t => { const d = new Date(nyT(t)).toISOString().slice(0, 10); tD[d] = (tD[d] || 0) + 1; });
     for (const id of ["fade.fast1m.15m"]) { const it = items.find(i => i.id === id); if (it && it.days) for (const [d, x] of Object.entries(it.days)) x.fill = tD[d] ? +(x.n / tD[d]).toFixed(3) : null; it && (it.tried = tD); } }

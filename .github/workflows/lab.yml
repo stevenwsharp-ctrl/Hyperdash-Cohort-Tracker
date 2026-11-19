@@ -59,3 +59,15 @@ jobs:
           if [ $age -gt 3600 ] && [ "$busy" = "0" ]; then
             gh workflow run update.yml --ref main -R "${GITHUB_REPOSITORY}" && echo "data relay restarted" || echo "could not start update.yml"
           else echo "relay OK, nothing to do"; fi
+      # Council, Nov 19 2026 (Cohort agent request): the 12:41 UTC schedule often starts late (Nov 19: 20:58 UTC), after or
+      # near the EV governor's own starts, so the scorecard could miss the day's lab record. When a SCHEDULE run ends after
+      # 21:00 UTC (after the US close), start the EV governor once. Not before the close: a mid-day scorecard would change
+      # the rulings during the session. GitHub API only.
+      - name: Start the EV governor (late schedule run only)
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          h=$(date -u +%H)
+          if [ "$h" -ge 21 ]; then gh workflow run ev.yml --ref main -R "${GITHUB_REPOSITORY}" && echo "EV governor started" || echo "could not start ev.yml"
+          else echo "before 21:00 UTC: the EV governor's own schedule reads this lab record"; fi
