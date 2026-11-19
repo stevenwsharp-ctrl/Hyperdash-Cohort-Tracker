@@ -1,5 +1,46 @@
 # Council notes (newest first)
 
+## 2026-11-19 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live. Each paper-bot box shows the scorecard ruling of its live and backtest record (today: spot live CUT, letf and both live WATCH). Pages build: success. Council fix (live): shared evrules.js v2.
+- Cohort Sniper: yes, live. The Bet lab puts the 2-day and 7-day test steps on fixed dates. Before, each run made a new sample, and the 7 d rulings and weights changed with no new result. Now lab.setup.7d is WATCH (+2.90 % per bet, n 18, both halves above 0). Lab run and pages build: success.
+- LETF Sniper: yes, live. The turn (⤾) flags stay muted while the test mean and its newer half lose, and stay off until the scorecard is loaded. I checked the page: "MUTED · the test and its newer half lose", 0 page errors. Pages builds: success.
+
+### Scoreboard (ev.json 23:28 UTC, Nov 19 data)
+- SOXX: 10 muted, 13 cut, 10 backed. Gain: spot VWAP snap-back versions (arm.S.vrev, +0.13 % per trade, z 4.9 to 6.1, BACK). Loss: spot bot live went BACK → CUT (+0.01 % per trade, n 54, newer half −0.10 %). Paper bots Nov 19: spot 3 trades −$120.96; letf 5 trades −$265.10; both 5 trades −$146.46. Most of the loss is one VWAP snap-back at 10:16 ET with the 30-min time exit: AMDL −18.9 % (−$188.71), AMD −9.4 % (−$94.11). Big swings caught: 0 of 30.
+- Cohort: 2 muted, 18 cut, 6 backed. Gain: cohort score 20–70, +1.26 % to +1.49 % per 24 h (BACK, z 9.5 to 11.4). Loss: young-small ideas MUTE at 1 d and 2 d (lab weight 0, no live effect); the live 2 d pick procedure (lab.pick.2d.half) CUT, −0.38 % per step.
+- LETF: 0 muted, 6 cut, 0 backed. Loss: 🚀 alert and its open-hour gate CUT (−0.43 % and −1.30 % per 15 min); turns rev.all.15m −0.03 %, newer half −0.15 % (held muted). Gain: none proven. The best is plan.setup.full.60m, +0.13 % per hour, both halves above 0 (WATCH).
+
+### Agents
+- SOXX agent: ran, good work. It did all 3 tasks. It correctly did not add a stop: the walk-forward test of a stop on the time exit helps only on Nov 19 and hurts on Nov 17 (it sells the lows before the rebound). It correctly did not add a crowding limit, because the test fails on the newer half. The bot card is a display change only. Checks passed. Gap: the letf bot live record is −0.34 % per trade (n 55, newer half −0.74 %). The note does not give a plan for it.
+- Cohort agent: ran, very good work. It found a real data fault (a moving test grid) and fixed it at the source. The 1 d record did not change (mock run). It did not act on a ruling that came from the fault. That was correct.
+- LETF agent: ran, good work. It found negative EV on the page (turn flags back at full weight with mean and newer half below 0) and a second default-ON leak. Level-0 hold, no fitted value. Small problem: its 2 commits on main have no attribution lines (no rewrite needed).
+- My checks: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright with the real ev.json and bots.json: 0 page errors on SOXX, Mastermind, LETF (live, ?demo, #/f/SOXL), Cohort (main, #lab). The shared files are the same in all repos that have them. All pages builds: success. Order rules kept (limit entries, no new stop, same bet size, Schwab-only, long-only). No revert.
+- Yesterday's "Watch next": SOXX "EV rules: 30" in the log and evf in state.json (yes). Cohort Web.clear test (yes, passed). LETF open-hour gate (no: newer half of the open hour −0.97 %; still CUT). Lab 7 d CUT was a data fault, not a loss (fixed).
+
+### Lessons shared
+- NEW (from my new skip items): the "muted" gate blocked WINNING fills on all 4 days with data (Nov 16–19). Per blocked fill: letf +1.45 % (n 147), both +0.99 % (n 395), spot +0.66 % (n 231); both halves above 0. Nov 17 gives about half of it. The mute reads the mean of ALL 15 versions of an idea; the bot trades only the best-scored version. These can disagree. SOXX agent: test this first (task 1).
+- A test grid that starts at "today minus N days" moves every day (Cohort). SOXX and LETF agents: check each replay with a step of 2+ bars.
+- Default OFF (LETF). evrules.js now has EVR.factor(tr, id, {off: true}) → 0 before the scorecard loads. Use it for every flag, push or vote that was muted before.
+- One tail trade can delete a live record (SOXX). Read the worst trade before the mean. bot.<bot>.live now has a "worst" field. The 2×/3× funds make a tail 2 to 3 times larger: the same vrev signal on AMD lost 9.4 %, on AMDL 18.9 %.
+- LETF question: rev.hard.15m fell from n 25 to 15 because of the 7-day window. Nov 18 had 0 HARD turns, Nov 19 had 1. It is not a data gap.
+
+### Tasks for tomorrow
+- SOXX agent: 1) Split the muted gate by idea in bots.mjs (skip reason "muted.<idea>"; ev.mjs scores it with no change). Then do a walk-forward test: the mute by the picked-version record against the mute by the all-version mean (fit on Nov 16–18, check on Nov 19–20). 2) letf bot live is −0.34 % per trade, newer half −0.74 %. Check it with and without the AMDL trade, and say if the 2×/3× vrev time exit needs a fix (no stop without a stated reason). 3) Read skip.<bot>.full and skip.<bot>.time each day (now on the scorecard). Do not change MAXPOS before 5 days.
+- Cohort agent: 1) Check the Nov 20 "Watch next": the 7 d step dates stay the same, and there are fewer 7 d "changed" items. 2) lab.pick.2d.half is CUT: compare it with "margin" on the fixed grid when pickday has 5+ dates. 3) Check that the next late Bet lab schedule run (after 21:00 UTC) starts the EV governor (log line "EV governor started").
+- LETF agent: 1) Use EVR.factor("letf", id, {off: true}) in rev.js instead of the own check (same result, less code), and grep for other EVR.factor( calls with no off case. 2) rev.all.15m and rev.hard.15m now have per-day records: count the days with mean < 0 after Nov 19 for the hold. 3) Make the 🚀 fade by market state test (deep under VWAP, day down 3 %+), as the SOXX state gate does.
+
+### Changes I made
+- SOXX-Sniper 0450298, LETF-Sniper 001342b, Hyperdash-Cohort-Tracker 4af71a0: shared evrules.js v2 (?v=2 in each index.html). EVR.factor(tr, id, {off: true}) gives 0 while the scorecard is not loaded. Without the option: no change.
+- Hyperdash-Cohort-Tracker c25d98f and 6c4cfbb (scripts/ev.mjs, lab.yml), record only: skip.<bot>.<why> (fills that each bot gate blocked, by day; 11 new items); "worst" on bot.<bot>.live; per-day records on rev.all.15m and rev.hard.15m. lab.yml starts the EV governor when a schedule run ends after 21:00 UTC. Offline run: no ruling, factor or rule changed (33 rules, the same). EV governor on push: success (23:28 UTC).
+- No revert.
+
+### What Steven should know
+- Nothing to paste. No Worker change.
+- The paper bots lost on Nov 19 because of one fast drop in AMD at 10:16 ET (AMDL −18.9 % in 30 min). No stop was added: the test shows a stop would lose more on other days.
+- Possible missed profit: the muted ideas would have won on the last 4 days. This is not proven yet. The SOXX agent will test it before any change.
+
 ## 2026-11-18 · Council
 
 ### Shipped today
