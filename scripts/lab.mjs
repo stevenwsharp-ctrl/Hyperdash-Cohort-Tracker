@@ -113,6 +113,11 @@ const HYP = {
 // ---------- the bets ----------
 const days = []; { const all = Object.values(M).flatMap(m => [dayKey(m.B[0][0]), dayKey(m.B[m.B.length - 1][0])]); const d1 = Math.max(...Object.values(M).map(m => dayKey(m.B[m.B.length - 1][0]))); for (let d = d1 - 420; d <= d1; d++) days.push(d); }
 const lastDay = days[days.length - 1], CACHE = {};
+// Step grid (Cohort agent, 2026-11-19): the steps of a horizon h sit on fixed dates (day number divisible by h), not on
+// days[0] + 150 + k*h. days[0] moves one day each day, so the 2 d and 7 d grids moved to a new phase every run and the whole
+// 2 d / 7 d record was a NEW sample each day (lab.setup.7d: n 18, older +2.49 % on Nov 18 -> n 16, older -4.79 % on Nov 19).
+// Now a run keeps the steps of the run before (only the oldest drops and a new one comes in). 1 d does not change.
+const g0 = h => { const a = days[0] + 150; return a + ((h - (a % h)) % h); };
 const crossAt = d => CACHE[d] || (CACHE[d] = cross(d));
 // excursions with NO stop and NO target: the worst point against the bet (max drawdown, MAE) and the best point for it (max profit, MFE)
 // between the fill and the exit, from daily highs and lows, as a fraction of the entry (MAE ≤ 0, MFE ≥ 0)
@@ -133,7 +138,7 @@ const st = a => { if (!a.length) return null; const m = mean(a), s = sd(a); retu
 function baseAt(F, U, d, h) { const K = h + ":" + d; if (BASEC[K]) return BASEC[K]; const base = {}; for (const side of [1, -1]) { const a = U.map(c => bet(M[c], F[c], d, side, h)).filter(b => b.fill && b.r != null).map(b => side * b.r); base[side] = a.length ? mean(a) : 0; } return (BASEC[K] = base); }   // the same for every hypothesis on a day: computed once
 const RES = {}, ROWS = {}, BASEC = {};
 for (const h of [1, 2, 7]) for (const [name, H] of Object.entries(HYP)) {
-  const steps = []; for (let d = days[0] + 150; d + h <= lastDay; d += h) steps.push(d);
+  const steps = []; for (let d = g0(h); d + h <= lastDay; d += h) steps.push(d);
   const rows = [], byC = {}, byI = {}, EX = []; let orders = 0, fills = 0;
   for (const d of steps) { const F = crossAt(d), U = Object.keys(F).filter(c => (M[c].B[F[c].j][5] * F[c].px > 0)); if (U.length < 25) continue;
     // baseline: the same limit-order bet on EVERY market, per side, so a hypothesis is judged only on what it picks
@@ -156,7 +161,7 @@ for (const h of [1, 2, 7]) for (const [name, H] of Object.entries(HYP)) {
 const WF = {}, WROWS = {};
 // one walk-forward replay: sel(P, Prows) gives an idea's weight on day d from its bets that had ENDED by d (0 = not used)
 function wfReplay(h, sel) { const rows = []; let orders = 0, fills = 0, nI = 0;
-  for (let d = days[0] + 150; d + h <= lastDay; d += h) {
+  for (let d = g0(h); d + h <= lastDay; d += h) {
     const W = {}; let tw = 0;
     for (const k in HYP) { const R = ((ROWS[k] || {})[h] || []).filter(r => r.d + h <= d), P = R.map(r => r.v); if (P.length < 20) continue; const w = sel(P, R, d); if (w > 0) { W[k] = w; tw += w; } }
     if (!tw) continue;
@@ -188,7 +193,7 @@ SEL.recent = (P, R, d) => { const Q = R.filter(r => r.d >= d - 120).map(r => r.v
 // was MUTE (-0.38 %, z -2.2). Scored on the same grid and split as wfAlt, but NOT a candidate for the pick (nothing live).
 SEL.recentm = (P, R, d) => st(P).t <= -2 ? 0 : SEL.recent(P, R, d);
 const WFALT = {}, WSER = {}, WDET = {};
-for (const h of [1, 2, 7]) { const steps = []; for (let d = days[0] + 150; d + h <= lastDay; d += h) steps.push(d);
+for (const h of [1, 2, 7]) { const steps = []; for (let d = g0(h); d + h <= lastDay; d += h) steps.push(d);
   const toMap = rows => Object.fromEntries(rows.map(r => [r.d, r.v]));
   const RS = { cur: WROWS[h], strict: wfReplay(h, SEL.strict).rows, recent: wfReplay(h, SEL.recent).rows };
   const S = { cur: toMap(RS.cur), strict: toMap(RS.strict), recent: toMap(RS.recent), gate: {}, none: {} };
