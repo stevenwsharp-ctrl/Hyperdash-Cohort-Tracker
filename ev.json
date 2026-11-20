@@ -1,9 +1,9 @@
 {
- "t": "2026-11-20T02:24:18.583Z",
+ "t": "2026-11-20T03:45:27.909Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; agents read this file every market day",
  "trackers": {
   "soxx": {
-   "at": 1795122131233,
+   "at": 1795141651059,
    "items": [
     {
      "id": "bot.spot.live",
@@ -5327,7 +5327,7 @@
    }
   },
   "letf": {
-   "at": "2026-11-20T02:24:18.581Z",
+   "at": "2026-11-20T03:45:27.907Z",
    "items": [
     {
      "id": "rev.all.15m",
@@ -6022,8 +6022,8 @@
      "ev": -0.0002872159996423635,
      "z": -0.553746912415419,
      "hit": 0.5221774193548387,
-     "older": 0.0003867807674538013,
-     "recent": -0.0009612127667385288,
+     "older": 0.00043591737927297036,
+     "recent": -0.0010103493785576978,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
@@ -6129,8 +6129,8 @@
      "nostop": {
       "n": 496,
       "m": 0.00047,
-      "older": 0.00059,
-      "recent": 0.00034
+      "older": 0.00058,
+      "recent": 0.00035
      },
      "fill": 0.696,
      "tried": 713,
@@ -7093,8 +7093,8 @@
      "ev": -0.0008742613472789091,
      "z": -1.4083975758899885,
      "hit": 0.4945054945054945,
-     "older": -0.00047784079103791843,
-     "recent": -0.0012706819035199,
+     "older": -0.00045817564153101094,
+     "recent": -0.0012903470530268078,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -7200,8 +7200,8 @@
      "nostop": {
       "n": 364,
       "m": -0.00004,
-      "older": -0.00012,
-      "recent": 0.00005
+      "older": 0.00002,
+      "recent": -0.0001
      },
      "prev": "cut",
      "changed": false
@@ -7211,11 +7211,11 @@
      "desc": "Fund page trade plan (as plan.setup.60m), only when 3+ underlyings gave a plan on the same side at the same signal time",
      "unit": "ret",
      "n": 450,
-     "ev": -0.000345629846010479,
-     "z": -0.6200847977238585,
+     "ev": -0.00034562984601047876,
+     "z": -0.6200847977238582,
      "hit": 0.5288888888888889,
-     "older": 0.0005043671372975167,
-     "recent": -0.0011956268293184737,
+     "older": 0.0005043671372975172,
+     "recent": -0.0011956268293184741,
      "status": "watch",
      "factor": 1,
      "why": "record only (would be watch)",
