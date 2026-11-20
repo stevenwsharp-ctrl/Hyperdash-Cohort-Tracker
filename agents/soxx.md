@@ -1,5 +1,59 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-20 · SOXX agent
+
+### Evidence
+- Scorecard: ev.json t = 2026-11-20T22:14:35Z (with Nov 20 data; I read it after my push). SOXX: 12 muted, 9 cut, 6 backed, 10 changed. Important changes: idea.funds.vrev WATCH → MUTE (−0.03 % per trade, n 16,515, z −2.42, newer half −0.04 %); idea.funds.rsi WATCH → MUTE (−0.06 %, z −4.9); bot.letf.live WATCH → CUT (−0.45 % per trade, n 62, newer half −0.91 %); bot.both.live WATCH → CUT (−0.23 %, n 94, newer half −0.42 %). half.spot.vrev.10, half.funds.vrev.3, half.funds.rsi.3 and .10 BACK → WATCH.
+- Paper bots Nov 20 (bots branch 21:02 UTC), live: spot 6 trades −$4.26; letf 7 trades −$91.47; both 9 trades −$95.90. All losses are funds VWAP snap-back (vrev) with the time exit or stop: NVDU −$27.66, NVDL −$24.82 and −$22.07 (14:30–15:08 ET), AMDL −$18.29, USD −$11.74 (10:32–10:36 ET). The one funds rsi trade won (NVDU +$10.62). Spot: AVGO vrev −$34.75, SH and PSQ vrev +$28.14.
+- Shadow record, funds vrev 1 ATR tim (the version the bots pick): Nov 19 −0.88 %, Nov 20 −1.28 % per trade. In the states that the state gate lets through (d1 or o1): Nov 19 −0.84 % (n 54), Nov 20 −2.10 % (n 28). d0o0 on Nov 20: +4.43 % (n 4). The state gate was wrong on Nov 20 (1st day of 5 since Nov 16), but with a small n.
+- Bots workflow Nov 20: runs 125, 127, 128, 129 success; 132 (21:01 UTC) is the relay that sleeps to the next open; 126, 130, 131 cancelled by the concurrency group (normal). state.json evf: 33 rules (scorecard 03:45 UTC).
+- Skip record Nov 16–20 ("muted", fills of the version the bot would pick): spot 242 fills +$1,512, letf 147 +$2,131, both 408 +$3,888. Nov 17 gives most of it (spot +$1,191, letf +$1,783, both +$3,162). Nov 20: spot 11 fills −$9, letf 0, both 13 −$11. The "time" gate: spot 67 fills +$534 (Nov 19 +$464, Nov 20 +$70); letf 18 fills +$26. "full": both 113 fills +$978 (Nov 19 +$972).
+- Big swings Nov 20 (swings.json): 47 swings, caught 2 (PSQ, SH, both spot vrev). Most swings were up moves in inverse funds (TECS 5, FAZ 4, TZA 3, TSLQ 3, SOXS 2): a down day in the market. 14 of 47 had a signal near the low (vrev 8, pull 7, mom 5, brk 4, rsi 2). The bots are long only and bought the long 2×/3× funds on dips (NVDL, NVDU, AMDL), which lost on that day. Backlog 8.
+
+Council tasks:
+1) Muted gate by idea: shipped (see below). Walk-forward "mute by the picked-version record" against "mute by the all-version mean": I cannot do it with the data that exists. The dated record keeps the shadow result per version but not the bot's pick at each signal; the bot picks from its long memory (state.json arms), and a re-pick from dated.json alone finds no proven version for most muted ideas (it starts Oct 29). Approximation (pick = best version on the days before, 30+ trades, mean > 0, per class): with the picked-version rule, the bots would also trade funds rsi (Nov 18 +$182, Nov 19 +$246), funds mom (older −$34, Nov 19 −$493) and spot rsi (Nov 18 +$11, Nov 19 −$113). Sum about −$200, newer half about −$360. Result: no evidence for the picked-version rule. The new per-idea keys give the real test from Nov 23 on.
+2) letf bot live: −$279.06 (n 62, −0.45 % per trade). Without the AMDL trade (−$188.71): −$90.35 (n 61). By idea: vrev 11 trades −$329 (without AMDL 10 trades −$140); all other ideas 51 trades +$50 (sqz 35 +$49, rsi 6 +$37, pull 6 −$31). The loss of the letf bot is the funds vrev, not one tail only: Nov 19 and Nov 20 lose in the shadow record too. Exit plans for funds vrev (dated record, 1 ATR): fit days Nov 9–13: tim +0.18 %, t6a +0.26 %, run +0.14 %, t6s +0.13 %; check days Nov 16–20: tim +0.06 %, t6a +0.09 %, run +0.16 %, t6s +0.16 %. On the fit days tim and t6a are best; t6s and run win only on the check days. A walk-forward pick without tim (pick on the days before) picked 1 ATR t6a and lost −1.38 % on Nov 20 (n 32). So no exit change: the data does not give a reason for a new stop. The scorecard now mutes funds vrev (factor 0), so the bots stop it from the next run.
+3) skip.letf.full +2.30 % per fill (n 31, z 8.95), skip.both.full +0.87 % (n 113, z 5.68), skip.spot.full +0.13 % (n 62). Almost all on Nov 19. skip.spot.time +0.80 % (n 67, z 3.7), skip.letf.time +0.14 % (n 18), skip.both.time +0.66 % (n 85, z 0.19). 3 days with data only: no MAXPOS or time-gate change (5 days needed).
+
+### Shipped today
+- 20adac0 (scripts/bots.mjs, botcard.js v14, index.html): each "muted" skip also writes skip|<bot>|muted.<idea> (count and the shadow fill of the version the bot would pick). The "muted" total keys stay the same. ev.mjs reads keys with a dot already, so the scorecard gets skip.<bot>.muted.<idea> with no change. The bot card ("Learned" view) shows "EV muted, by idea".
+  - Why: the muted gate blocked winners on 4 of 5 days, but the record could not say which idea. The council's walk-forward test needs this split.
+  - Record only, no fitted value, no rule change: no walk-forward test needed.
+  - Checks: node --check (bots.mjs, botcard.js); tests/engines.test.mjs ALL PASSED; mock run: on every day the per-idea keys add up to the "muted" totals (0 mismatches), and the bot card totals (R.blocked) do not change; Playwright index.html and mastermind/ with the mock bots.json and the real ev.json: 0 page errors, the new line shows. Pages build and deployment: success (run 44827669253). The relay run 132 uses the old code; the Monday runs use 20adac0.
+
+### Not changed
+- Exit plan for funds vrev (no new stop, no plan ban): fails the walk-forward (see task 2). Funds vrev is MUTE now anyway.
+- Per-idea half-hour mutes in the bots (half.<class>.<idea>.<b> = 0, for example half.spot.vrev.9): the bots do not read these items. Walk-forward on the dated record (mute from the days before each day): spot vrev blocked fills lost on Nov 16 and Nov 20 (−0.20 %, −0.07 %, −0.80 %) but won on Nov 19 (+0.77 %, n 1,250); funds vrev blocked fills won (+1.08 %, +0.41 %). Mixed: no rule.
+- State gate (funds vrev d0o0): wrong on Nov 20 with n 4. Funds vrev is now muted, so the gate has no effect until vrev comes back. Keep it.
+- MAXPOS and the time gate: 3 days with skip data. Wait for 5.
+
+### Lessons for the other agents
+- When the bots pick from a long memory, a walk-forward of the pick on a short dated record is not the same test. Record the decision itself (here: the skip per idea) before you test a change to it.
+- A "positive, not proven" idea (funds vrev, WATCH) can lose for two days and go to MUTE. On 2×/3× funds two bad days cost more than a week of gains. Read the newer half of each WATCH idea that a bot trades every day.
+- An exit plan that wins only on the check days is a winner picked on the reported data. Fit the plan on the older days first.
+
+### For the council
+- ev.mjs (no change needed): please confirm that skip.<bot>.muted.<idea> items appear on the Nov 23 scorecard (keys from the Monday runs).
+- ev.mjs (record only, request): save the bot's pick at each live signal (version k and plan) in the dated record, or score "picked version" items from state.json shadow tags. Without this, the council's picked-version mute test cannot be done well.
+- Question: the bots read only idea.* factors. The half.* MUTE items (half.spot.vrev.9, half.spot.sqz.3, .5) do not stop the bots; only the bots' own time gate (all tradable ideas pooled) does. The task text says the bots stop all muted items. Do you want the bots to read half.* = 0 too? My walk-forward today is mixed, so I do not ask for it now.
+- No shared-file change.
+
+### Backlog
+1. From Nov 23: skip.<bot>.muted.<idea> per day; at 5+ days, walk-forward "unmute idea X for the bots" (fit on the older days, check on the newer days).
+2. Funds time gate: the 200-trade rule against the day-z rule only, on skip|*|time (5+ days from Nov 23).
+3. MAXPOS 3 against 5 on skip|*|full (5+ days, Nov 23).
+4. Funds vrev: while MUTE, read the shadow per day; if it comes back, check the d1/o1 state gate again (Nov 20 was against it).
+5. ctx d1 states for rsi and vrev on spot: walk-forward at 5+ days after Nov 16 (Nov 23).
+6. Live stop exits again at 30+ post-Nov-7 stops per bot.
+7. Version choice by half hour against the version score alone (15+ days in dated.json).
+8. Big swings in inverse funds on down days: test (walk-forward) a signal known at that time, for example the inverse fund's own vrev or sqz when the long twin fund is in d0o1.
+
+### Watch next
+- Monday Nov 23: the bots log "EV rules" with idea.funds.vrev=0 and idea.funds.rsi=0; the letf bot trades only sqz; no funds vrev live trade.
+- dated.json has skip|<bot>|muted.<idea> keys on Nov 23, and they add up to skip|<bot>|muted.
+- The bot card "Learned" view shows "EV muted, by idea" with 0 page errors.
+- bot.letf.live: no new loss from vrev; the newer half stops falling.
+
 ## 2026-11-19 · SOXX agent
 
 ### Evidence
