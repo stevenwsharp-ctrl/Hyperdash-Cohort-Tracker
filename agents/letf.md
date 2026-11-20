@@ -1,5 +1,63 @@
 # LETF agent notes
 
+## 2026-11-20 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev, t 2026-11-20T22:14:35Z (has the Nov 20 data). Re-read before this note: same t. trackers.letf: 18 items, 0 mute, 5 cut, 0 back, 5 changed.
+- rev.all.15m: WATCH, n 125, +0.045% per 15 min, z 0.63, older +0.083%, newer +0.009%. Mean and newer half are above 0, so the hold lets go and the turn flags show at factor 1 ("positive, not proven"). This is the designed result.
+- rev.hard.15m: WATCH, n 19, −0.104%, older −0.159%, newer −0.055%. The hold keeps HARD flags muted (mean and newer half below 0).
+- fade.rev.15m (limit fade of turns): WATCH, −0.068%, older −0.038%, newer −0.097%. Now the fade also loses on both halves. Turns have no edge in either direction.
+- fast.1m.15m: CUT → WATCH, +0.44%, n 17, older +0.58%, newer +0.32%. fade.fast1m.15m: CUT, −0.65%, both halves below 0. n is small: no page change.
+- fast.5m.15m: CUT (decay; older +0.86%, newer −0.55%). fade.fast5m.15m: n 8, too few.
+- 🚀: fast.15m.15m −0.17% (both halves below 0, WATCH); fast.15m.alert CUT −0.30%; fade.15m.15m CUT −0.29% (both halves below 0). Follow and fade of 🚀 both lose: "do not chase" stays correct. Push stays off.
+- Plans: plan.setup.full.60m WATCH +0.148% (older +0.207%, newer +0.090%, z 1.57). plan.setup.lean.60m CUT −0.062% (older −0.039%, newer −0.084%).
+- History of plan.setup.lean.60m on 27 scorecards (Nov 12 – Nov 20): the newer half was below 0 on 27 of 27 (−0.08% to −0.25%); MUTE on Nov 17 – 19. Full plans: mean above 0 on 27 of 27; both halves above 0 on the last 8 scorecards.
+- NEGATIVE EV ON THE PAGE (found today): leanOff() gave null before the scorecard was loaded (first visit, no cache for 2 days, or a failed fetch). In that gap the LEAN gate was open: LEAN LONG / LEAN SHORT plans showed on the fund page and went to the agreement panel and the signal web (letfweb.js reads setupOf). Same family as the 🚀 push leak (Nov 18) and the turn-flag leak (Nov 19).
+
+### Shipped today
+- LETF-Sniper 19a83bf (index.html; rev.js v11 → v12, ?v= bump):
+  1. LEAN gate default OFF: before the scorecard loads, a LEAN read shows "WAIT · LEAN … is off: the test scorecard is not loaded yet", with no plan, on every fund of the underlying (long and inverse alike). The fund page draws again when the scorecard loads (EVR.on hook after evrules.js), so the text does not wait for the 60-s refresh.
+  2. Council task 1: rev.js revF() now uses EVR.factor("letf", id, { off: true }). Same result as the own check before.
+  - Why: priority 1 (a part with negative EV on all 27 scorecards was live in the load gap).
+  - Walk-forward: no fitted value (level 0, the same gate rule as before; only the not-loaded case changed).
+- Checks: node --check rev.js and the 5 inline scripts of index.html OK. Playwright (local server; ?demo, live, #/f/SOXL, #/f/TSLL, #/f/SOXS) with the Nov 20 ev.json and with no scorecard (404): 0 page errors. With no scorecard: SOXL "WAIT · LEAN LONG … not loaded yet", SOXS "WAIT · LEAN SHORT … not loaded yet" (one reading for SOXX). With the scorecard: "… LEAN plans lost on the newer days of the test".
+- Pages build and deployment: success (run 44828718187, 19a83bf).
+- worker.js not changed. Steven does not need to paste anything.
+
+### Council tasks
+1. EVR.factor off option in rev.js: done (above). Grep of EVR. in index.html, letfweb.js, lessons.js, sell.js, terms.js: there is no other EVR.factor( call. The other EVR readers are fastPushOn (already OFF when not ready), fastEdge (text only, "no proven edge" when not ready), planEvHtml (no text when not ready) and leanOff (the leak, now fixed).
+2. Per-day records. rev.all.15m: days below 0: Nov 12 −0.17%, Nov 13 −0.24%, Nov 18 −0.01%, Nov 19 −0.67%; above 0: Nov 16 +0.04%, Nov 17 +0.31%, Nov 20 +0.36%. 4 of 7 days below 0. After Nov 19: 0 of 1 (Nov 20 +0.36%, n 28). rev.hard.15m: 4 of 6 days below 0; after Nov 19: 1 of 1 (Nov 20 −0.18%, n 5). The hold reads mean and newer half; the per-day record agrees: HARD keeps losing, all turns are mixed.
+3. 🚀 fade by market state (deep under VWAP, day down 3%+): I cannot run it here (no Yahoo access from the cloud session; ev.mjs is a council file). Request below.
+
+### Not changed
+- Turn flags: back at factor 1 by the hold rule (mean and newer half above 0). No new mute: z 0.63, and the newer half is +0.009%, about 0. If tomorrow the mean or the newer half goes below 0, the hold mutes them by itself.
+- fast.1m.15m: both halves above 0, but n 17 and WATCH. The page text already says "follow fast moves" when both halves agree. No weight change.
+- Full SETUP plans: positive, not proven (z 1.57). No more weight until BACK.
+- No stop change (Steven's rule; no tested stop wins). Shared files, ev.mjs, worker.js: not edited.
+
+### Lessons for the other agents
+- The default-OFF check must cover every gate, not only factors. A gate function that returns "open" (null) when the scorecard is not loaded is the same leak as a factor of 1. Grep for E.ready / EVR.ready returns in your gate code.
+- When the page redraws on a timer, a scorecard that loads late leaves the "not loaded" text for up to one refresh. Hook EVR.on to redraw.
+
+### For the council
+- ev.mjs (new test, request): fade.15m.15m and fast.15m.15m split by market state at the signal bar (d1 = 2σ+ under VWAP and RSI ≤ 30; o1 = day down 3%+ from the open), with older / newer halves and days, as the SOXX state record. Fit the state on the older half, score the newer half only.
+- ev.mjs (new test, request): plan.setup.full.60m by time of day (open / mid / close) with halves. It is the only part with both halves above 0; a walk-forward time gate can make it the first BACK item.
+- No shared-file change.
+
+### Backlog
+1. Full SETUP plans: when BACK, show them first on the fund page and in the hub (needs the time-of-day test first).
+2. 🚀 fade / follow by market state (waits for the ev.mjs test).
+3. 🚀 open hour: push only after todH open newer half above 0 and 3 positive new days of fast.15m.alert.tgate.
+4. rev.js backtest(): true New York clock for the day split before Mar 14 2027.
+5. Audit leverage and underlying of the fund list against instruments.json (needs the Worker list).
+6. 🚀 threshold per fund kind (fund move ÷ leverage), needs an ev.mjs test first.
+
+### Watch next
+- Pages: with no scorecard, a LEAN read says "WAIT · … the test scorecard is not loaded yet" on all funds of the underlying; with the scorecard, "LEAN plans lost on the newer days of the test" while the newer half is below 0.
+- plan.setup.lean.60m newer half stays below 0 (gate stays shut).
+- rev.all.15m: mean and newer half above 0 on Nov 23, or the hold mutes the flags again. rev.hard.15m stays held.
+- fast.1m.15m: both halves stay above 0 as n grows.
+
 ## 2026-11-19 · LETF agent
 
 ### Evidence
