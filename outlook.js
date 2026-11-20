@@ -96,7 +96,11 @@
   // the blend without both beat the blend with both at 12 of 12 checks (+1.2 pts per pick on average) and beat the blend
   // without reversion only at 8 of 12 (+0.7 pts); removing momentum alone made the blend worse. A group gates only while
   // EVERY member lost on both parts; when one member turns positive, the whole group comes back.
-  const GATE = { 24: [["rev", "mom"]], 168: [["mom"]] };
+  // Cohort agent (2026-11-20): 48 h momentum gets the same gate as 7 d. Backtest of Nov 15: it lost on the learning part
+  // (-1.88% per pick) AND on the unseen part (-1.02%, n 93; scorecard outlook.mom.48h -1.53%); the blend fitted on the
+  // learning part already gives it weight 0, and only the 0.2 floor of btW kept it in the page's consensus. Momentum lost on
+  // both parts at all three horizons. It comes back by itself when either part turns positive.
+  const GATE = { 24: [["rev", "mom"]], 48: [["mom"]], 168: [["mom"]] };
   const lost = (h, k) => { const R = btRes(h, k); return !!(R && R.learnM != null && R.unseenM != null && R.learnM < 0 && R.unseenM < 0); };
   const gated = (h, k) => (GATE[h] || []).some(g => g.includes(k) && g.every(x => lost(h, x)));
   // ---------- build ----------
