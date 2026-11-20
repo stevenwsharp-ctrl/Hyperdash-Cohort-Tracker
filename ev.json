@@ -1,5 +1,5 @@
 {
- "t": "2026-11-20T22:14:35.716Z",
+ "t": "2026-11-20T23:17:53.143Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; agents read this file every market day",
  "trackers": {
   "soxx": {
@@ -77,8 +77,8 @@
       "idea": "vrev",
       "plan": "tim"
      },
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "bot.letf.bt",
@@ -129,8 +129,8 @@
       "idea": "vrev",
       "plan": "tim"
      },
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "bot.both.bt",
@@ -338,8 +338,8 @@
      "status": "mute",
      "factor": 0,
      "why": "proven negative EV",
-     "prev": "watch",
-     "changed": true
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "idea.funds.rsi",
@@ -358,8 +358,8 @@
      "status": "mute",
      "factor": 0,
      "why": "proven negative EV",
-     "prev": "watch",
-     "changed": true
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "idea.funds.mom",
@@ -574,8 +574,8 @@
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
-     "prev": "back",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.vrev.11",
@@ -869,7 +869,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.spot.rsi.2",
@@ -1083,7 +1085,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.pull.1",
@@ -1202,8 +1206,8 @@
      "factor": 1,
      "why": "shadow of a muted idea (would be back): watch only",
      "ruling": "back",
-     "prev": "back",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.vrev.5",
@@ -1238,8 +1242,8 @@
      "factor": 1,
      "why": "shadow of a muted idea (would be cut): watch only",
      "ruling": "cut",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.rsi.3",
@@ -1256,8 +1260,8 @@
      "factor": 1,
      "why": "shadow of a muted idea (would be back): watch only",
      "ruling": "back",
-     "prev": "back",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.rsi.5",
@@ -1346,8 +1350,8 @@
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
      "ruling": "watch",
-     "prev": "back",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.rsi.11",
@@ -1417,7 +1421,9 @@
      "status": "watch",
      "factor": 1,
      "why": "shadow of a muted idea (would be watch): watch only",
-     "ruling": "watch"
+     "ruling": "watch",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "half.funds.mom.11",
@@ -1450,7 +1456,9 @@
      "src": "dated.json",
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "live.spot.1",
@@ -1867,7 +1875,9 @@
      "src": "dated.json",
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "live.letf.early",
@@ -1965,7 +1975,9 @@
      "src": "dated.json",
      "status": "watch",
      "factor": 1,
-     "why": "too few results"
+     "why": "too few results",
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "live.both.1",
@@ -2002,8 +2014,8 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "live.both.3",
@@ -2495,7 +2507,9 @@
      "z": 3.76,
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "arm.L.sqz.0.25.t3s",
@@ -2506,7 +2520,9 @@
      "z": 3.72,
      "status": "back",
      "factor": 1.25,
-     "why": "proven positive EV"
+     "why": "proven positive EV",
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "time.S.0",
@@ -2901,7 +2917,9 @@
        "m": 0.01468,
        "usd": 44.03
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "skip.both.muted",
@@ -3075,7 +3093,9 @@
        "m": 0.01468,
        "usd": 44.03
       }
-     }
+     },
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "skip.letf.muted",
@@ -3308,7 +3328,7 @@
     "mute": 12,
     "cut": 9,
     "back": 6,
-    "changed": 10
+    "changed": 0
    },
    "rules": {
     "bot.spot.live": 0.5,
@@ -4188,8 +4208,8 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.rs-peer.2d",
@@ -4396,8 +4416,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.ath.7d",
@@ -4412,8 +4432,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.pump-fade.1d",
@@ -4460,8 +4480,8 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.beta-tide.1d",
@@ -4524,8 +4544,8 @@
      "status": "mute",
      "factor": 0,
      "why": "proven negative EV",
-     "prev": "cut",
-     "changed": true
+     "prev": "mute",
+     "changed": false
     },
     {
      "id": "lab.vol-squeeze.2d",
@@ -4640,8 +4660,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.setup.7d",
@@ -4744,8 +4764,8 @@
      "why": "positive, not proven",
      "prev": "watch",
      "changed": false,
-     "rulePrev": "cur",
-     "ruleChanged": true
+     "rulePrev": "none",
+     "ruleChanged": false
     },
     {
      "id": "lab.rule.2d.cur",
@@ -4761,8 +4781,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.rule.2d.strict",
@@ -4850,8 +4870,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.pick.1d.best",
@@ -4950,8 +4970,8 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.pick.2d.best",
@@ -4990,8 +5010,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.pick.2d.margin",
@@ -5329,7 +5349,7 @@
     "mute": 3,
     "cut": 20,
     "back": 6,
-    "changed": 10
+    "changed": 0
    },
    "rules": {
     "outlook.mom.24h": 0.5,
@@ -5364,18 +5384,18 @@
    }
   },
   "letf": {
-   "at": "2026-11-20T22:14:35.714Z",
+   "at": "2026-11-20T23:17:53.142Z",
    "items": [
     {
      "id": "rev.all.15m",
      "desc": "Hard reversal detector, all turns (score ≥ 0.6), on the underlying: trade the new direction, next 15 min",
      "unit": "ret",
      "n": 125,
-     "ev": 0.0004533576815093279,
-     "z": 0.6283237595708118,
+     "ev": 0.0004533576815093277,
+     "z": 0.6283237595708114,
      "hit": 0.472,
      "older": 0.0008264574267364624,
-     "recent": 0.00008618015446040133,
+     "recent": 0.00008618015446040122,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -5485,8 +5505,8 @@
      "factor": 1,
      "why": "positive, not proven",
      "trim": null,
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "fade.rev.15m",
@@ -5497,7 +5517,7 @@
      "z": -0.8084358818916012,
      "hit": 0.5617977528089888,
      "older": -0.0003750989089355509,
-     "recent": -0.0009683125651900038,
+     "recent": -0.0009683125651900039,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
@@ -5644,8 +5664,8 @@
       "2026-11-20": 2,
       "2026-11-16": 3
      },
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "fade.rev.15m.tgate",
@@ -5798,6 +5818,53 @@
        "m": 0.00954
       }
      },
+     "state": {
+      "d0o0": {
+       "n": 76,
+       "m": -0.00494,
+       "o": {
+        "n": 40,
+        "m": -0.0024
+       },
+       "r": {
+        "n": 36,
+        "m": -0.00776
+       }
+      },
+      "d0o1": {
+       "n": 64,
+       "m": 0.00062,
+       "o": {
+        "n": 35,
+        "m": -0.00077
+       },
+       "r": {
+        "n": 29,
+        "m": 0.0023
+       }
+      },
+      "d1o0": {
+       "n": 4,
+       "m": 0.0021,
+       "o": null,
+       "r": {
+        "n": 4,
+        "m": 0.0021
+       }
+      },
+      "d1o1": {
+       "n": 37,
+       "m": 0.00067,
+       "o": {
+        "n": 15,
+        "m": 0.00463
+       },
+       "r": {
+        "n": 22,
+        "m": -0.00204
+       }
+      }
+     },
      "prev": "watch",
      "changed": false
     },
@@ -5928,8 +5995,58 @@
        "m": -0.0099
       }
      },
-     "prev": "watch",
-     "changed": true
+     "state": {
+      "d0o0": {
+       "n": 35,
+       "m": 0.00264,
+       "o": {
+        "n": 18,
+        "m": 0.00305
+       },
+       "r": {
+        "n": 17,
+        "m": 0.0022
+       }
+      },
+      "d0o1": {
+       "n": 33,
+       "m": -0.00616,
+       "o": {
+        "n": 16,
+        "m": -0.00366
+       },
+       "r": {
+        "n": 17,
+        "m": -0.00851
+       }
+      },
+      "d1o0": {
+       "n": 2,
+       "m": -0.01349,
+       "o": {
+        "n": 1,
+        "m": -0.04967
+       },
+       "r": {
+        "n": 1,
+        "m": 0.02268
+       }
+      },
+      "d1o1": {
+       "n": 20,
+       "m": -0.00621,
+       "o": {
+        "n": 10,
+        "m": -0.00055
+       },
+       "r": {
+        "n": 10,
+        "m": -0.01188
+       }
+      }
+     },
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "fast.15m.15m.tgate",
@@ -5998,8 +6115,8 @@
        }
       }
      },
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "fast.15m.alert.tgate",
@@ -6053,18 +6170,80 @@
        }
       }
      },
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
+    },
+    {
+     "id": "fast.15m.15m.sgate",
+     "desc": "🚀 rule (as fast.15m.15m), only in the fund states that won on the older half (d1o1); scored on the newer half only",
+     "unit": "ret",
+     "n": 22,
+     "ev": -0.002037078576602121,
+     "z": -0.4197444979574394,
+     "hit": 0.45454545454545453,
+     "older": 0.003092316844776733,
+     "recent": -0.007166473997980974,
+     "status": "watch",
+     "factor": 1,
+     "why": "record only (would be watch)",
+     "ruling": "watch",
+     "keep": [
+      "d1o1"
+     ],
+     "of": 91,
+     "days": {
+      "2026-11-18": {
+       "n": 2,
+       "m": -0.00729
+      },
+      "2026-11-19": {
+       "n": 11,
+       "m": 0.00164
+      },
+      "2026-11-20": {
+       "n": 9,
+       "m": -0.00536
+      }
+     }
+    },
+    {
+     "id": "fade.15m.15m.sgate",
+     "desc": "Fade the 🚀 move (as fade.15m.15m), only in the fund states that won on the older half (d0o0); scored on the newer half only",
+     "unit": "ret",
+     "n": 17,
+     "ev": 0.002200144689976376,
+     "z": 0.5955260815912252,
+     "hit": 0.6470588235294118,
+     "older": 0.0018516244266419753,
+     "recent": 0.0025099404796069583,
+     "status": "watch",
+     "factor": 1,
+     "why": "record only (would be watch)",
+     "ruling": "watch",
+     "keep": [
+      "d0o0"
+     ],
+     "of": 45,
+     "days": {
+      "2026-11-19": {
+       "n": 10,
+       "m": 0.00372
+      },
+      "2026-11-20": {
+       "n": 7,
+       "m": 0.00003
+      }
+     }
     },
     {
      "id": "plan.setup.60m",
      "desc": "Fund page trade plan (setupOf on the underlying's 5-min bars, LONG/SHORT SETUP and LEAN): LIMIT entry 0.5 × 5-min ATR, alive 60 min, counts only when touched; exit at the plan's stop or target or 60 min after the fill; cost 0.02% of the underlying; one per underlying per hour",
      "unit": "ret",
      "n": 510,
-     "ev": -0.00007267390939613297,
-     "z": -0.14047204106332836,
+     "ev": -0.00007267390939613294,
+     "z": -0.14047204106332833,
      "hit": 0.5215686274509804,
-     "older": 0.0003433651082029975,
+     "older": 0.0003433651082029976,
      "recent": -0.0004887129269952635,
      "status": "watch",
      "factor": 1,
@@ -7103,6 +7282,33 @@
       "older": 0.00214,
       "recent": 0.00187
      },
+     "todH": {
+      "open": {
+       "n": 56,
+       "m": 0.00292,
+       "o": {
+        "n": 29,
+        "m": 0.00528
+       },
+       "r": {
+        "n": 27,
+        "m": 0.00038
+       }
+      },
+      "mid": {
+       "n": 76,
+       "m": 0.00043,
+       "o": {
+        "n": 37,
+        "m": -0.00045
+       },
+       "r": {
+        "n": 39,
+        "m": 0.00126
+       }
+      },
+      "close": null
+     },
      "prev": "watch",
      "changed": false
     },
@@ -7111,11 +7317,11 @@
      "desc": "Fund page trade plan, only LEAN LONG / LEAN SHORT (2 of 3 filters): as plan.setup.60m",
      "unit": "ret",
      "n": 378,
-     "ev": -0.0006161044551524525,
-     "z": -1.0050014365860744,
+     "ev": -0.0006161044551524523,
+     "z": -1.005001436586074,
      "hit": 0.4973544973544973,
-     "older": -0.00039147590009312955,
-     "recent": -0.0008407330102117761,
+     "older": -0.00037369862100553085,
+     "recent": -0.0008585102892993743,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -7221,8 +7427,8 @@
      "nostop": {
       "n": 378,
       "m": 0.00025,
-      "older": 0.00031,
-      "recent": 0.00018
+      "older": 0.00033,
+      "recent": 0.00016
      },
      "prev": "cut",
      "changed": false
@@ -7232,8 +7438,8 @@
      "desc": "Fund page trade plan (as plan.setup.60m), only when 3+ underlyings gave a plan on the same side at the same signal time",
      "unit": "ret",
      "n": 467,
-     "ev": -0.0000927081222273264,
-     "z": -0.1680378127386585,
+     "ev": -0.0000927081222273261,
+     "z": -0.16803781273865795,
      "hit": 0.5289079229122056,
      "older": 0.0003281252848087514,
      "recent": -0.0005117430959000022,
@@ -7431,11 +7637,11 @@
     "planMarkets": 24
    },
    "summary": {
-    "n": 18,
+    "n": 20,
     "mute": 0,
     "cut": 5,
     "back": 0,
-    "changed": 5
+    "changed": 0
    },
    "rules": {
     "fast.5m.15m": 0.5,
