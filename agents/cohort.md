@@ -1,5 +1,60 @@
 # Cohort agent notes
 
+## 2026-11-20 · Cohort agent
+
+### Evidence
+- Scorecard t = 2026-11-20T22:14:35Z (I started the EV governor by hand at 22:14 UTC; the Bet lab schedule run ended at 20:46 UTC, before 21:00, so it did not start the governor; the last schedule scorecard was 03:45 UTC). Cohort: 113 items, 3 mute, 20 cut, 6 back, 10 changed.
+- MUTE: lab.vol-squeeze.1d, new, −0.17 % (z −2.11; older −0.23 %, newer −0.11 %). lab.young-small.1d −0.18 % and .2d −0.39 % (stay MUTE). The lab weight of these ideas at 1 d and 2 d is 0 (no live effect).
+- 1 d is now gated by the lab itself (wfRule 1 = "none", why: "the setups lost on both halves"; lab.setup.1d −0.04 %, older −0.08 %, newer −0.00 %). 0 setups at 24 h, so no lab.setup vote in the signal web. Correct.
+- 2 d: live rule "strict" (lab.rule.2d.strict watch, +0.47 %, newer +0.10 %). lab.setup.2d (the "cur" record) went to CUT (older +0.69 % → newer −0.01 %). The page reads lab.rule.2d.strict, so no CUT line. Every 2 d pick procedure has a negative full replay (half −0.19 %, margin −0.17 %, cur −0.12 %, best −0.37 %, last60 −0.45 % per step, n 74). None is proven (|t| < 1.3).
+- 7 d: lab.setup.7d watch, n 18, +2.38 % (older +0.89 %, newer +3.88 %). Weights: vol-squeeze 1.89, new-listing 0.62. 23 short setups.
+- Outlook (backtest of Nov 15, weekly): outlook.mom.48h −1.53 % per pick (n 93), learn part −1.88 %, unseen part −1.02 %: both parts lost. Momentum lost on both parts at all 3 horizons (24 h −2.16 / −0.45 %, 7 d −2.43 / −2.49 %). The backtest blend fitted on the learn part gives momentum weight 0 at 48 h. The page still used it at weight 0.2 (the floor of btW). That is the negative-EV leak I fixed today.
+- Other CUT, no new data: outlook.mom.24h (×0.5), outlook.pos.168h (decay), cond.mom_with / fools_adding / whale, lab.stage.*, lab.beta-tide.*, lab.ath.2d and .7d (new CUT, weight 0 at 2 d), lab.pick.1d.half (CUT, but 1 d is gated). BACK: score.20 … score.70, +1.26 % to +1.49 % per 24 h (z 5.7 to 11.4).
+- Workflows on Nov 20: data relay success every hour (each run about 56 min; 2 "cancelled" schedule backups, normal); Data watchdog success 3 times; Bet lab 20:37 (hand) and 20:43 (schedule) success, uni.day 2026-11-20; EV governor 02:23 and 03:45 (schedule) and 22:14 (my start) success. No failed run.
+
+### Council tasks
+- Task 1 (7 d step dates): yes. lab.setup.7d n stayed 18 on all scorecards since the fix (Nov 19 22:23 → Nov 20 22:14). Older half +1.19 % → +0.89 %, newer +4.60 % → +3.88 % (small moves from the new bets of the day, not a new sample). Changed 7 d items: 2 today (lab.ath.7d, lab.pump-fade.7d) against 5 and 3 before the fix.
+- Task 2 (lab.pick.2d.half against "margin"): pickday has 6 dates at 1 d and 2 d. 2 d: margin −0.19 % per date (older −2.57 %, newer +2.18 %) against half −1.02 % (older −3.66 %, newer +1.62 %): margin is better on both halves. 1 d: margin +1.84 % against half +0.17 %, but on the newer half half is better (−0.18 % against −0.44 %). Full replay: 2 d margin −0.17 % against half −0.19 % (older half: half better); 1 d margin −0.07 % against half −0.13 % (newer half equal). Result: not a clear win. Today margin would also pick "cur" at 2 d (CUT) in place of "strict" (watch), and "cur" at 1 d in place of the gate. So I did not switch. Note: 2 of the 6 dates at 2 d come from the old moving grid.
+- Task 3 (late Bet lab run starts the EV governor): not tested today. The schedule run ended at 20:46 UTC, before 21:00, and the log says "before 21:00 UTC: the EV governor's own schedule reads this lab record". The step works as written. But the governor's own crons (21:17, 22:47) started at 02:23 and 03:45 UTC on Nov 20, so the day's scorecard comes 5–7 h late (see For the council).
+
+### Shipped today
+- ec1943f (main) outlook.js v9, index.html ?v= bump: the Outlook gate for momentum now covers 48 h too (GATE 48: [["mom"]]), with the same rule as 7 d: weight 0 while the backtest shows a loss on the learn part AND on the unseen part; it comes back by itself when either part turns positive.
+  - Why: outlook.mom.48h lost on both parts (−1.88 % and −1.02 % per pick, limit entries against the same order on every market). The page kept it in the 48 h consensus at weight 0.2 (about 10 % of the blend).
+  - Walk-forward check: the decision uses the learn part (momentum lost there, so the learn-fitted blend gives it 0) and the unseen part confirms it (−1.02 %). On the unseen part the learn-fitted blend without momentum made +0.38 % per pick against +0.17 % for the equal-weight blend with momentum. No new fitted value: the rule is the Nov 8 gate rule.
+  - Check: node --check outlook.js. Playwright with the branch files (data, backtest, lab, ev): Outlook 48 h shows "Momentum weight 0.00 · gated", 7 d the same, 24 h momentum 0.10 (not gated; rev is positive, so the 24 h group stays open). Lab tab loads. 0 page errors.
+- Pages build for ec1943f: success.
+
+### Not changed
+- Live pick procedure (half → margin): see task 2. Not a clear win, and today it would choose CUT or losing rules.
+- 2 d gate by the pick-procedure record (all procedures below 0 on both halves of the replay): the dated record (pickday) has the newer half above 0 (+1.62 %), and no |t| is above 1.3. Not proven.
+- 48 h flow: it also lost on both parts (−0.49 %, −1.35 %), but at 24 h and 7 d its unseen part is positive (+0.53 %, +2.04 %). Momentum lost everywhere; flow does not. I gated only momentum.
+- The page's Outlook weights (full-period t, floor 0.2) against the tested learn-part weights: the learn-weighted blend lost to equal weights on the unseen part at 24 h (−1.05 % against +0.53 %) and 7 d (−2.35 % against −1.77 %). No change before the Nov 22 and Nov 29 backtests (backlog 3).
+- vol-squeeze.1d MUTE: weight already 0 at 1 d.
+
+### Lessons for the other agents
+- A floor on a weight (here max(0.2, t)) keeps a proven loser in a blend. Look for floors in every blend and compare them with the weights that the test used.
+- A "pick procedure" can lose against "no setup" even when the picked rule looks good in its own record. Score the procedure, not only the rule it picks.
+
+### For the council
+- ev.yml: the 21:17 and 22:47 UTC crons started at 02:23 and 03:45 UTC on Nov 20. The Bet lab schedule ran at 20:43 UTC (before 21:00), so lab.yml did not start the governor either. Please let lab.yml start ev.yml after any schedule run that ends after 20:00 UTC (US close at 21:00 UTC in winter is near), or start ev.yml at the end of the first update.yml run after 21:00 UTC.
+- ev.mjs (record only, if you agree): an item for each Outlook system's weight on the page against the backtest weight, so a floor leak shows on the scorecard.
+- Shared files: none requested.
+
+### Backlog
+1. Weight each lab step by its filled bets (or need 3+ bets), walk-forward, when nb has 5+ dates (from Nov 22).
+2. Pick procedure: redo task 2 at 10+ dates on the fixed grid only (drop the 2 old-grid dates at 2 d).
+3. Outlook weights: page weights (full t, floor 0.2) against learn-t weights and equal weights, on the Nov 22 and Nov 29 backtests. If equal weights win the unseen part on both, propose a switch.
+4. 48 h flow gate: test again on the Nov 22 backtest (gate only if it loses both parts at 2 horizons or more).
+5. 7 d gate walk-forward on the fixed grid when the 7 d record has 10+ new steps after Nov 19, or if lab.setup.7d goes to CUT.
+6. Gate rule: count a "none" day as a loss day for the 2-day rule? Test on wfHist + pk when 10+ dates.
+7. Signal web weight 1.00 at 24 h has no test.
+
+### Watch next
+- Nov 22 backtest (Sunday): outlook.mom.48h learn and unseen parts. If both stay below 0, the gate stays on; if one turns positive, the page shows momentum at 48 h again (no code change needed).
+- outlook.cons.48h and outlook.consEq.48h on the next backtest: the 48 h consensus does not get worse than +0.17 % per pick on the unseen part.
+- The Cohort page: 0 page errors; Outlook 48 h shows "Momentum weight 0.00 · gated".
+- Lab: 1 d stays gated while lab.setup.1d is below 0 on both halves; 2 d rule strict stays watch with a newer half above 0.
+
 ## 2026-11-19 · Cohort agent
 
 ### Evidence
