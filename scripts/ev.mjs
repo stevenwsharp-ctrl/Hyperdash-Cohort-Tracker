@@ -228,6 +228,15 @@ function despike(D) { if (D.length < 10) return { D, n: 0 }; const r = []; for (
   const v = r.map(Math.abs).filter(x => x > 0).sort((a, b) => a - b), sg = v.length >= 8 ? Math.max(0.0004, v[Math.floor(v.length / 2)] * 1.4826) : 0; if (!sg) return { D, n: 0 };
   const out = D.slice(); let n = 0; for (let i = 1; i < D.length - 1; i++) { const a = Math.log(D[i][4] / D[i - 1][4]), b = Math.log(D[i][4] / D[i + 1][4]);
     if (Math.abs(a) > 10 * sg && Math.abs(b) > 10 * sg && Math.sign(a) === Math.sign(b)) { n++; const c = out[i - 1][4]; out[i] = [D[i][0], c, c, c, c, D[i][5]]; } } return { D: out, n }; }
+// Council, Nov 20 2026 (LETF agent request): the market state of the FUND at a 🚀 signal bar i, in the direction of the move
+// (d = +1 up, -1 down). Known at the signal close (bars 0..i only). d1 = the close is 2σ+ past the session VWAP in the move
+// direction (σ = sd of (close/VWAP - 1) on the bars so far, 30+ bars, floor 0.1%) AND RSI(14, 1-min, Wilder) is 70+ (up) or 30- (down);
+// o1 = the fund is 3%+ from the day's first open in the move direction. Key "d0o0" … "d1o1" (as the SOXX state record).
+function fundState(D, i, d) { let pv = 0, vv = 0; const dev = []; for (let j = 0; j <= i; j++) { const b = D[j], tp = (b[2] + b[3] + b[4]) / 3, v = b[5] || 0; pv += tp * v; vv += v; if (vv > 0) dev.push(b[4] / (pv / vv) - 1); }
+  let d1 = 0; if (dev.length >= 30) { const x = dev[dev.length - 1], s = sd(dev); let g = 0, l = 0; const n = 14;
+    for (let j = Math.max(1, i - 59); j <= i; j++) { const c = D[j][4] - D[j - 1][4], up = Math.max(c, 0), dn = Math.max(-c, 0); g = g ? (g * (n - 1) + up) / n : up; l = l ? (l * (n - 1) + dn) / n : dn; }
+    const rsi = l === 0 ? 100 : 100 - 100 / (1 + g / l); d1 = d * x >= 2 * Math.max(s, 0.001) && (d > 0 ? rsi >= 70 : rsi <= 30) ? 1 : 0; }
+  const o1 = d * (D[i][4] / D[0][1] - 1) >= 0.03 ? 1 : 0; return `d${d1}o${o1}`; }
 async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [], ff5: [], ff1: [], f15: [], f15a: [], ff15: [], ff1q: [], tf1: [] }, tried = { frev: 0, ff5: 0, ff1: 0, ff15: 0 }; let got = 0, gotF = 0, spikes = 0;
   const byDay = B => { const days = new Map(); B.forEach(b => { const d = new Date(nyT(b[0])).toISOString().slice(0, 10); if (!days.has(d)) days.set(d, []); days.get(d).push(b); }); return days; };
   for (let k = 0; k < LETF_U.length; k += 3) { await Promise.all(LETF_U.slice(k, k + 3).map(async s => { const B = await bars(s); if (!B || B.length < 200) return; got++;
@@ -251,10 +260,10 @@ async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [],
         // the 🚀 ALERT level (index.html): 5% single-stock / 2.5% index fund, and $1M+ traded so far today (council, Nov 9 2026)
         if (i >= skipA && Math.abs(m15) >= th * 1.25 && dv >= 1e6) { skipA = i + 15; R.f15a.push({ t: D[i][0], v: Math.sign(m15) * Math.log(c[i + 15] / c[i]) - COST_F, p: tod(D[i][0]) }); }
         if (i < skip || Math.abs(m15) < th) continue; skip = i + 15;
-        R.f15.push({ t: D[i][0], v: Math.sign(m15) * Math.log(c[i + 15] / c[i]) - COST_F, p: tod(D[i][0]), m: etMin(D[i][0]) });
+        const st = fundState(D, i, Math.sign(m15)); R.f15.push({ t: D[i][0], v: Math.sign(m15) * Math.log(c[i + 15] / c[i]) - COST_F, p: tod(D[i][0]), m: etMin(D[i][0]), st });
         // Council, Nov 10 2026 (LETF agent request): fade the 🚀 move with a LIMIT entry against it, 0.5 × the fund's 5-min σ
         // (σ from the last 120 minutes only) past the signal close, alive 5 min, counts only when touched, exit 15 min after the fill, cost 0.05%
-        const sgF = Math.max(0.0004, rsd(r1.slice(Math.max(1, i - 119), i + 1)) || 0); tried.ff15++; const y = limitTrade(D, SF, i, -Math.sign(m15), 0.5 * sgF * Math.sqrt(5), 5, COST_F); if (y) R.ff15.push(y); } } }
+        const sgF = Math.max(0.0004, rsd(r1.slice(Math.max(1, i - 119), i + 1)) || 0); tried.ff15++; const y = limitTrade(D, SF, i, -Math.sign(m15), 0.5 * sgF * Math.sqrt(5), 5, COST_F); if (y) R.ff15.push({ ...y, st }); } } }
   // trim: the mean without the top and bottom 5% (council, Nov 10 2026: a check of the size of fast.* items; the ruling uses ev)
   const trim = v => { const a = v.slice().sort((x, y) => x - y), k = Math.floor(a.length * 0.05); return a.length >= 20 ? +mean(a.slice(k, a.length - k)).toFixed(5) : null; };
   const L = a => a.sort((x, y) => x.t - y.t).map(x => x.v), items = [], add = (id, desc, a, ex) => { if (a.length) { const v = L(a.slice()); items.push({ ...fromList(id, desc, "ret", v), ...(/^fast\./.test(id) ? { trim: trim(v) } : {}), ...(ex || {}) }); } };
@@ -305,6 +314,18 @@ async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [],
   add("fade.15m.15m", "Fade the 🚀 move: LIMIT entry against the move 0.5 × the fund's 5-min σ past the close, alive 5 min, counts only when touched; exit 15 min after the fill; cost 0.05%", R.ff15, { fill: tried.ff15 ? +(R.ff15.length / tried.ff15).toFixed(3) : null, tod: splits(R.ff15) });
   perDay("fade.15m.15m", R.ff15);
   tgate("fast.15m.15m", R.f15, "🚀 rule (as fast.15m.15m)"); tgate("fast.15m.alert", R.f15a, "🚀 alert level (as fast.15m.alert)");
+  // Council, Nov 20 2026 (LETF agent request): the 🚀 follow and its limit fade by the fund's state at the signal (fundState).
+  // .state on the item = n, mean, older-half and newer-half mean per state (record only). .sgate = a walk-forward state gate:
+  // keep the states whose mean was > 0 on the OLDER half (8+ trades), score ONLY the newer half in the kept states. Record
+  // only (watch, factor 1): no page reads it yet; a page rule needs the agent's own check of the halves and the days first.
+  const byState = a => { const s = a.slice().sort((x, y) => x.t - y.t), h = Math.floor(s.length / 2), f = v => v.length ? { n: v.length, m: +mean(v).toFixed(5) } : null, o = {};
+    for (const k of ["d0o0", "d0o1", "d1o0", "d1o1"]) { const w = s.filter(x => x.st === k).map(x => x.v); if (w.length) o[k] = { n: w.length, m: +mean(w).toFixed(5), o: f(s.slice(0, h).filter(x => x.st === k).map(x => x.v)), r: f(s.slice(h).filter(x => x.st === k).map(x => x.v)) }; } return o; };
+  const sgate = (id, list, desc) => { const a = list.filter(x => x.st).sort((x, y) => x.t - y.t), h = Math.floor(a.length / 2), old = a.slice(0, h);
+    const keep = ["d0o0", "d0o1", "d1o0", "d1o1"].filter(k => { const v = old.filter(x => x.st === k).map(x => x.v); return v.length >= 8 && mean(v) > 0; }), nw = a.slice(h).filter(x => keep.includes(x.st));
+    const it = items.find(i => i.id === id); if (it) it.state = byState(a);
+    if (nw.length) { const r = fromList(`${id}.sgate`, `${desc}, only in the fund states that won on the older half (${keep.join(", ")}); scored on the newer half only`, "ret", nw.map(x => x.v)); items.push({ ...r, ruling: r.status, status: "watch", factor: 1, why: `record only (would be ${r.status})`, keep, of: a.length - h, days: dayRec(nw) }); }
+    else if (a.length) items.push({ id: `${id}.sgate`, desc: `${desc}, only in the fund states that won on the older half (none won); scored on the newer half only; n 0, so the values 0 are not a result`, unit: "ret", n: 0, ev: 0, z: 0, hit: 0, older: 0, recent: 0, status: "watch", factor: 1, why: "no state won on the older half (n 8+ and mean above 0)", keep: [], of: a.length - h, days: {} }); };
+  sgate("fast.15m.15m", R.f15, "🚀 rule (as fast.15m.15m)"); sgate("fade.15m.15m", R.ff15, "Fade the 🚀 move (as fade.15m.15m)");
   const PL = await letfPlan(); items.push(...PL.items);
   return { at: new Date().toISOString(), items, extra: { markets: got, of: LETF_U.length, funds: gotF, fundsOf: Object.keys(LETF_F).length, spikes, planMarkets: PL.got } }; }
 
@@ -355,7 +376,7 @@ async function letfPlan() { const setupCore = await pageSetup(); if (!setupCore)
   const noStop = a => { const w = a.slice().sort((x, y) => x.t - y.t).map(x => x.ns).filter(isFinite), h = Math.floor(w.length / 2); return { n: w.length, m: +mean(w).toFixed(5), older: +mean(w.slice(0, h)).toFixed(5), recent: +mean(w.slice(h)).toFixed(5) }; };
   const add = (id, desc, a, extra) => { if (a.length) items.push({ ...fromList(id, desc, "ret", v(a)), tod: splits(a), days: perD(a), byExit: byExit(a), nostop: noStop(a), ...(extra || {}) }); };
   add("plan.setup.60m", "Fund page trade plan (setupOf on the underlying's 5-min bars, LONG/SHORT SETUP and LEAN): LIMIT entry 0.5 × 5-min ATR, alive 60 min, counts only when touched; exit at the plan's stop or target or 60 min after the fill; cost 0.02% of the underlying; one per underlying per hour", all, { fill: tried ? +(all.length / tried).toFixed(3) : null, tried, exits: ex, markets: got });
-  add("plan.setup.full.60m", "Fund page trade plan, only LONG / SHORT SETUP (all three filters agree): as plan.setup.60m", all.filter(x => x.full));
+  add("plan.setup.full.60m", "Fund page trade plan, only LONG / SHORT SETUP (all three filters agree): as plan.setup.60m", all.filter(x => x.full), { todH: splitsH(all.filter(x => x.full)) });   // council Nov 20 (LETF agent request): time of day with halves, record only
   add("plan.setup.lean.60m", "Fund page trade plan, only LEAN LONG / LEAN SHORT (2 of 3 filters): as plan.setup.60m", all.filter(x => !x.full));
   // Council, Nov 16 2026 (LETF agent request): plan crowding. "crowd" = the number of underlyings that gave a plan on the SAME side
   // at the SAME signal time (known when the plan shows: it counts signals, not fills). Record only (watch, factor 1):

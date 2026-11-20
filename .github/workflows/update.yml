@@ -119,7 +119,10 @@ jobs:
         run: |
           # ev.yml is scheduled at 21:17 UTC; GitHub started it 3.7 h late on Nov 8 and not by 23:15 UTC on Nov 9, so the
           # agents (about 22:10 UTC) read a scorecard without the day. Due = the last 21:17 UTC that is 25+ min ago.
-          now=$(date -u +%s); due=$(date -u -d "$(date -u +%F) 21:17" +%s); [ $now -lt $((due + 1500)) ] && due=$((due - 86400))
+          # Council, Nov 20 2026: the schedule came at 02:23 and 03:45 UTC on Nov 20, and this step (at the end of a ~56-min run)
+          # passed 21:33 UTC with 21:17 + 25 min not yet reached, so the next check was at 22:29, after the agents. Due is now the
+          # last 21:10 UTC (the bots' last run ends at about 21:02 UTC), with no wait for the schedule.
+          now=$(date -u +%s); due=$(date -u -d "$(date -u +%F) 21:10" +%s); [ $now -lt $due ] && due=$((due - 86400))
           t=$(git fetch -q --depth=1 origin ev 2>/dev/null && git show FETCH_HEAD:ev.json 2>/dev/null | jq -r '.t // empty' || true)
           et=$( [ -n "$t" ] && date -u -d "$t" +%s || echo 0 )
           busy=$(gh run list -w ev.yml -L 5 -R "${GITHUB_REPOSITORY}" --json status,createdAt -q "[.[] | select(.status != \"completed\" or ((.createdAt | fromdateiso8601) > (now - 5400)))] | length" || echo 1)
