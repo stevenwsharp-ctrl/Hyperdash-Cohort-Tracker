@@ -1,5 +1,46 @@
 # Council notes (newest first)
 
+## 2026-11-20 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live. The paper bots record each "EV muted" skip by idea (skip|<bot>|muted.<idea>), and the bot card shows "EV muted, by idea". Record only, no rule change. Pages build: success. The first bot runs with this code are on Monday, Nov 23.
+- Cohort Sniper: yes, live. The Outlook removes momentum from the 48 h blend (weight 0, "gated"). It lost on the learn part (−1.88 % per pick) and on the unseen part (−1.02 %). Before, a weight floor of 0.2 kept it in the blend. Pages build: success.
+- LETF Sniper: yes, live. LEAN plans stay off until the scorecard loads ("WAIT · … the test scorecard is not loaded yet"). Before, LEAN plans showed in that gap, and the LEAN newer half was below 0 on all 27 scorecards. Pages build: success.
+- Council (record only, live in ev.json 23:17 UTC): the 🚀 follow and its limit fade, split by the fund state; time of day with halves on full SETUP plans; the EV governor now starts at 21:10 UTC when its schedule is late.
+
+### Scoreboard (ev.json, Nov 20 data)
+- SOXX: 12 muted, 9 cut, 6 backed. Gain: spot VWAP snap-back versions (arm.S.vrev, +0.10 % to +0.13 % per trade, z 4.1 to 4.6, BACK). Loss: funds VWAP snap-back went WATCH → MUTE (−0.03 % per trade, n 16,515); funds RSI → MUTE; letf bot live → CUT (−0.45 % per trade, n 62, newer half −0.91 %); both bot live → CUT (−0.23 %). Paper bots Nov 20: spot 6 trades −$4.26; letf 7 trades −$91.47; both 9 trades −$95.90. All the big losses were funds VWAP snap-back (NVDU, NVDL, AMDL, USD). Big swings caught: 2 of 47 (most were inverse funds on a down day).
+- Cohort: 3 muted, 20 cut, 6 backed. Gain: cohort score 20–70, +1.26 % to +1.49 % per 24 h (BACK, z 5.7 to 11.4). Loss: Outlook momentum 48 h −1.53 % per pick (now gated); vol-squeeze 1 d → MUTE (lab weight 0, no live effect). The 1 d lab is gated by the lab itself (no setup at 24 h).
+- LETF: 0 muted, 5 cut, 0 backed. Loss: 🚀 follow and 🚀 fade both lose (−0.17 % and −0.29 % per 15 min); LEAN plans −0.06 % (CUT, now off by default too). Gain: full SETUP plans +0.15 % per hour, both halves above 0 (WATCH). New record (mine): the 🚀 fade wins only when the fund is NOT stretched (state d0o0: +0.26 %, n 35, older +0.31 %, newer +0.22 %). The walk-forward state gate keeps d0o0 and gives +0.22 % on the newer half (n 17). Not proven.
+
+### Agents
+- SOXX agent: ran, very good work. It did all 3 tasks. Correct "no evidence" for the picked-version mute (approximate test: about −$360 on the newer half). Correct "no exit change" for funds vrev: the exit plans that win only on the check days are winners picked on the reported data. The change is record only. Checks passed.
+- Cohort agent: ran, good work. The 48 h gate uses the same rule as the 7 d gate. The learn-part fit already gives momentum weight 0, and the unseen part confirms the loss. Correct "no switch" to the margin pick procedure (not a clear win; it picks CUT rules today). It started the late EV governor by hand. I fixed the cause (see Changes).
+- LETF agent: ran, very good work. It found a 3rd default-OFF leak (LEAN gate), with no fitted value. It did task 1 and task 2. Task 3 needs ev.mjs; I made it today.
+- My checks: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright: 0 page errors on SOXX, Mastermind, Cohort (main, #lab), LETF (live, ?demo, #/f/SOXL, #/f/SOXS). The 16 shared files are the same in all repos that have them. All pages builds: success. Order rules kept by all (limit entries, no new stop, same bet size, Schwab-only, long-only). No revert.
+- Yesterday's "Watch next": the 7 d lab sample stays fixed (yes, n 18). The late Bet lab run starts the governor (not tested: the lab ended at 20:46 UTC). LETF per-day turn records (yes). The muted-gate split (shipped; data from Nov 23).
+
+### Lessons shared
+- A weight floor keeps a proven loser in a blend (Cohort: max(0.2, t)). SOXX and LETF agents: find each floor or minimum weight in your blends and votes, and compare it with the weight the test gives.
+- A gate that returns "open" when the scorecard is not loaded is a leak (LETF, 3rd time). SOXX and Cohort agents: grep for "!E.ready" and "!EVR.ready" returns in your gates.
+- The 2×/3× funds lose more on a VWAP snap-back in a falling market (SOXX: Nov 19–20). LETF state record: following a 🚀 move when the fund is not stretched loses most (d0o0 −0.49 %, both halves below 0); fading it in that state wins. The same idea can help the SOXX backlog item 8 (inverse funds on down days).
+- Fit on the older days first. A plan that wins only on the check days is not a result (SOXX).
+
+### Tasks for tomorrow
+- SOXX agent: 1) In bots.mjs, record the bot's pick (version k and plan) at each live signal in the dated record (record only). This replaces my ev.mjs request: the pick is known only in the bot. 2) Find weight floors and "not ready = open" cases in bots.mjs and the bot card. 3) Read fade.15m.15m.state and fast.15m.15m.state on the scorecard, and write a test plan for backlog item 8 (no rule change before 5 days of data).
+- Cohort agent: 1) Read the update.yml log of the first run after 21:10 UTC on Nov 21: "EV governor started" must show once, and ev.json must have t after 21:10 UTC. 2) Find other floors in the signal web and lab weights (backlog 7: the web weight 1.00 at 24 h has no test). 3) Nov 22 backtest: read outlook.mom.48h on both parts.
+- LETF agent: 1) Read fade.15m.15m.sgate and fast.15m.15m.sgate each day (days field). Do not change the page before the newer half is above 0 on 3+ market days. 2) plan.setup.full.60m.todH: the open hour decays (older +0.53 %, newer +0.04 %), mid-day goes up (−0.05 % → +0.13 %). This does not support a time gate now. Say if you agree. 3) Find weight floors in letfweb.js and the agreement panel.
+
+### Changes I made
+- Hyperdash-Cohort-Tracker 2354f6c (scripts/ev.mjs, update.yml). Record only: fundState() (the fund state at the signal close, in the move direction: 2σ+ past the session VWAP with RSI 70+ / 30-, and 3 %+ from the day's open; bars up to the signal only). New: .state on fast.15m.15m and fade.15m.15m; fast.15m.15m.sgate and fade.15m.15m.sgate (states fitted on the older half, scored on the newer half only; watch, factor 1); todH on plan.setup.full.60m. update.yml: the governor is due at 21:10 UTC, with no 25-min wait. On Nov 20 the schedule came at 02:23 and 03:45 UTC, and the old fallback did not start the governor before the agents. EV governor on push: success (23:17 UTC); all old rulings are the same (SOXX 12/9/6, Cohort 3/20/6, LETF 0 mute 5 cut).
+- I did not lower the Bet lab start time to 20:00 UTC (Cohort request): a scorecard before the US close would miss the last bot runs. The update.yml fix covers the case.
+- No shared-file change. No revert.
+
+### What Steven should know
+- Nothing to paste. No Worker change.
+- The 2×/3× paper bots lost on Nov 19 and Nov 20 with the funds VWAP snap-back. The scorecard now mutes it, so the bots stop that idea on Monday.
+- The scorecard now runs at about 21:10 UTC each day, also when GitHub starts the schedule late.
+
 ## 2026-11-19 · Council
 
 ### Shipped today
