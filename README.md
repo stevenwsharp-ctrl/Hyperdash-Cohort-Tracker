@@ -108,3 +108,19 @@ A list with no breath is not shown. Each breath shows the exact bar it flashed o
 - Push: new breaths are highlighted; reliable, repeated or confirmed ones also pop up. Sound and browser notifications are buttons on the card.
 - The live breaths feed the spider web as `fb.rev` and `fb.cont`, and the scored results go to the knowledge hub.
 - No Worker change is needed (it uses the existing `/chart` route).
+
+## Human Factor (hf.js · shared by SOXX Sniper, LETF Sniper and Cohort Sniper)
+
+The Human Factor card shows where the crowd's money goes. It is at the top of the main page, below the price strip. It is a part of the spider web intelligence.
+
+1. **Bullseye.** A dart board with 20 places for money: 11 sectors (XLK, XLC, XLY, XLF, XLI, XLE, XLB, XLV, XLP, XLU, XLRE), 5 themes (semis SMH, software IGV, biotech IBB, small caps IWM, speculative growth ARKK) and 4 havens or alternatives (long bonds TLT, gold GLD, US dollar UUP, Bitcoin). Each wedge has 3 rings: inner = today, middle = this week, outer = 1–3 months. Green = money in. Red = money out. The center shows the #1 place for money today. The darts 1, 2 and 3 show the top 3 places today. Tap a wedge to see its details.
+2. **Sector Pulse.** A table of the 20 places with a score from −100 to +100 for each time frame: low (today), medium (5 days) and high (1–3 months), plus a blend. Each row shows a trend label (Pouring in, Fresh money, Bottom fishing, Buying the dip, Profit-taking, Fresh selling, Draining out), the speed (speeding up or slowing), the volume today against normal, and the leveraged ETFs that ride it (bull / bear). Sort by any time frame. Filter by sectors, themes or havens.
+3. **What money is doing.** The crowd mood (Panic, Fear, Calm, Greed, Euphoria) from risk-on flow against haven flow, the number of places that are up, and the VIX. The places money goes INTO and comes OUT OF today, the rotation (from → to), what the crowd does (chasing, fleeing, hiding, risk-on, herding, rotating, bottom fishing, taking profits, loud or quiet), the leaders on each time frame, and what it means for this site (semis for SOXL, the leveraged funds for LETF Sniper, Bitcoin and the mood for Cohort Sniper).
+
+**Score.** Relative move = the return of the place minus the return of SPY, in units of its normal daily move. Money flow = Chaikin money flow (where each bar closed in its range, weighted by volume). Crowd size = dollar volume against normal. Score = (0.6 × tanh(relative move / 1.2) + 0.4 × money flow × 2.5) × (1 + 0.5 × (crowd size − 1)), limited to ±100. Today uses 5-minute bars with pre-market and after-hours. Week uses 5 daily bars. 1–3 months = 0.6 × 21 days + 0.4 × 63 days.
+
+**Honest check.** "Does following the flow pay?" tests the last ~6 months: the top 3 places of the week against the bottom 3, on the next day and the next 5 days. The **Daily bullseye log** keeps the top 3 and bottom 3 of each day for 30 days (in this browser).
+
+**Spider web.** The card sends `hf.low`, `hf.med` and `hf.high` for each place to its ETF, to its leveraged funds (bear funds with the sign flipped) and to its large stocks (for example NVDA, AMD and TSM get the semis flow). It sends `hf.mood` to the main risk assets (SOXL, TQQQ, SPXL, BTC, ETH and others; SOXS, SQQQ, SPXS with the sign flipped). The web learns the weights. The EV governor can cut or mute each part (`EVR.factor(site, "hf.low")`).
+
+**Data.** Yahoo bars through the same Cloudflare Worker (`/chart`): daily bars every 30 minutes, 5-minute bars every 2 minutes (slower when the tab is hidden). You do not have to change the Worker. Test: `node tests/hf.test.mjs` (SOXX Sniper repo). It is context, not advice.
