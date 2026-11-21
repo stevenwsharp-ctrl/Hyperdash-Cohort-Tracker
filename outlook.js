@@ -100,7 +100,13 @@
   // (-1.88% per pick) AND on the unseen part (-1.02%, n 93; scorecard outlook.mom.48h -1.53%); the blend fitted on the
   // learning part already gives it weight 0, and only the 0.2 floor of btW kept it in the page's consensus. Momentum lost on
   // both parts at all three horizons. It comes back by itself when either part turns positive.
-  const GATE = { 24: [["rev", "mom"]], 48: [["mom"]], 168: [["mom"]] };
+  // Cohort agent (2026-11-21): 48 h flow gets the same gate (council lesson: a weight floor keeps a proven loser in a blend).
+  // Backtest of Nov 15: 48 h flow lost on the learning part (-0.49% per pick) AND on the unseen part (-1.35%); the blend
+  // fitted on the learning part gives it weight 0, but btW's 0.2 floor kept it in. Extra check on the same panel with three
+  // parts (rule decided on the first 70%, scored on the last 30%, page weights with the floor): 48 h flow lost on all three
+  // parts (-1.11%, -0.24%, -1.08%), and the 48 h blend without it made +0.25% per pick against -0.90% with it (n 25).
+  // Only 48 h: at 24 h and 7 d its unseen part is positive, so the rule does not gate it there.
+  const GATE = { 24: [["rev", "mom"]], 48: [["mom"], ["flow"]], 168: [["mom"]] };
   const lost = (h, k) => { const R = btRes(h, k); return !!(R && R.learnM != null && R.unseenM != null && R.learnM < 0 && R.unseenM < 0); };
   const gated = (h, k) => (GATE[h] || []).some(g => g.includes(k) && g.every(x => lost(h, x)));
   // ---------- build ----------
