@@ -50,6 +50,9 @@ jobs:
               git show origin/data:$f > out/$f 2>/dev/null || rm -f out/$f
             done
           fi
+          # cohort book (flow.html) lives on its own branch
+          mkdir -p out-cf
+          if git fetch --depth=1 origin cohort 2>/dev/null; then git archive FETCH_HEAD | tar -x -C out-cf; fi
 
       - name: Send a test alert
         if: ${{ inputs.test_alert }}
@@ -79,6 +82,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
           REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          cd ../out-cf
+          git init -q -b cohort
+          printf '*.tmp\n' > .gitignore
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
           cd ..
           END=$((SECONDS + LOOP_MIN * 60))
           # live spot trades (websocket) next to the loop; it writes out/spotflow.json every 20 s
@@ -89,6 +97,11 @@ jobs:
             set +e; node scripts/fetch.mjs out; rc=$?; node scripts/news.mjs out; rn=$?; node scripts/specialists.mjs out; rs=$?; node scripts/levels.mjs out; rl=$?; node scripts/cycle.mjs out; ry=$?; node scripts/heat.mjs out; rh=$?; node scripts/flow.mjs out; rf=$?; node scripts/whalelog.mjs out; rw=$?; node scripts/crowd.mjs out; rcw=$?; set -e
             if [ $rc -eq 0 ] || [ $rn -eq 0 ] || [ $rs -eq 0 ] || [ $rl -eq 0 ] || [ $ry -eq 0 ] || [ $rh -eq 0 ] || [ $rf -eq 0 ] || [ $rw -eq 0 ] || [ $rcw -eq 0 ]; then
               (cd out && git add -A && { git commit -q --amend -m "data $(date -u +%FT%TZ)" 2>/dev/null || git commit -q -m "data $(date -u +%FT%TZ)"; } && git push -f -q "$REMOTE" data) || echo "push failed"
+            fi
+            # cohort book: per-cohort positions and the order book for every market (flow.html)
+            if [ $rc -eq 0 ]; then
+              set +e; node scripts/cohortbook.mjs out out-cf; rb=$?; set -e
+              if [ $rb -eq 0 ]; then (cd out-cf && git add -A && { git commit -q --amend -m "cohort $(date -u +%FT%TZ)" 2>/dev/null || git commit -q -m "cohort $(date -u +%FT%TZ)"; } && git push -f -q "$REMOTE" cohort) || echo "cohort push failed"; fi
             fi
             FIRST=0
             [ $SECONDS -ge $END ] && break

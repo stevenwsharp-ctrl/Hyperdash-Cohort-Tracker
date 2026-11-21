@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem("cs_theme")||(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");document.documentElement.dataset.theme=t;var pw=localStorage.getItem("site_width")||"fit";document.documentElement.style.setProperty("--pagew",pw==="fit"?"100%":pw==="classic"?"1360px":pw+"px")}catch(e){}</script>
+<meta name="description" content="Cohort Flow: price, exact volume and where each Hyperdash cohort (smart money, fools, whales) adds, cuts and covers, on any time frame.">
+<title>Cohort Flow · Cohort Sniper</title>
+<link rel="icon" href="favicon.svg?v=1" type="image/svg+xml"><link rel="icon" href="favicon-32.png?v=1" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0d0e; --panel:#121516; --panel2:#171b1c; --line:#232a2b; --text:#e6ebea; --dim:#8a9694; --faint:#5b6664;
+  --bull:#1fb58a; --bull-bg:#123f33; --bear:#e04a5a; --bear-bg:#4a1820; --neutral-bg:#24292a;
+  --warn:#f0b43c; --accent:#7cc4ff;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace; --sans:"IBM Plex Sans",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{max-width:1360px;margin:0 auto;padding:16px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;padding:6px 0 14px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:22px;letter-spacing:.02em;font-weight:700}
+h1 span{color:var(--bear)} h1 em{font-style:normal;color:var(--bull)}
+.sub{color:var(--dim);font-size:13px;margin-top:4px}
+.stat{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:right;line-height:1.6}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px}
+h2{font-size:13px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:0 0 8px;font-weight:600}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+.ctl label{font:11px var(--mono);color:var(--dim);display:flex;gap:6px;align-items:center}
+.ctl select,.ctl input,.ctl button{font:12px var(--mono);background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 8px}
+.ctl button{cursor:pointer}
+#coinIn{width:150px;text-transform:uppercase;font-weight:700}
+.swA{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--accent)}.swB{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--warn)}
+.verdict{font-size:14px;line-height:1.55;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+.verdict b.A{color:var(--accent)} .verdict b.B{color:var(--warn)}
+table{width:100%;border-collapse:collapse;font:12px var(--mono)}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{color:var(--dim);font-weight:500;font-size:11px;position:sticky;top:0;background:var(--panel);cursor:default}
+th.s{cursor:pointer} th.s:hover{color:var(--text)}
+td:first-child,th:first-child{text-align:left}
+tr.grp td{font-weight:600}
+tr.hl{background:var(--panel2)}
+tbody tr.click{cursor:pointer} tbody tr.click:hover{background:var(--panel2)}
+.tw{overflow:auto;max-height:560px}
+.up{color:var(--bull)} .dn{color:var(--bear)} .mut{color:var(--faint)}
+.tag{display:inline-block;font:11px var(--mono);padding:2px 7px;border-radius:999px;border:1px solid var(--line)}
+.tag.opp{border-color:var(--bull);color:var(--bull)} .tag.opp2{border-color:var(--bear);color:var(--bear)}
+.note{font-size:12px;color:var(--faint);line-height:1.6;margin-top:8px}
+.leg{display:flex;flex-wrap:wrap;gap:12px;font:11.5px var(--mono);color:var(--dim);margin-top:6px}
+.empty{padding:20px;text-align:center;color:var(--dim)}
+@media (max-width:640px){.wrap{padding:10px}h1{font-size:18px}#coinIn{width:110px}.stat{text-align:left}}
+</style>
+<script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>COHORT <span>FLOW</span> <em>·</em> Who buys, who sells, at what price</h1>
+      <div class="sub">Exact price and volume from Hyperliquid. Each Hyperdash cohort's adds, cuts and covers from the 5-minute snapshots. <a href="./">← Cohort Sniper</a></div>
+    </div>
+    <div class="stat" id="stat">Loading…</div>
+  </header>
+
+  <div class="ctl">
+    <label>Market <input id="coinIn" list="coinList" placeholder="BTC" autocomplete="off" spellcheck="false"><datalist id="coinList"></datalist></label>
+    <label><span class="swA"></span> Compare <select id="gA"></select></label>
+    <label><span class="swB"></span> with <select id="gB"></select></label>
+    <button id="swap" title="Swap the two cohorts">⇄</button>
+  </div>
+
+  <div class="card" id="chartCard"><div id="fcMount"></div></div>
+  <div class="verdict" id="verdict">Loading…</div>
+
+  <div class="card">
+    <h2>What each cohort did in the visible range</h2>
+    <div class="tw"><table id="sumT"></table></div>
+    <div class="note">Long add = new long $. Long cut = longs closed. Short add = new short $. Cover = shorts closed. <b>Cut loose</b> = the part of the cuts or covers made while that cohort was under water (price on the wrong side of its estimated average entry). Est. entry is built from the adds since the book started, so it is an estimate.</div>
+  </div>
+
+  <div class="card">
+    <h2>Orders waiting to be filled</h2>
+    <div id="ordT"><div class="note">Loading…</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Scanner · every market</h2>
+    <div class="ctl" style="margin-top:0">
+      <label>Window <select id="scW"><option value="1h">1 hour</option><option value="4h">4 hours</option><option value="24h" selected>24 hours</option><option value="7d">7 days</option></select></label>
+      <label>Show <select id="scF"><option value="all">All markets</option><option value="opp">Smart and fools opposite</option><option value="sbuy">Smart buying, fools selling</option><option value="ssell">Smart selling, fools buying</option><option value="same">Same side</option></select></label>
+      <label>Min OI <select id="scOi"><option value="0">any</option><option value="1e6" selected>$1M</option><option value="1e7">$10M</option><option value="1e8">$100M</option></select></label>
+      <input id="scQ" type="search" placeholder="Filter…" style="width:120px">
+    </div>
+    <div class="tw" style="margin-top:8px"><table id="scT"></table></div>
+    <div class="note">Flow = change in open positions between snapshots, price-adjusted (a change in contracts at the mean price, so a price move alone is not buying or selling). Edge = (smart net − fools net) ÷ open interest. Click a row to chart it.</div>
+  </div>
+
+  <div class="card">
+    <h2>How to read it</h2>
+    <div class="note" style="margin-top:0">
+      • <b>Candles and volume</b> are exact Hyperliquid trades (all traders).<br>
+      • <b>Flow panes</b>: each bar is the net $ the cohort bought (up) or sold (down) in that candle. Bright = opened (long add / short add), pale = closed (cover / cut). Hover a candle for the split.<br>
+      • <b>Cohort profile</b> (right edge of the price chart): at which prices each cohort bought (green, right) and sold (red, left) in the visible range.<br>
+      • <b>Est. entry lines</b>: average entry of each cohort's open longs (L) and shorts (S).<br>
+      • <b>Order book heatmap</b>: all resting limit orders on Hyperliquid (green bids, red asks), brighter = more $ waiting. Recorded every 15 minutes for 24 hours, and every 10 seconds while this page is open. <b>Book now</b> (left edge) is the live book.<br>
+      • <b>Top holders' orders</b>: the entries, stops and targets of the biggest holders, tagged good (blue) or bad (amber). Dashed = stop. Only for the markets the levels job covers (top setups).<br>
+      • <b>Markers</b>: candles where a cohort's flow was far above its normal size. "cut" = mostly closing at a loss.<br>
+      • Limits: Hyperdash shows positions every 5 minutes, so a trade opened and closed inside 5 minutes is not seen. Traders move between PnL cohorts as their PnL changes; that move can look like flow. Older than 2 days the rows are 15-minute, older than 7 days hourly. Before the cohort book starts, Smart, Fools and All traders use the 7-day bias history (Fools as net only).
+    </div>
+  </div>
+</div>
+<script src="flow.js?v=1"></script>
+<script src="site.js?v=4"></script>
+</body>
+</html>
