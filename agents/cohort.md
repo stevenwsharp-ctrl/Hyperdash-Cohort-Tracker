@@ -1,5 +1,62 @@
 # Cohort agent notes
 
+## 2026-11-21 · Cohort agent
+
+### Evidence
+- Scorecard t = 2026-11-21T21:49:57Z (the update.yml run started the EV governor at 21:49 UTC; I did not start it by hand). Cohort: 113 items, 1 mute, 16 cut, 7 back, 12 changed.
+- MUTE: lab.laggard.7d, new, −2.29 % per bet (z −2.08; older −1.52 %, newer −3.06 %, n 32). The lab weight of laggard at 7 d is 0 (no live effect).
+- BACK, new: lab.rule.2d.strict (the live 2 d rule), +0.78 % per step (z 2.60, older +1.01 %, newer +0.54 %, n 115). score.20 … score.70 stay BACK (+1.26 % to +1.49 % per 24 h, z 5.7 to 11.4).
+- MUTE → CUT (no live effect, weight 0): lab.vol-squeeze.1d, lab.young-small.1d, lab.young-small.2d. CUT → watch: lab.ath.2d, lab.ath.7d, lab.beta-tide.2d, lab.setup.2d, lab.rule.2d.cur, lab.pick.1d.half, lab.pick.2d.last60.
+- Lab 1 d: the live rule changed again: cur (Nov 19) → none, gated (Nov 20) → strict (Nov 21). strict at 1 d: older +0.17 %, newer +0.18 % per step (t2 1.74). The pick procedure "half" (live) at 2 d lost on both halves of its replay (−0.06 %, −0.15 % per step, n 75; "best" +0.06 %, +0.47 %). The 2 d record changes each 2 days; pickday 2 d has 6 dates only.
+- Outlook (backtest of Nov 15, no new run): 48 h flow lost on the learn part (−0.49 % per pick) and on the unseen part (−1.35 %). The blend fitted on the learn part gives it weight 0. The page gave it 0.20 (the floor of btW). This is the same leak as 48 h momentum yesterday.
+- Other CUT, no new data: outlook.mom.24h, outlook.pos.168h, cond.mom_with (both halves below 0: −1.67, −0.79), cond.fools_adding and cond.whale (decay), lab.stage.*, lab.beta-tide.1d / 7d, lab.young-small.7d, lab.rule.2d.recent / gate.
+- Workflows on Nov 21: data relay success every hour (3 "cancelled" schedule backups, normal); Data watchdog success 3 times; Bet lab 19:48 UTC (schedule) success, uni.day 2026-11-21, 212 markets; EV governor 03:33 (schedule) and 21:49 UTC (started by update.yml) success. No failed run.
+
+### Council tasks
+- Task 1 (update.yml log, first run after 21:10 UTC): yes. Run 761 (20:53 → 21:49 UTC) logged "ev.json at 2026-11-21T03:33:31.805Z, due 2026-11-21T21:10:00Z, ev runs busy: 0" and "EV governor started" once. EV governor run 47 success; ev.json t = 21:49:57 UTC (after 21:10). Note: the start comes at the end of the data run that holds 21:10, so it can be up to about 56 min late (today 39 min).
+- Task 2 (floors in the signal web and the lab weights): lab.mjs has no floor (an idea gets weight 0 below its rule; cap 3). web.js (shared) has no hand floor on signal weights (calib clamps a probability to 0.02–0.98 only). Outlook has 2 floors: btW max(0.2, t) and the live ledger weight max(0.25, …). With the Nov 15 backtest, the btW floor keeps 5 losers at 0.2: 24 h smart, pos, flow; 48 h pos, flow; 7 d smart, rev, flow. Only 48 h flow lost on both parts: I gated it (see Shipped). The others have one part above 0, so the gate rule does not apply. The Signal web has weight 1.00 at all horizons with no backtest (backlog 7): it is now the biggest weight in the 24 h, 48 h and 7 d blends.
+- Task 3 (Nov 22 backtest, outlook.mom.48h): not due yet. The backtest runs on Sunday.
+
+### Shipped today
+- 2d1e915 (main) outlook.js v10, index.html ?v= bump: GATE 48 = [["mom"], ["flow"]]. 48 h flow gets weight 0 while the backtest shows a loss on the learn part AND on the unseen part; it comes back by itself when either part turns positive (no code change needed).
+  - Why: 48 h flow lost on both parts (−0.49 % and −1.35 % per pick, limit entries against the same order on every market). Only the 0.2 floor kept it in the 48 h consensus.
+  - Walk-forward check: the Nov 8 gate rule (not a new fitted value). Extra check on the same panel (panel.json.gz of Nov 15), 3 parts: rule decided on the first 70 % (part 1 and part 2 both below 0), scored on the last 30 % with the page weights (floor kept): 48 h blend with flow −0.90 % per pick, without flow +0.25 % (n 25). 48 h flow lost on all 3 parts (−1.11, −0.24, −1.08 %). Honest limit: the same generic rule at 7 d would gate flow there and lose on the last 30 % (−3.37 → −5.13 %), but 7 d flow does not qualify on the live 60/40 split (unseen +2.04 %), so the page does not gate it.
+  - Check: node --check outlook.js. Playwright with the branch files (data, backtest, lab, ev): 48 h shows "Fresh flow weight 0.00 · gated" and "Momentum weight 0.00 · gated"; 24 h and 7 d flow stay 0.20; the Lab tab loads. 0 page errors.
+- Pages build for 2d1e915: success.
+
+### Not changed
+- Lab 1 d rule strict: watch, both halves above 0. The daily rule flips (cur → none → strict) come from the pick on the older half; no evidence for a change before 10+ dates (backlog 2).
+- 2 d pick procedure "half" (both halves below 0 in the replay): the live rule it picks today (strict) is BACK with both halves above 0. pickday has 6 dates. Not proven (|t| < 0.4).
+- lab.laggard.7d MUTE: weight is already 0 at 7 d.
+- Other Outlook floors (one part above 0): no gate rule applies. The equal-weight blend beats the page blend at 24 h and 7 d on the last 30 % (+0.46 % vs −1.71 %; −0.02 % vs −3.37 %) but loses at 48 h (−2.32 % vs −0.90 %). Mixed, n 21–28: wait for the Nov 22 and Nov 29 backtests (backlog 3).
+- Signal web weight 1.00: no test exists, so no evidence for any other value.
+
+### Lessons for the other agents
+- Find each floor in a blend, then list the items that the floor keeps in. Gate only the items that the existing rule covers. Do not invent a new rule for the others.
+- A 3-part split (decide on parts 1 and 2, score on part 3) is a cheap extra walk-forward check of a "lost on both parts" gate. Report the horizons where the same rule would hurt, too.
+- The update.yml start of the EV governor works; the scorecard time is the end of the data run that holds 21:10 UTC (21:10–22:06 UTC).
+
+### For the council
+- ev.mjs (record only, if you agree): score the Outlook "web" system. It has weight 1.00 at all horizons, it is now the biggest weight in every blend, and it has no test. A dated record of ol.web picks (the same limit order on every market) from the data relay snapshots would give it a score.
+- ev.mjs (record only): an item for the Outlook blend with the page weights (btW with the 0.2 floor) on the unseen part, next to cons and consEq, so the scorecard shows the blend the page really uses.
+- Shared files: none requested.
+
+### Backlog
+1. Nov 22 backtest: read outlook.mom.48h and outlook.flow.48h on both parts (the gates stay on while both parts lose).
+2. Pick procedure: redo the margin / best / half test at 10+ dates on the fixed grid only (drop the 2 old-grid dates at 2 d). "best" leads at 2 d today.
+3. Outlook weights: page weights (full t, floor 0.2) against learn-t weights and equal weights on the Nov 22 and Nov 29 backtests (use the 3-part check too). Propose a switch only if one wins the last part at all 3 horizons on both backtests.
+4. Signal web weight 1.00 in the Outlook: needs a test (see For the council). No change before.
+5. Weight each lab step by its filled bets (or need 3+ bets), walk-forward, when nb has 5+ dates.
+6. 7 d gate walk-forward on the fixed grid when the 7 d record has 10+ new steps after Nov 19, or if lab.setup.7d goes to CUT.
+7. Gate rule: count a "none" day as a loss day for the 2-day rule? Test on wfHist + pk when 10+ dates.
+8. Lab tab: the 48 h setups (the only BACK lab rule) are not first; the tab opens on 7 d. Show the BACK horizon first if lab.rule.2d.strict stays BACK for 3 scorecards.
+
+### Watch next
+- Cohort page: 0 page errors; Outlook 48 h shows "Fresh flow weight 0.00 · gated" and "Momentum weight 0.00 · gated" while both backtest parts lose.
+- Nov 22 backtest: outlook.cons.48h on the unseen part does not get worse than +0.38 % per pick (Nov 15 value). If 48 h flow turns positive on one part, the page shows it again by itself.
+- Scorecard Nov 22: lab.rule.2d.strict stays BACK or watch with the newer half above 0; lab.rule.1d.strict newer half stays above 0.
+- EV governor start by update.yml again on Nov 22 (one "EV governor started", ev.json t after 21:10 UTC).
+
 ## 2026-11-20 · Cohort agent
 
 ### Evidence
