@@ -122,6 +122,16 @@ async function soxx() { const B = await getJ("https://raw.githubusercontent.com/
     for (const [kw, byD] of Object.entries(SK).sort()) { const [k, why] = kw.split("|"), ds = Object.keys(byD).sort(), nm = (B.bots && B.bots[k] && B.bots[k].name) || k, n0 = items.length;
       fromDays(`skip.${k}.${why}`, `${nm}: shadow fills BLOCKED by the "${why}" gate (dated record, by day; EV > 0 = the gate cost money) — record only`, ds.map(d => byD[d]), { from: ds[0] }, 1);
       if (items.length > n0) { const it = items[items.length - 1]; Object.assign(it, { ruling: it.status, status: "watch", factor: 1, why: `record only (would be ${it.status})`, perDay: Object.fromEntries(ds.map(d => [d, { n: byD[d][0], m: +(byD[d][1] / byD[d][0]).toFixed(5), usd: +(byD[d][1] * 1000).toFixed(2) }])) }); } } }
+  // Council, Nov 21 2026 (SOXX agent request): the bot's PICKED version at each signal, before any gate, from dated.json
+  // ("pick|<bot>|<spot|funds>.<idea>@<half hour>" = [n, sum r, sum r², wins] of the shadow trade of the picked version; it counts
+  // only when price touched the limit). pick.<bot>.<spot|funds>.<idea>: n and EV per fill, z over the days, older / newer half of
+  // the days, n and mean per day. Next to idea.<class>.<idea> (mean of all 15 versions) this gives the "mute by the picked version"
+  // test. Record only (status watch, factor 1): no bot or page reads it. Data from Nov 23 2026.
+  { const PK = {}; if (DT && DT.days) for (const [d, X] of Object.entries(DT.days)) for (const [kk, v] of Object.entries(X || {})) { const m = /^pick\|([a-z]+)\|((?:spot|funds)\.[a-z0-9_]+)@(\d+)$/.exec(kk); if (!m || !Array.isArray(v) || !(v[0] > 0)) continue;
+      const o = ((PK[m[1] + "|" + m[2]] || (PK[m[1] + "|" + m[2]] = {}))[d] || (PK[m[1] + "|" + m[2]][d] = [0, 0, 0, 0])); v.forEach((x, i) => o[i] += x); }
+    for (const [kw, byD] of Object.entries(PK).sort()) { const [k, nmI] = kw.split("|"), ds = Object.keys(byD).sort(), nm = (B.bots && B.bots[k] && B.bots[k].name) || k, n0 = items.length;
+      fromDays(`pick.${k}.${nmI}`, `${nm}: shadow fills of the version the bot PICKED for ${nmI.replace(".", " ")} (before any gate; dated record, by day) — record only`, ds.map(d => byD[d]), { from: ds[0] }, 1);
+      if (items.length > n0) { const it = items[items.length - 1]; Object.assign(it, { ruling: it.status, status: "watch", factor: 1, why: `record only (would be ${it.status})`, perDay: Object.fromEntries(ds.map(d => [d, { n: byD[d][0], m: +(byD[d][1] / byD[d][0]).toFixed(5) }])) }); } } }
   // swings of the last market day (swingDay): caught = a LIVE bot trade won in the swing; bt = only the replay caught it
   const sw = B.swings || []; return { at: B.at, items, extra: { swingDay: B.swingDay || null, swingsToday: sw.length, caught: sw.filter(x => x.caught).length, caughtBt: sw.filter(x => !x.caught && x.bt).length } }; }
 
@@ -362,8 +372,16 @@ function planTrades(setupCore, B5, BD, cost = COST_U) { const out = [], sigs = [
       if (tgtHit(b)) { px = P.tgt; why = "tgt"; break; } }
     if (px == null) { k = Math.min(f + 12, end); px = B[k][4]; }
     // Council, Nov 14 2026 (LETF agent request): the same fill with NO stop (exit at the target or 60 min after the fill). Record only.
-    let ns = null; for (let q = f + 1; q <= Math.min(f + 12, end); q++) if (tgtHit(B[q])) { ns = P.tgt; break; } if (ns == null) ns = B[Math.min(f + 12, end)][4];
-    ex[why]++; busy = k; out.push({ t: B[i][0], v: d * Math.log(px / P.limit) - cost, ns: d * Math.log(ns / P.limit) - cost, p: tod(B[i][0]), full: /SETUP/.test(S.verdict), why, d }); }
+    let ns = null, nk = Math.min(f + 12, end); for (let q = f + 1; q <= Math.min(f + 12, end); q++) if (tgtHit(B[q])) { ns = P.tgt; nk = q; break; } if (ns == null) ns = B[nk][4];
+    // Council, Nov 21 2026 (LETF agent request): the worst move against the no-stop plan while it is held (fill bar to exit bar,
+    // in the underlying, log, ≤ 0), and FAR stops (k × 5-min ATR from the limit; k = 3, 4, 6, 8 fixed here, not fitted) with the
+    // no-stop exits otherwise (target or 60 min). Same rules as the plan stop: a stop on the fill bar counts; a bar that touches the
+    // stop and the target counts as the stop; a gap through the stop fills at the bar open. Record only: no page reads them yet.
+    let mae = 0; for (let q = f; q <= nk; q++) mae = Math.min(mae, d > 0 ? Math.log(B[q][3] / P.limit) : -Math.log(B[q][2] / P.limit));
+    const far = {}; if (isFinite(S.a5) && S.a5 > 0) for (const kf of [3, 4, 6, 8]) { const st = P.limit - d * kf * S.a5, sh = b => d > 0 ? b[3] <= st : b[2] >= st; let fx = null, hit = false;
+      if (sh(B[f])) { fx = st; hit = true; } else for (let q = f + 1; q <= Math.min(f + 12, end); q++) { const b = B[q]; if (sh(b)) { fx = d > 0 ? Math.min(b[1], st) : Math.max(b[1], st); hit = true; break; } if (tgtHit(b)) { fx = P.tgt; break; } }
+      if (fx == null) fx = B[Math.min(f + 12, end)][4]; far[kf] = { v: d * Math.log(fx / P.limit) - cost, hit }; }
+    ex[why]++; busy = k; out.push({ t: B[i][0], v: d * Math.log(px / P.limit) - cost, ns: d * Math.log(ns / P.limit) - cost, mae, far, p: tod(B[i][0]), full: /SETUP/.test(S.verdict), why, d }); }
   return { out, tried: tried.n, ex, sigs }; }
 async function letfPlan() { const setupCore = await pageSetup(); if (!setupCore) return { items: [], got: 0 };
   const all = [], sigAll = [], ex = { tgt: 0, stop: 0, time: 0 }; let tried = 0, got = 0;
@@ -373,11 +391,21 @@ async function letfPlan() { const setupCore = await pageSetup(); if (!setupCore)
   const perD = a => { const o = {}; a.forEach(x => { const d = etDay(x.t); (o[d] || (o[d] = [])).push(x.v); }); return Object.fromEntries(Object.entries(o).sort().map(([d, w]) => [d, { n: w.length, m: +mean(w).toFixed(5) }])); };
   // Council, Nov 13 2026 (LETF agent request): n and mean per exit kind (tgt, stop, time) on each plan item. Record only.
   const byExit = a => Object.fromEntries(["tgt", "stop", "time"].map(w => { const x = a.filter(y => y.why === w).map(y => y.v); return [w, { n: x.length, m: x.length ? +mean(x).toFixed(5) : null }]; }));
-  const noStop = a => { const w = a.slice().sort((x, y) => x.t - y.t).map(x => x.ns).filter(isFinite), h = Math.floor(w.length / 2); return { n: w.length, m: +mean(w).toFixed(5), older: +mean(w.slice(0, h)).toFixed(5), recent: +mean(w.slice(h)).toFixed(5) }; };
+  const q = (w, p) => { if (!w.length) return null; const z = w.slice().sort((x, y) => x - y); return +z[Math.min(z.length - 1, Math.floor(p * z.length))].toFixed(5); };
+  const noStop = a => { const S0 = a.slice().sort((x, y) => x.t - y.t), w = S0.map(x => x.ns).filter(isFinite), h = Math.floor(w.length / 2), mae = S0.map(x => x.mae).filter(isFinite);
+    // council Nov 21 (LETF agent request): mae = quantiles of the worst move against the held no-stop plan (underlying, log);
+    // far = far stops (k × 5-min ATR) with the no-stop exits otherwise: n, mean, halves, stop exits. Record only.
+    const far = {}; for (const kf of [3, 4, 6, 8]) { const r = S0.filter(x => x.far && x.far[kf]), u = r.map(x => x.far[kf].v), hh = Math.floor(u.length / 2); if (u.length) far[kf] = { n: u.length, m: +mean(u).toFixed(5), older: +mean(u.slice(0, hh)).toFixed(5), recent: +mean(u.slice(hh)).toFixed(5), stops: r.filter(x => x.far[kf].hit).length }; }
+    return { n: w.length, m: +mean(w).toFixed(5), older: +mean(w.slice(0, h)).toFixed(5), recent: +mean(w.slice(h)).toFixed(5), mae: mae.length ? { q01: q(mae, 0.01), q05: q(mae, 0.05), q50: q(mae, 0.5), min: +Math.min(...mae).toFixed(5) } : null, far }; };
   const add = (id, desc, a, extra) => { if (a.length) items.push({ ...fromList(id, desc, "ret", v(a)), tod: splits(a), days: perD(a), byExit: byExit(a), nostop: noStop(a), ...(extra || {}) }); };
   add("plan.setup.60m", "Fund page trade plan (setupOf on the underlying's 5-min bars, LONG/SHORT SETUP and LEAN): LIMIT entry 0.5 × 5-min ATR, alive 60 min, counts only when touched; exit at the plan's stop or target or 60 min after the fill; cost 0.02% of the underlying; one per underlying per hour", all, { fill: tried ? +(all.length / tried).toFixed(3) : null, tried, exits: ex, markets: got });
   add("plan.setup.full.60m", "Fund page trade plan, only LONG / SHORT SETUP (all three filters agree): as plan.setup.60m", all.filter(x => x.full), { todH: splitsH(all.filter(x => x.full)) });   // council Nov 20 (LETF agent request): time of day with halves, record only
   add("plan.setup.lean.60m", "Fund page trade plan, only LEAN LONG / LEAN SHORT (2 of 3 filters): as plan.setup.60m", all.filter(x => !x.full));
+  // Council, Nov 21 2026 (LETF agent request): the NO-STOP plan as its own scored item (same fills; exit at the target or at
+  // market 60 min after the fill), ruled like the other items, so the governor can cut or mute the no-stop plan the page now shows.
+  const addNs = (id, desc, a) => { if (!a.length) return; const S0 = a.slice().sort((x, y) => x.t - y.t); items.push({ ...fromList(id, desc, "ret", S0.map(x => x.ns)), days: Object.fromEntries(Object.entries(S0.reduce((o, x) => { (o[etDay(x.t)] || (o[etDay(x.t)] = [])).push(x.ns); return o; }, {})).sort().map(([d, w]) => [d, { n: w.length, m: +mean(w).toFixed(5) }])), mae: noStop(a).mae }); };
+  addNs("plan.setup.60m.nostop", "Fund page trade plan with NO stop order (as plan.setup.60m, exit at the target or at market 60 min after the fill)", all);
+  addNs("plan.setup.full.60m.nostop", "Fund page trade plan, only LONG / SHORT SETUP, with NO stop order (as plan.setup.full.60m, exit at the target or 60 min after the fill)", all.filter(x => x.full));
   // Council, Nov 16 2026 (LETF agent request): plan crowding. "crowd" = the number of underlyings that gave a plan on the SAME side
   // at the SAME signal time (known when the plan shows: it counts signals, not fills). Record only (watch, factor 1):
   // plan.setup.60m.crowd3 = filled plans with crowd 3+, plan.setup.60m.crowd12 = crowd 1-2. .hour = per signal time (ET day hh:mm):
