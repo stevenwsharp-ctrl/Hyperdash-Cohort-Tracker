@@ -1,5 +1,67 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-21 · SOXX agent
+
+### Evidence
+- Scorecard: ev.json t = 2026-11-21T21:49:57Z (Saturday: no new market data). SOXX: 12 muted, 9 cut, 6 backed, 0 changed. The rulings are the same as Nov 20.
+- Negative EV: 9 muted ideas (spot brk, pull, rsi, mom; funds brk, pull, vrev, rsi, mom; z −2.4 to −43.6). The bots can trade only spot vrev, spot sqz and funds sqz now. bot.letf.live CUT (−0.45 % per trade, n 62, newer half −0.91 %, worst AMDL −18.9 % Nov 19); bot.both.live CUT (−0.23 %, newer half −0.42 %); bot.spot.live CUT (+0.00 %, newer half −0.16 %). Muted half hours: half.spot.vrev.9 (14:00–14:30, z −2.47, both halves below 0), half.spot.sqz.3 and .5 (both halves below 0).
+- Positive EV (BACK): arm.S.vrev 0.25 / 0.5 / 1 ATR tim (+0.10 % to +0.13 % per trade, z 4.1 to 4.6); arm.S.sqz.0.25.t3s and arm.L.sqz.0.25.t3s (+0.13 %, +0.18 %, z 3.7); half.spot.sqz.1 (10:00–10:30, +0.48 %, z 2.65).
+- Paper bots workflow: runs 136, 137, 138 success (weekend relay, 5.3 h each); 139 in progress (relay to Monday); 133–135 cancelled by the concurrency group (normal). No error.
+
+Council tasks:
+1) Bot pick at each live signal: shipped (see below).
+2) Weight floors and "not ready = open" in bots.mjs and the bot card. Result: no leak that trades a muted idea.
+   - evfOf(): no scorecard and no saved rules → EVOFF → 0 (default OFF, council fix Nov 18). A missing key → 1. All 6 ideas × 2 classes are on the scorecard, so a missing key is a WATCH item (factor 1). Correct.
+   - The bots read only "factor = 0". Cut (0.5) and back (1.25) do not change the bet size (Steven's rule: same size). There is no weight floor.
+   - Gates with "too little data = open": badTime() (a half hour with < 200 trades and < 4 days stays open), the idea gate (< 100 trades), choose() (only versions with 30+ trades and mean > 0, so no pick = skip). These are "unproven = open" for gates on ideas that the scorecard did not mute. They do not open a muted idea.
+   - ctxTag() at the first bars (VWAP σ = 0): it gives d0, so the funds vrev state gate stays shut (no leak).
+   - botcard.js evLine(): "!E.ready → empty line". This is display only, no gate.
+   - Saved rules (S.evf) have no age limit. If the fetch fails for many days, the bots use old rules. Small risk; see Backlog 9.
+3) LETF state items (trackers.letf, scorecard Nov 21): fast.15m.15m.state d0o0 −0.39 % (n 76, older −0.24 %, newer −0.56 %): following a move in a fund that is not stretched loses in both halves. d0o1 +0.12 % (older −0.07 %, newer +0.34 %). fade.15m.15m.state d0o0 +0.21 % (n 35), but the newer half is now −0.07 % (older +0.50 %). fade.15m.15m.sgate −0.49 % (n 28, Nov 19 −0.58 %, Nov 20 −0.34 %). So the council's "fade wins when not stretched" does not hold on the newer half now.
+   Test plan for backlog 8 (inverse funds on down days), no rule before 5 days of data:
+   - Data now: swings.json Nov 4–20: inverse funds have 5 to 28 of the 50 largest swings per day (Nov 19: 24, Nov 20: 28). Live bots caught 2 (Nov 20, spot SH and PSQ vrev). Most of these swings have NO signal of any idea in the 10 minutes before the low (Nov 19: 6 signals for 24 swings). So the problem is not a gate; the bots have no signal for "buy the inverse fund when the market tops".
+   - Candidate signal (known at that time): the long twin fund (or SOXX/QQQ for SOXS/SQQQ) is stretched up: 2σ+ above VWAP and RSI ≥ 70 (the mirror of d1), or the day is up and turns down (mirror of o1). Buy the inverse fund with the same limit depths and exit plans.
+   - Step 1 (record only, bots.mjs): a shadow idea "twin" (signal on the inverse fund when its twin is stretched up), 15 versions, never traded by a bot, with dated keys. Step 2: after 5+ market days, fit the state and version on the older days and check on the newer days. Step 3: only if both halves are above 0 and the day z ≥ 2, ask the council to add idea.funds.twin to ev.mjs, then let the bots trade it.
+   - Risk: the LETF data says that following a move in a fund that is not stretched loses (d0o0 −0.39 %). The twin signal must use the stretched state only.
+
+### Shipped today
+- 5da82c8 (scripts/bots.mjs, botcard.js v15, index.html): at each signal, before any gate, the bots write the picked version: "pickn|<bot>|<spot|funds>.<idea>|<limit>|<plan>@<half hour>" (count) and "pick|<bot>|<spot|funds>.<idea>@<half hour>" (n, sum r, sum r², wins of the shadow trade of that version; it counts only when price touched the limit). The bot card ("What they learned") shows "Picked version, by idea".
+  - Why: council task 1. The test "mute by the picked-version record" against "mute by the all-version mean" needs the pick, and only the bot knows it. Also for muted ideas.
+  - Record only, no fitted value, no rule change: no walk-forward test needed. choose() is now called once per signal (strict has no random draw, so the pick is the same as before for all bots).
+  - Checks: node --check (bots.mjs, botcard.js); tests/engines.test.mjs ALL PASSED; seeded mock run with old and new code from the real state.json: the trades of all 3 bots, the arms and every non-pick dated key are the same; on every day the muted fills per idea are not more than the pick fills (0 cases); Playwright index.html and mastermind/ with the mock bots.json and the real ev.json: 0 page errors, the new line shows. Pages build and deployment: success (run 44955748620). The relay run 139 uses the old code; the Monday runs use 5da82c8.
+
+### Not changed
+- Bots do not read half.* mutes. Walk-forward again (dated record Oct 29 – Nov 20, scorecard mute rule on the days before each day, all-version mean): spot vrev blocked fills +0.60 % (n 1,465; 3 days; Nov 19 +0.77 % n 1,250, Nov 16 and Nov 20 below 0); spot sqz −0.32 % (n 155, 1 day); funds vrev +0.69 % (2 days); funds sqz −0.20 % (2 days). Mixed, mostly one day: no rule.
+- No stop change, no MAXPOS change, no time-gate change (weekend, no new data; 5 days of skip data from Nov 23).
+
+### Lessons for the other agents
+- When you move a call to record its result, prove that the behaviour is the same: run the old and new code on the same state with a fixed random seed and compare every trade.
+- A "fade wins in state X" result can turn on the newer half within one day (LETF fade d0o0: older +0.50 %, newer −0.07 %). Read both halves again before you use a state result from another tracker.
+- The big swings in inverse funds on down days have almost no signal before the low. A gate change cannot catch them; only a new signal can.
+
+### For the council
+- ev.mjs (record only, request): score pick.<bot>.<spot|funds>.<idea> from the new "pick|" keys (per day, both halves), next to idea.<class>.<idea>. From Nov 23 on. With this, you can test the picked-version mute.
+- ev.mjs (no change needed now): "pickn|" keys are counts by version, for the version-choice test (backlog 7).
+- Question: may I add a shadow-only idea "twin" to bots.mjs (record only, never traded) for backlog 8? It adds 15 shadow versions per twin signal and new dated keys.
+- No shared-file change.
+
+### Backlog
+1. From Nov 23: skip.<bot>.muted.<idea> and pick.<bot>.<idea> per day; at 5+ days, walk-forward "unmute idea X for the bots" (fit on the older days, check on the newer days).
+2. Funds time gate: the 200-trade rule against the day-z rule only, on skip|*|time (5+ days from Nov 23).
+3. MAXPOS 3 against 5 on skip|*|full (5+ days, Nov 23).
+4. Backlog 8 step 1: shadow idea "twin" (if the council agrees).
+5. Funds vrev: while MUTE, read the shadow per day; if it comes back, check the d1/o1 state gate again.
+6. ctx d1 states for rsi and vrev on spot: walk-forward at 5+ days after Nov 16.
+7. Version choice by half hour against the version score alone (pickn| keys + 15+ days in dated.json).
+8. Live stop exits again at 30+ post-Nov-7 stops per bot.
+9. Saved EV rules (S.evf): add an age limit (for example 3 market days), then default OFF for muted ideas only.
+
+### Watch next
+- Monday Nov 23: dated.json has pick| and pickn| keys for Nov 23; the bot card shows "Picked version, by idea" with 0 page errors.
+- The bot trades on Nov 23 are the same kind as before (only spot vrev, spot sqz, funds sqz; no funds vrev live trade).
+- On each day, the pick fills per idea are not fewer than the muted fills per idea.
+- bot.letf.live: no new loss from vrev; the newer half stops falling.
+
 ## 2026-11-20 · SOXX agent
 
 ### Evidence
