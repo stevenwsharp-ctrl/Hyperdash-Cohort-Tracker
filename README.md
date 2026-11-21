@@ -45,6 +45,20 @@ Site: https://stevenwsharp-ctrl.github.io/Hyperdash-Cohort-Tracker/
 - **Live prices**: the page reads Hyperliquid prices and funding directly every 20 seconds.
 - **Alerts**: add repo secret `NTFY_TOPIC` (ntfy phone app) and/or `DISCORD_WEBHOOK_URL`. Optional repo variables: `ALERT_MIN_SCORE` (default 65) and `ALERT_TYPES` (default `setup,exit,flip`; also `fade`, `add`, `new`). Test: Actions → Run workflow → tick "Send a test alert".
 
+## Cohort Flow page (flow.html)
+
+`flow.html` charts any market with the exact Hyperliquid price and volume, and shows where each Hyperdash cohort buys and sells.
+- Compare any two cohorts (default Smart vs Fools; also each PnL cohort, each size cohort, all traders).
+- Timeframes 5m to 1w. Flow panes per cohort: net $ bought or sold per candle, bright = opening, pale = closing. Net position pane.
+- Cohort profile: at which prices each cohort bought and sold in the visible range. Est. average entry lines. Big-flow markers.
+- Range table for all cohorts: long adds, long cuts, short adds, covers, "cut loose" (closed under water), average add price, est. entry, trader count change.
+- Orders waiting to be filled: order book heatmap (all resting orders, every 15 min for 24 h on the server and every 10 s while the page is open), the live book, and the entries / stops / targets of the top good and bad holders (from `levels.mjs`).
+- Scanner of every market: smart vs fools net flow over 1h / 4h / 24h / 7d.
+- The same drawing tools as the market chart.
+
+Data: `scripts/cohortbook.mjs` runs after each new snapshot and pushes `cf/<COIN>.json` and `cf/_index.json` to the `cohort` branch
+(5-minute rows for 2 days, 15-minute to 7 days, hourly to 30 days). Flow = change in open positions, price-adjusted. Trades opened and closed inside 5 minutes are not seen.
+
 ## Market chart (each market)
 
 Open a market row: the detail starts with a live chart (TradingView Lightweight Charts, candles from Hyperliquid).

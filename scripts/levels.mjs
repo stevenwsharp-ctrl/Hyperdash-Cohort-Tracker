@@ -166,7 +166,8 @@ async function main() {
       const l = {
         sz, ep: +p.entryPx, lev: p.leverage ? +p.leverage.value : null, lt: p.leverage && p.leverage.type === "isolated" ? "i" : "c",
         lq: p.liquidationPx ? +(+p.liquidationPx).toPrecision(6) : null, mu: Math.round(+p.marginUsed || 0), u: Math.round(+p.unrealizedPnl || 0),
-        av: Math.round(av), eff: av > 0 ? r2(Math.abs(+p.positionValue) / av) : null, st: [], tp: [], add: []
+        av: Math.round(av), eff: av > 0 ? r2(Math.abs(+p.positionValue) / av) : null, st: [], tp: [], add: [],
+        g: groupOf(h), coh: h.coh || null, ord: []   // ord: resting orders [price, $ size, kind a=open/add s=stop t=target, side 1 buy / -1 sell] (flow.html)
       };
       try {
         const oo = await post({ type: "frontendOpenOrders", user: h.a, dex });
@@ -175,6 +176,9 @@ async function main() {
           const oside = o.side === "B" ? 1 : -1, closing = oside === -side || o.reduceOnly;
           const pxo = +(o.isTrigger ? o.triggerPx : o.limitPx);
           if (!pxo) continue;
+          const usd = Math.round((+o.sz || +o.origSz || (closing ? Math.abs(sz) : 0)) * pxo);   // a close-all trigger has size 0: use the position
+          const kind = !closing ? "a" : /stop/i.test(o.orderType || "") ? "s" : /take profit/i.test(o.orderType || "") ? "t" : (side > 0 ? pxo > px : pxo < px) ? "t" : "s";
+          if (l.ord.length < 20 && (closing || Math.abs(pxo - px) / px >= 0.002)) l.ord.push([+pxo.toPrecision(6), usd, kind, oside]);
           if (!closing) l.add.push(pxo);
           else if (/stop/i.test(o.orderType || "")) l.st.push(pxo);
           else if (/take profit/i.test(o.orderType || "")) l.tp.push(pxo);
@@ -183,6 +187,7 @@ async function main() {
           else l.st.push(pxo);                                       // closing limit in loss = stop-like
         }
       } catch (e) { console.error("orders", h.a.slice(0, 8), e.message); }
+      if (!l.ord.length) delete l.ord;
       for (const k of ["st", "tp", "add"]) { l[k] = [...new Set(l[k].map(x => +x.toPrecision(6)))].slice(0, 6); if (!l[k].length) delete l[k]; }
       const c = TC[h.a];
       if (c) {
