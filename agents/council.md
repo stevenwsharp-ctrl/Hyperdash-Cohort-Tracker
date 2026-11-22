@@ -29,17 +29,18 @@
 ### Tasks for tomorrow (Monday, first market day with the new records)
 - SOXX agent: 1) Check "Watch next": the bots log "EV rules: 27" (not STALE), evOff 0, and only spot vrev, spot sqz and funds sqz trade. 2) Read the first twin.spot / twin.funds items in ev.json and the skip.*.muted and pick.* items; no rule before 5 days. 3) Check that a replayed old day keeps the same dated values from run to run (compare dated.json of 2 runs for Nov 19 and Nov 20).
 - Cohort agent: 1) Backlog 1: measure the lab replay fault (the det block of 5 runs for the same dates); if confirmed, ship the dated step log in lab.json so old steps keep their first value. 2) If "strict" 2 d is below 0 again on Nov 23, check that the lab gates 2 d by itself and the page shows it. 3) Web test: write a record-only script (for example scripts/webreplay.mjs) that loads web.js read-only with a localStorage shim on outlook_lessons.json, learn 60 % / score 40 %. Do not edit web.js; send me any change it needs.
-- LETF agent: 1) Show the fund's own tail from maeBy (per underlying, 10+ plans) on the fund page; use the pooled tail when the underlying has fewer plans. 2) Check that the per-day values of plan.setup.60m (days field) stay the same between two scorecards; report how much the halves move only because the 1-month window rolls. 3) Monday: plan.setup.full.60m.nostop must stay BACK and the no-stop items must not be CUT.
+- LETF agent: 1) Show the fund's own tail from maeBy of plan.setup.60m.nostop (per underlying, 10+ plans) on the fund page; use the pooled tail when the underlying has fewer plans. 2) Check that the per-day values of plan.setup.60m (days field) stay the same between two scorecards; report how much the halves move only because the 1-month window rolls. 3) Monday: plan.setup.full.60m.nostop must stay BACK and the no-stop items must not be CUT.
 
 ### Changes I made
 - Hyperdash-Cohort-Tracker 9533bf6 (scripts/ev.mjs), record only. New items twin.spot and twin.funds (SOXX request; dated keys, all 15 versions pooled per day, halves, per day and per version; watch, factor 1). New field maeBy on plan.setup.60m.nostop and plan.setup.full.60m.nostop (LETF request: q05, q01 and the worst move per underlying with 10+ plans). No existing item, ruling or factor changed.
-- Checks: node --check; soxx() on the real bots branch files gives 177 items, the same bytes as the old code; with test twin keys, the same 177 items plus the 2 twin items (watch); maeBy unit check. The EV governor runs on push.
+- Checks: node --check; soxx() on the real bots branch files gives 177 items, the same bytes as the old code; with test twin keys, the same 177 items plus the 2 twin items (watch); maeBy unit check. EV governor on push: success (23:16 UTC); all rulings the same (SOXX 12/9/6, Cohort 2/27/6, LETF 0/6/1).
+- First maeBy result (all plans, 24 underlyings with 10+ plans): the tail is very different per underlying. Worst move while held: SPY −0.4 %, QQQ −1.3 %, SOXX −1.5 %, NVDA −6.2 %, IREN −8.8 %, AMD −9.7 %. The pooled tail (−4.4 % at 1 in 100) is too large for SOXL / SOXS and too small for AMDL. Full SETUP plans have fewer than 10 per underlying, so use the all-plans maeBy.
 - No shared-file change. No revert.
 
 ### What Steven should know
 - Nothing to paste. No Worker change.
 - On Monday the paper bots trade only spot vrev, spot sqz and funds sqz. If the scorecard stops for 3 market days, the bots stop all live trades by themselves.
-- Still your decision (from Nov 21): the LETF fund page shows no stop order. The page now shows the tail: on a 3× fund about −13 % at 1 plan in 100 and about −26 % at the worst, inside the hour. If you want a hard stop for your own risk anyway, tell the LETF agent; it costs some EV.
+- Still your decision (from Nov 21): the LETF fund page shows no stop order. The page now shows the tail: on a 3× fund about −13 % at 1 plan in 100 and about −26 % at the worst, inside the hour (all underlyings pooled). The tail is much smaller on index funds (SOXX worst −1.5 %, about −4.5 % on SOXL) and much larger on single-stock funds (AMD worst −9.7 %, about −19 % on AMDL 2×). If you want a hard stop for your own risk anyway, tell the LETF agent; it costs some EV.
 
 ## 2026-11-21 · Council
 
