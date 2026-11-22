@@ -52,8 +52,8 @@ for (const h of HZ) {
     // baseline: the same limit order on every market (per side), so the limit's own fill bias is not credited to the system
     const bL = row.U.map(u => fill(u, 1)).filter(v => v != null), bS = row.U.map(u => fill(u, -1)).filter(v => v != null), aL = bL.length ? mean(bL) : avg, aS = bS.length ? mean(bS) : avg;
     const sp = (lr.length ? mean(lr) - aL : 0) + (sr.length ? aS - mean(sr) : 0); return { sp: lr.length || sr.length ? sp : null, ic: spear(v.map(x => x.s), v.map(x => x.r)) }; };
-  const cut = Math.floor(rows.length * 0.6), res = {}, W = {};
-  for (const k of SYS) { XS = []; const E = rows.map(row => evalK(row, u => u.o[k])), sp = E.map(e => e.sp).filter(v => v != null), ic = E.map(e => e.ic).filter(v => v != null), tr = E.slice(0, cut).map(e => e.sp).filter(v => v != null), te = E.slice(cut).map(e => e.sp).filter(v => v != null);
+  const cut = Math.floor(rows.length * 0.6), res = {}, W = {}, EK = {};
+  for (const k of SYS) { XS = []; const E = EK[k] = rows.map(row => evalK(row, u => u.o[k])), sp = E.map(e => e.sp).filter(v => v != null), ic = E.map(e => e.ic).filter(v => v != null), tr = E.slice(0, cut).map(e => e.sp).filter(v => v != null), te = E.slice(cut).map(e => e.sp).filter(v => v != null);
     const S = stat(sp), I = stat(ic), Tr = stat(tr), Te = stat(te), neff = S ? S.n * Math.min(1, STEP / h) : 0;
     const xs = XS.filter(x => true); XS = []; res[k] = S ? { ex: (() => { if (xs.length < 8) return null; const q = (a, p) => { const z = a.slice().sort((x, y) => x - y); return z[Math.floor(p * (z.length - 1))]; }; return { n: xs.length, mae50: q(xs.map(x => x[0]), 0.5), mae90: q(xs.map(x => x[0]), 0.1), mfe50: q(xs.map(x => x[1]), 0.5), mfe90: q(xs.map(x => x[1]), 0.9) }; })(), n: S.n, m: S.m, hit: S.hit, t: S.sd ? S.m / S.sd * Math.sqrt(Math.max(1, neff)) : 0, ic: I ? I.m : null, icT: I && I.sd ? I.m / I.sd * Math.sqrt(Math.max(1, I.n * Math.min(1, STEP / h))) : 0, learnM: Tr ? Tr.m : null, unseenM: Te ? Te.m : null } : null;
     const tL = Tr && Tr.n >= 5 && Tr.sd ? Tr.m / Tr.sd * Math.sqrt(Math.max(1, Tr.n * Math.min(1, STEP / h))) : 0; res[k].learnT = tL; W[k] = Math.max(0, Math.min(3, tL));   // weight = t-stat on the learning part; a system that lost there gets 0
@@ -64,6 +64,22 @@ for (const h of HZ) {
   const E0 = rows.slice(cut).map(row => evalK(row, u => cons(u.o, W)));
   for (const [name, w] of [["cons", W], ["consEq", EQ]]) { const E = rows.slice(cut).map(row => evalK(row, u => cons(u.o, w))), sp = E.map(e => e.sp).filter(v => v != null), S = stat(sp), I = stat(E.map(e => e.ic).filter(v => v != null));
     res[name] = S ? { n: S.n, m: S.m, hit: S.hit, t: S.sd ? S.m / S.sd * Math.sqrt(Math.max(1, S.n * Math.min(1, STEP / h))) : 0, ic: I ? I.m : null, unseenOnly: true } : null; }
+  // consPage (Cohort agent, 2026-11-22; council task): the blend with the PAGE's weight rule (outlook.js), replayed walk-forward.
+  // The page weights each system by max(0.2, min(3, t)) of the whole backtest it has, and gates a group while every member lost
+  // on that backtest's learn part AND its unseen part. Here the page only "has" the learn part (first 60%): t comes from it, and
+  // the gate's two parts are its first 60% and last 40%. Scored on the unseen last 40%, like cons. Not in the panel: the signal
+  // web and the live ledger weight (both 1 here) and the EV factors. Compare with cons (learn-part t with NO floor: what the floor
+  // costs or gives) and consEq (equal weights). Record only: the page does not read it. First run (Nov 22 panel), unseen part,
+  // per pick: 24 h -2.32% (cons -0.22%), 48 h +2.46% (cons +9.27%), 7 d +1.92% (cons +0.45%).
+  { const GATE_PAGE = { 24: [["rev", "mom"]], 48: [["mom"], ["flow"]], 168: [["mom"]] };   // keep in step with GATE in outlook.js
+    const c2 = Math.floor(cut * 0.6), tP = {}, lostP = {};
+    for (const k of SYS) { const a = EK[k].slice(0, cut).map(e => e.sp).filter(v => v != null), S = stat(a), A1 = stat(EK[k].slice(0, c2).map(e => e.sp).filter(v => v != null)), A2 = stat(EK[k].slice(c2, cut).map(e => e.sp).filter(v => v != null));
+      tP[k] = S && S.sd ? S.m / S.sd * Math.sqrt(Math.max(1, S.n * Math.min(1, STEP / h))) : null; lostP[k] = !!(A1 && A2 && A1.m < 0 && A2.m < 0); }
+    const gP = k => (GATE_PAGE[h] || []).some(g => g.includes(k) && g.every(x => lostP[x]));
+    for (const [name, fl] of [["consPage", 0.2]]) { const w = Object.fromEntries(SYS.map(k => [k, gP(k) ? 0 : tP[k] == null ? 1 : Math.max(fl, Math.min(3, tP[k]))]));
+      if (!SYS.some(k => w[k] > 0)) continue;
+      const E = rows.slice(cut).map(row => evalK(row, u => cons(u.o, w))), S = stat(E.map(e => e.sp).filter(v => v != null)), I = stat(E.map(e => e.ic).filter(v => v != null));
+      res[name] = S ? { n: S.n, m: S.m, hit: S.hit, t: S.sd ? S.m / S.sd * Math.sqrt(Math.max(1, S.n * Math.min(1, STEP / h))) : 0, ic: I ? I.m : null, unseenOnly: true, w: Object.fromEntries(SYS.map(k => [k, Math.round(w[k] * 1000) / 1000])), gated: SYS.filter(gP) } : null; } }
   // the blend WITHOUT each system (and without the 24 h reversion + momentum group), weights from the learning part, scored on the
   // unseen part: d = blend without it minus the full blend, per pick (d > 0: the blend does better without it). For the scorecard.
   const without = {}, cU = res.cons && res.cons.m;
