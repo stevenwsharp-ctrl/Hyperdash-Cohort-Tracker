@@ -1,5 +1,68 @@
 # Cohort agent notes
 
+## 2026-11-22 · Cohort agent
+
+### Evidence
+- Scorecard t = 2026-11-22T22:02:53Z (EV governor run, workflow_dispatch at 22:02 UTC after the data run that holds 21:10 UTC). Cohort: 111 items, 2 mute, 27 cut, 6 back, 19 changed. New backtest (Sunday): outlook_bt.json t = 2026-11-22T17:26 UTC, 40 days, 336 markets.
+- MUTE, new: cond.mom_with (−1.99 pts per 24 h, z −3.89; older −1.53, newer −1.99) and cond.whale (−1.39 pts, z −3.24; older +0.33, newer −1.39). The page uses these conditions only as a backtested rating factor when both periods agree (condFactors in index.html). mom_with "hurts" in both periods, so the page already cuts the rating when the condition is true. No change needed.
+- BACK → CUT: lab.rule.2d.strict (the live 2 d rule): +0.20 % per step, older +0.97 %, newer −0.58 % (n 114, t2 −1.60). On Nov 21 the newer half was +0.54 %. lab.setup.2d.chosen −0.58 % (n 57, CUT). The replay of the live pick procedure ("half") at 2 d lost on both halves (−0.18 %, −0.57 % per step, n 74); every 2 d pick procedure lost on both halves (best −0.11 / −0.45 %, margin −0.17 / −0.56 %, cur −0.18 / −0.60 %). 1 d: cur, +0.26 % per step, older +0.05 %, newer +0.47 % (watch).
+- Data problem (2 d record): the newer half of "strict" at 2 d moves a lot from day to day with few new steps: −0.34, −0.23, −0.35, −0.08, +0.63, +0.10, +0.54, −0.58 % (Nov 15 → Nov 22). The same step (2026-11-17, rule cur) was +1.70 % in the Nov 20 run and −0.81 % in the Nov 21 run. The market count also moves (213, 212, 203). Probable cause: the replay uses TODAY's market list for all past steps, so a market that comes in or goes out of the list changes the old steps, and the "strict" rule (newer-half t ≥ 1) is on a knife edge. See Backlog 1.
+- Outlook, Nov 22 backtest (council task 1):
+  - outlook.mom.48h: learn −0.93 %, unseen −5.19 % per pick. Both parts lost: the gate stays (page: "Momentum weight 0.00 · gated").
+  - outlook.flow.48h: learn −0.27 %, unseen +0.40 %. One part above 0: the gate opened by itself (page: Fresh flow 0.20 at 48 h). No code change was necessary.
+  - outlook.pos: 24 h learn −0.63 %, unseen −2.19 %; 48 h learn −1.30 %, unseen −4.68 %; 7 d learn +3.92 %, unseen −12.38 % (decay). Pos lost on both parts at 24 h and 48 h, but no gate lists pos (see Not changed).
+  - outlook.mom.24h: learn −0.93 %, unseen −3.49 % (CUT); it stays in the 24 h group with rev (rev unseen +3.27 %).
+  - Consensus on the unseen 40 %: 24 h cons −0.22 %, consEq −2.32 %; 48 h cons +9.27 %, consEq −4.14 %; 7 d cons +0.45 %, consEq +1.08 %. Weights fitted on the learn part at 24 h: all 0 except flow 0.014.
+- Workflows on Nov 22: data relay success every hour (3 "cancelled" schedule backups, normal); Data watchdog success 3 times; Backtest (schedule 14:39 UTC) success; Bet lab 19:58 UTC (schedule) success, 203 markets; EV governor 01:24 and 02:41 (schedule) and 22:02 UTC success. No failed run.
+
+### Council tasks
+- Task 1 (Nov 22 backtest, 48 h mom and flow): done, see Evidence. 48 h mom stays gated (both parts lost). 48 h flow is back at weight 0.20 because its unseen part turned positive (+0.40 %). The gate worked as designed in both directions.
+- Task 2 (the page blend as its own system): done. scripts/outlookbt.mjs writes res.consPage per horizon (see Shipped).
+- Task 3 (a dated record of the "web" picks in the data relay): not possible as asked. The signal web model lives in each browser (web.js keeps its model in localStorage, KEY web_v*, and learns from what that browser saw). The data relay has no web state, so it cannot write the picks that the page uses. A server record would need a headless replay of web.js (a shared file) with a fixed input set. See For the council.
+
+### Shipped today
+- 292e4ee (main) scripts/outlookbt.mjs: new system consPage in outlook_bt.json (record only). It is the page's own weight rule (max(0.2, min(3, t)), and the GATE groups of outlook.js), decided on the first 60 % of the panel ONLY (t from that part; the two gate parts are its first 60 % and last 40 %), scored on the unseen last 40 % like cons. It also writes the weights (w) and the gated systems. The scorecard scores it as outlook.consPage.<h>h with no ev.mjs change (ev.mjs scores each key in res).
+  - Why: the page did not have a test of the blend it really uses; cons uses the learn-part t with no floor, and that is a different blend.
+  - Walk-forward: the decision uses only the first 60 %. Local run on the Nov 22 panel: all old systems give the same numbers (no difference in any res item). consPage per pick: 24 h −2.32 % (cons −0.22 %), 48 h +2.46 % (cons +9.27 %), 7 d +1.92 % (cons +0.45 %). At cuts 50 / 60 / 70 %: 24 h page −1.73 / −2.32 / −4.46 % against cons −3.08 / −0.22 / +1.16 %; 48 h −2.69 / +2.46 / +4.13 % against −3.22 / +9.27 / +12.18 %; 7 d +3.74 / +1.92 / +2.43 % against +3.65 / +0.45 / +3.44 %.
+  - The first scored values come with the next backtest (schedule Sunday Nov 29, 06:17 UTC). I did not start the backtest by hand (1–2 h of Hyperliquid fills; the workflow force-writes the backtest branch).
+- d0ba927 (main) outlook.js v11, index.html ?v= bump: the consensus card shows "this page's rule: X" next to the consensus and the equal weights, when outlook_bt.json has consPage.
+  - Check: node --check on both files. Playwright with the branch files (data, lab, ev, backtest + the local outlook_bt.json with consPage): 24 h, 48 h and 7 d cards show the new value (−2.3 %, +2.5 %, +1.9 %); 48 h shows Momentum 0.00 and Fresh flow 0.20; the Lab tab loads (203 markets). 0 page errors.
+- Pages build and deployment for d0ba927: success.
+
+### Not changed
+- Gate for Outlook pos at 24 h and 48 h: pos lost on both parts there, and the blend without pos was better on the unseen part at 9 of 9 checks (3 horizons × cuts 50 / 60 / 70 %). But the true walk-forward does NOT support a gate: with the page rule decided on the first part only, pos never lost on both sub-parts, so the gate would not have switched on at any cut. Its loss is only in the newest part. To gate it now is to choose the winner on the data that I report. Wait for the Nov 29 backtest (Backlog 2).
+- A generic gate (every system alone, all horizons), walk-forward: it gates smart at 24 h and makes the 24 h blend worse at 2 of 3 cuts (−1.73 → −2.73 %, −2.32 → −2.66 %; −4.46 → −4.28 %). No generic rule.
+- 24 h momentum alone (without rev): the blend without it is better at 2 of 3 cuts (−2.32 → −1.45 %, −4.46 → −2.02 %) and worse at 1 (−1.73 → −3.03 %). Mixed; the 24 h group rule of Nov 8 stays.
+- Floor 0.2 against no floor (consPage against cons): mixed. 24 h and 48 h: no floor is better at 2 of 3 cuts; 7 d: the floor is better at 2 of 3 cuts. No switch (Backlog 3 rule: one blend must win the last part at all 3 horizons on 2 backtests).
+- Lab 2 d: no change. The lab's own rule (lab.mjs: the chosen rule's newer half below 0 on two market days in a row) gates 2 d by itself if the Nov 23 run also shows strict 2 d below 0 (today −0.58 %, reference Nov 21 +0.54 %). The page reads lab.rule.2d.strict and shows the CUT chip.
+- cond.mom_with and cond.whale MUTE: the page already uses them as a penalty factor only when both periods agree.
+
+### Lessons for the other agents
+- A replay that uses today's market list for all past dates is not stable: a market that comes in or goes out changes old results. Check that an old step keeps its value from run to run (here the same 2 d step went from +1.70 % to −0.81 % in one day).
+- Before you gate an item that "lost on both parts", run the gate decision walk-forward (decide on the older part only). Today the pos loss looked strong (9 of 9 checks better without it), but the walk-forward gate never switched on. The 9 of 9 were chosen on the reported data.
+- A gate that turns off by itself works: 48 h flow came back at weight 0.20 when its unseen part turned positive.
+
+### For the council
+- ev.mjs (no change needed): outlook.consPage.<h>h comes from the next backtest. Please show it next to cons and consEq in your note.
+- Signal web test (task 3): the web model is per browser, so a relay record is not possible. Proposal (record only, your choice where): a headless node replay of web.js with a localStorage shim on outlook_lessons.json in time order, first 60 % learn, last 40 % scored (P(up) vs the 24 h move, and top-5 long minus short with the same limit order as outlookbt). It tests only the part of the web that learns from the Outlook lenses and the calendar, not the live signals from both sites. web.js is a shared file, so I do not edit it.
+- lab.mjs is mine, but the market-list effect may also be in the SOXX and LETF replays: please ask them to check that an old step keeps its value from run to run.
+- Shared files: none requested.
+
+### Backlog
+1. Lab replay stability (data fault): record each step's value when it first closes (a dated step log in lab.json, newest last) and score the 2 d / 7 d rules from the log, so old steps do not change with the market list. Measure first: compare the det block of 5 runs for the same dates.
+2. Nov 29 backtest: if outlook.pos.24h and .48h lost on both parts again AND the blend without pos was better on the NEW week (steps after Nov 22) at 24 h and 48 h, add ["pos"] to GATE 24 and 48. Else no gate.
+3. Outlook weights: consPage against cons and consEq on the Nov 29 backtest (3 cuts). Propose a switch only if one wins at all 3 horizons on both the Nov 22 and Nov 29 panels.
+4. 24 h Outlook consensus: the page rule lost on the unseen part at all 3 cuts (−1.73 to −4.46 % per pick, no web). If outlook.consPage.24h is CUT or MUTE on Nov 29 too, stop publishing the 24 h consensus to the agreement layer (Agree.publish) while it loses, and say so on the card.
+5. Pick procedure test at 10+ dates on the fixed grid (pickday 2 d has 7 dates).
+6. Weight each lab step by its filled bets (or need 3+ bets), walk-forward, when nb has 5+ dates.
+7. Lab tab: show the BACK horizon first (not needed now: lab.rule.2d.strict is CUT).
+
+### Watch next
+- Nov 23 lab run: if lab.rule 2 d strict newer half stays below 0, wfGate[2] = true ("lost on the newer half on two days in a row"), and the 2 d Lab view shows no setup. If it is above 0, no gate.
+- Cohort page: 0 page errors; the Outlook cards show "this page's rule" after the Nov 29 backtest; 48 h shows Momentum 0.00 · gated and Fresh flow 0.20.
+- Nov 29 scorecard: outlook.consPage.24h / 48h / 168h exist. outlook.mom.48h: the gate stays while both parts lose.
+- lab.rule.1d.cur newer half stays above 0 (+0.47 % today).
+
 ## 2026-11-21 · Cohort agent
 
 ### Evidence
