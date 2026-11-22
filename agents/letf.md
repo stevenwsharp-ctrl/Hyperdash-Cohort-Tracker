@@ -1,5 +1,59 @@
 # LETF agent notes
 
+## 2026-11-22 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev, at 2026-11-22T22:02:53Z (Nov 20 data; Sunday, market closed). trackers.letf: 22 items, 0 mute, 5 cut, 1 back, 0 changed.
+- No new market data. The rulings are the same as yesterday. No new negative EV item.
+- plan.setup.full.60m.nostop: BACK, n 132, +0.200% per plan, z 2.03, older +0.212%, newer +0.187%. plan.setup.60m.nostop: WATCH, n 510, +0.072%, older +0.091%, newer +0.053%. With the stop: full +0.149% (newer +0.090%), all +0.009% (newer −0.040%, CUT).
+- Tail with no stop (nostop.mae, underlying, worst move against the held plan). Full SETUP: q05 −2.99%, q01 −4.39%, min −8.85%. All plans: q05 −3.19%, q01 −5.89%, min −9.70%. On a 3× fund the full-plan q01 is about −13%.
+- Far stops (nostop.far, 3/4/6/8 × 5-min ATR). Full SETUP: the older half picks 3 ATR (+0.261% against +0.212% no stop). On the newer half 3 ATR gives +0.033% against +0.187% no stop: it LOSES. All plans: the older half picks no stop (+0.091% against +0.088% best far stop, 4 ATR); every far stop is below 0 on the newer half (−0.009% to −0.065%). Result: no disaster stop passes walk-forward.
+- Turns and fast moves: same as Nov 21 (rev.all.15m CUT for decay, rev.hard.15m WATCH −0.067%, fast.1m.15m WATCH +0.44%, fast.5m.15m CUT, 🚀 alert and fade CUT). No change.
+
+### Shipped today
+- LETF-Sniper 12063d5 (index.html, inline code; no script file changed, so no ?v= bump):
+  1. Council task 2: stopOff() also reads the ruled items plan.setup.60m.nostop and plan.setup.full.60m.nostop. If one of them is CUT or MUTE, the plan shows "Stop at market" again. Before, only the half-by-half check controlled it.
+  2. Council task 1: under "No stop order on this plan" the page shows the real tail: the worst move against the plan while held, in the test, at 1 plan in 20 (q05), 1 plan in 100 (q01) and the worst, on the underlying and "about" × |leverage| on the shown fund. It reads nostop.mae of the shown plan kind. Long and inverse funds of one underlying show the same numbers (same item, same |leverage| for a 3× pair).
+  - Why: the council found the no-stop change a risk change for Steven. The page must show the tail next to the rule. No EV rule value changed; no fitted value.
+- Checks: node --check on the 6 inline scripts: OK. Playwright (local server, ?demo; scanner, #/f/SOXL, #/f/SOXS, #/f/TSLL) with 3 scorecards: today's ev.json, a copy with plan.setup.full.60m.nostop set to CUT, and no scorecard (404). 0 page errors in all 12 loads. Today's: no stop + tail text (SOXL and SOXS: −9.0% / −13.2% / −26.5% on the 3× fund; TSLL: −6.0% / −8.8% / −17.7% on the 2× fund). CUT copy: stop is back. No scorecard: stop is back.
+- Pages build and deployment: success (run 45077285864, 12063d5).
+- worker.js not changed. Steven does not need to paste anything.
+
+### Council tasks (Nov 21)
+1. Tail next to "no stop order": done (above).
+2. stopOff() reads plan.setup.60m.nostop and plan.setup.full.60m.nostop: done (above).
+3. Far stops: read (Evidence). The stop picked on the older half (3 ATR for full plans) loses on the newer half (−0.154% per plan against no stop). I do not propose a disaster stop. I will read nostop.far again each day.
+
+### Not changed
+- No disaster stop: it fails walk-forward (see Evidence).
+- Turn flags, fast moves, 🚀 push, LEAN gate: no new data on a weekend; rulings unchanged.
+- Shared files, ev.mjs, worker.js: not edited.
+
+### Lessons for the other agents
+- A stop chosen on the older half can be the worst choice on the newer half: the 3-ATR stop was best on the older full plans and worst on the newer ones. Always check the chosen value on the other half before you show it.
+- When you remove a risk limit because the test says so, show the tail on the page next to the rule (quantiles of the worst move while held, in the units the user trades).
+
+### For the council
+- Please review 12063d5. The tail in fund terms is |leverage| × the underlying move: this is a simple estimate inside one hour (no decay, no tracking error). If you want the real fund MAE, ev.mjs must score it on fund bars (new test request, record only).
+- ev.mjs (record only): nostop.mae per underlying (or per fund kind: index, sector, single stock). Single stocks (TSLL, NVDL) likely have a larger tail than index funds; one number for all 30 markets can hide that.
+- Still open: the web weight test for letf.setup (fixed 0.6).
+- No shared-file change.
+
+### Backlog
+1. Per-underlying tail when ev.mjs gives it (then show the fund's own q01).
+2. Full SETUP plans: when BACK (plan.setup.full.60m.nostop is BACK now), show them first on the fund page and in the hub. Next step after one more market day keeps it BACK.
+3. letf.setup web weight from the scorecard (waits for the test).
+4. 🚀 fade / follow by state: wait for 3+ positive new days of sgate; the kept states must be stable.
+5. rev.js backtest(): true New York clock for the day split before Mar 8 2027.
+6. Audit leverage and underlying of the fund list against instruments.json (needs the Worker list).
+7. 🚀 threshold per fund kind (fund move ÷ leverage), needs an ev.mjs test first.
+
+### Watch next
+- Monday Nov 23 scorecard: plan.setup.full.60m.nostop stays BACK and plan.setup.60m.nostop is not CUT; if one goes CUT, the page shows the stop again by itself (correct).
+- nostop.far: the far stops stay below no stop on the newer half.
+- Fund page with a full SETUP: the tail line shows, and long and inverse funds of one underlying show the same numbers.
+- plan.setup.lean.60m newer half stays below 0: the LEAN gate stays shut.
+
 ## 2026-11-21 · LETF agent
 
 ### Evidence
