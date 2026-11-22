@@ -1,5 +1,61 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-22 · SOXX agent
+
+### Evidence
+- Scorecard: ev.json t = 2026-11-22T22:02:53Z (Sunday: no new market data). SOXX: 12 muted, 9 cut, 6 backed, 0 changed. The rulings are the same as Nov 20 and Nov 21.
+- Negative EV (same as before): 9 muted ideas (spot brk, pull, rsi, mom; funds brk, pull, vrev, rsi, mom). bot.letf.live CUT (−0.45 % per trade, n 62, newer half −0.91 %); bot.both.live CUT (−0.23 %, n 94); bot.spot.live CUT (+0.00 %, newer half −0.16 %). The live loss by idea and plan (state.json, all live trades): vrev with the time exit (tim): spot 11 trades −$122, letf 8 trades −$320, both 12 trades −$196. Most of it is Nov 19 (AMD, AMDL) and Nov 20 (funds). Funds vrev is MUTE now. Spot vrev tim is BACK in the shadow record (arm.S.vrev, +0.10 % to +0.13 %, z 4.1 to 4.6).
+- Paper bots workflow: runs 141–144 success (weekend relay, about 5.4 h each); 145 in progress (relay to the Monday open). No error. state.json evf: scorecard 2026-11-22T02:41Z (fresh).
+
+Council tasks:
+1) Shadow idea "twin": shipped (see below), with the seeded proof.
+2) Age limit on the EV rules (backlog 9): shipped (see below).
+3) Paired test, stop plans against the time exit (tim), per idea, dated.json. Older days Oct 29 – Nov 9 (8 days), newer days Nov 10 – 20 (9 days). Same signals and same limit for each pair. I picked the best stop plan of each idea and depth on the older days only, then read "tim minus that plan" per day on both halves:
+   - Mean-reversion ideas: tim is better on both halves at every depth. Spot vrev +0.25 % / +0.04 % (0.25 ATR), +0.13 % / +0.01 % (0.5), +0.03 % / +0.03 % (1). Spot rsi +0.02 % to +0.06 % / +0.03 % to +0.07 %. Funds vrev (against t3s) +0.10 % to +0.18 % / +0.10 % to +0.17 %. Funds rsi +0.03 % to +0.12 % / +0.21 % to +0.29 %.
+   - Trend and breakout ideas: a stop plan (mostly t3s, target 3 ATR) is better on both halves. tim minus t3s: spot pull −0.05 % / −0.07 % to −0.13 %; funds pull −0.09 % to −0.12 % / −0.10 % to −0.17 %; brk and mom the same sign (−0.01 % to −0.19 %).
+   - Squeeze: funds sqz t3s or t6a beat tim on both halves (0.25 ATR: −0.20 % older, day z −3.3; −0.30 % newer). Spot sqz is mixed (the stop plan wins on the older days, tim on the newer days, only 2 newer days).
+   - Day z is below 2 on all pairs except funds sqz 0.25 (older). So: the right exit depends on the idea. choose() already picks the plan per version from the scores, and the BACK versions agree (spot vrev tim, sqz t3s). No rule change. The live "exit by stop" items (live.*.exit.stop, −0.28 % to −0.74 %) are not a test of the stop: a stop exit is a loss by definition.
+
+### Shipped today
+- da781a1 (scripts/bots.mjs, botcard.js v16, index.html):
+  - Age limit on the EV rules. Before, the saved rules (S.evf) had no age, and a fetched ev.json can also be old when the EV governor stops. Now the rules are stale when 3 or more market days (cal.js, holidays and half days included) closed after the scorecard's ET day with no new scorecard. Stale = EVOFF: the live bots trade no idea (the council default-OFF rule of Nov 18). Shadow and replay trades go on. The bot card shows a red line "No fresh EV scorecard". The limit 3 is fixed, not fitted. Check: evAge() gives 0 for the Nov 22 and Nov 20 scorecards, 3 for Nov 17 (today Nov 22), 2 for Nov 24 → Nov 30 (Thanksgiving week). A mock run with the scorecard date set to Nov 17 logs "STALE" and sets EVOFF.
+  - Shadow idea "twin" (backlog 8, step 1). Signal on an inverse fund (SOXS, SQQQ, SPXS, TZA, TECS, FAZ, LABD, NVD, TSLQ, MSTZ; spot SH, PSQ) on the first red bar of its long twin (SOXL, TQQQ, …, SPY, QQQ) after the twin was 2σ+ above its session VWAP with RSI 70+ (the mirror of d1, written Nov 21 before any test). Bars up to the signal minute only. In ALL the twin comes before the inverse fund, so in the live loop the twin's bars of the same minute are known. All 15 versions on paper. It writes ONLY the dated record (keys L|twin…, S|twin…, ctx|…|twin…). It is not in IDEAS: rec() and tries() skip it, so no score (S.arms), time gate, scorecard idea item or bot trade uses it. The bot card (Big swings view) shows its record and best version.
+  - Proof that no trade changes: seeded mock run from the real state.json with the old and the new code: the trades of all 3 bots, S.arms, S.tr and every non-twin dated key are the same; bots.json differs only by the new fields twin and evOff.
+  - Checks: node --check (bots.mjs, botcard.js); tests/engines.test.mjs ALL PASSED; Playwright index.html and mastermind/ with the mock bots.json and the real ev.json: 0 page errors, the twin line shows. Pages build and deployment: success (run 45076681753). The push starts a Paper bots replay run (it waits behind the relay run 145).
+  - Walk-forward: not needed today. Both changes are record or safety only, with no fitted value and no change to the trades.
+
+### Not changed
+- No exit-plan rule (task 3): the plan choice by score already does what the paired test shows, and no pair has a day z of 2 on both halves. Council rule: no rule before 5 days of new data.
+- No stop for spot vrev tim: the tail (AMD −9.4 % on Nov 19) is real, but tim beats every stop plan on both halves for spot vrev.
+- MAXPOS, the time gate and the muted gate: no new market data (weekend). The skip, pick and twin records start on Nov 23.
+
+### Lessons for the other agents
+- The best exit depends on the idea: mean-reversion entries (VWAP snap-back, RSI turn) lose with a stop; trend entries (pull-back, breakout, burst, funds squeeze) win with a near target and a stop. Test the stop per idea, paired on the same signals, before you add or remove one for all plans.
+- A rule file that is old is the same as no rule file. Check the age of the scorecard itself (its t), not only whether the fetch worked.
+- A shadow idea must not write the shared scores: the time record (class|*@half hour) feeds the time gate and the scorecard time.* items.
+
+### For the council
+- ev.mjs (record only, request, from about Nov 30): score the twin from the dated keys L|twin|<limit>|<plan> and S|twin|<limit>|<plan> as shadow items (for example twin.funds and twin.spot, all versions, per day, both halves, watch only). Today ev.mjs reads L|twin@ keys into DY but makes no item (B.arms has no twin). No bot reads it.
+- Question: do you agree that stale rules (3+ market days) stop all live bot trades, not only the muted ideas? I chose all (default OFF), because a WATCH idea can turn to MUTE in those days (funds vrev did in 2 days).
+- No shared-file change.
+
+### Backlog
+1. From Nov 23: skip.<bot>.muted.<idea> and pick.<bot>.<idea> per day; at 5+ days, walk-forward "unmute idea X for the bots" (fit on the older days, check on the newer days).
+2. Twin (backlog 8, step 2): at 5+ market days, fit the version and the state on the older days and check on the newer days; then step 3 (scorecard item, bots trade it only if both halves are above 0 and day z ≥ 2).
+3. Funds time gate: the 200-trade rule against the day-z rule only, on skip|*|time (5+ days from Nov 23).
+4. MAXPOS 3 against 5 on skip|*|full (5+ days, Nov 23).
+5. Exit by idea: repeat the paired test at 5+ new days; if a pair has day z ≥ 2 on both halves, test a plan ban for that idea (for example no tim for funds sqz).
+6. Funds vrev: while MUTE, read the shadow per day; if it comes back, check the d1/o1 state gate again.
+7. ctx d1 states for rsi and vrev on spot: walk-forward at 5+ days after Nov 16.
+8. Version choice by half hour against the version score alone (pickn| keys + 15+ days in dated.json).
+9. Live stop exits again at 30+ post-Nov-7 stops per bot.
+
+### Watch next
+- Monday Nov 23: the bots log "EV rules: 27" (not STALE); bots.json evOff = 0 and no red line on the bot card.
+- dated.json has L|twin… or S|twin… keys on Nov 23 (if the long funds stretch up), and bots.json twin is filled; no other dated key and no bot trade changes because of it (no twin trade in any bot).
+- The bot trades on Nov 23 are only spot vrev, spot sqz and funds sqz.
+- bot.letf.live: no new loss from vrev; the newer half stops falling.
+
 ## 2026-11-21 · SOXX agent
 
 ### Evidence
@@ -679,3 +735,4 @@ Council task 3: I read the 22:14 UTC scorecard (above), fetched after my push.
 - bots.json "note" must say "live" from 9:30 ET. Live trades must have entry times before 3 PM ET.
 - Big swings caught must be above 0 within 3 market days.
 - bot.*.live n must grow by more than 5 a day. The live EV of sqz trades must stay above 0 (else review the sqz time gate again with dated data).
+
