@@ -132,6 +132,16 @@ async function soxx() { const B = await getJ("https://raw.githubusercontent.com/
     for (const [kw, byD] of Object.entries(PK).sort()) { const [k, nmI] = kw.split("|"), ds = Object.keys(byD).sort(), nm = (B.bots && B.bots[k] && B.bots[k].name) || k, n0 = items.length;
       fromDays(`pick.${k}.${nmI}`, `${nm}: shadow fills of the version the bot PICKED for ${nmI.replace(".", " ")} (before any gate; dated record, by day) — record only`, ds.map(d => byD[d]), { from: ds[0] }, 1);
       if (items.length > n0) { const it = items[items.length - 1]; Object.assign(it, { ruling: it.status, status: "watch", factor: 1, why: `record only (would be ${it.status})`, perDay: Object.fromEntries(ds.map(d => [d, { n: byD[d][0], m: +(byD[d][1] / byD[d][0]).toFixed(5) }])) }); } } }
+  // Council, Nov 22 2026 (SOXX agent request): the shadow-only idea "twin" (bots.mjs da781a1: buy an inverse fund when its long twin
+  // turns down from a stretch up). Dated keys "<S|L>|twin|<limit>|<plan>" = [n, sum r, sum r², wins], all 15 versions pooled per day.
+  // twin.<spot|funds>: n and EV per fill, z over the days, older / newer half of the days, and per version (n, mean). Record only
+  // (status watch, factor 1): no bot trades it and no page rule reads it. Data from Nov 23 2026.
+  { const TW = {}, TV = {}; if (DT && DT.days) for (const [d, X] of Object.entries(DT.days)) for (const [kk, v] of Object.entries(X || {})) { const m = /^([SL])\|twin\|([0-9.]+)\|([a-z0-9]+)$/.exec(kk); if (!m || !Array.isArray(v) || !(v[0] > 0)) continue;
+      const c = m[1] === "L" ? "funds" : "spot", o = ((TW[c] || (TW[c] = {}))[d] || (TW[c][d] = [0, 0, 0, 0])); v.forEach((x, i) => o[i] += x);
+      const y = ((TV[c] || (TV[c] = {}))[m[2] + " " + m[3]] || (TV[c][m[2] + " " + m[3]] = [0, 0])); y[0] += v[0]; y[1] += v[1]; }
+    for (const [c, byD] of Object.entries(TW).sort()) { const ds = Object.keys(byD).sort(), n0 = items.length;
+      fromDays(`twin.${c}`, `${c}: shadow idea "twin" (inverse fund when its long twin turns down from a stretch up), all 15 versions pooled (dated record, by day) — record only, no bot trades it`, ds.map(d => byD[d]), { from: ds[0] }, 1);
+      if (items.length > n0) { const it = items[items.length - 1]; Object.assign(it, { ruling: it.status, status: "watch", factor: 1, why: `record only (would be ${it.status})`, perDay: Object.fromEntries(ds.map(d => [d, { n: byD[d][0], m: +(byD[d][1] / byD[d][0]).toFixed(5) }])), versions: Object.fromEntries(Object.entries(TV[c]).sort().map(([k, y]) => [k, { n: y[0], m: +(y[1] / y[0]).toFixed(5) }])) }); } } }
   // swings of the last market day (swingDay): caught = a LIVE bot trade won in the swing; bt = only the replay caught it
   const sw = B.swings || []; return { at: B.at, items, extra: { swingDay: B.swingDay || null, swingsToday: sw.length, caught: sw.filter(x => x.caught).length, caughtBt: sw.filter(x => !x.caught && x.bt).length } }; }
 
@@ -403,7 +413,11 @@ async function letfPlan() { const setupCore = await pageSetup(); if (!setupCore)
   add("plan.setup.lean.60m", "Fund page trade plan, only LEAN LONG / LEAN SHORT (2 of 3 filters): as plan.setup.60m", all.filter(x => !x.full));
   // Council, Nov 21 2026 (LETF agent request): the NO-STOP plan as its own scored item (same fills; exit at the target or at
   // market 60 min after the fill), ruled like the other items, so the governor can cut or mute the no-stop plan the page now shows.
-  const addNs = (id, desc, a) => { if (!a.length) return; const S0 = a.slice().sort((x, y) => x.t - y.t); items.push({ ...fromList(id, desc, "ret", S0.map(x => x.ns)), days: Object.fromEntries(Object.entries(S0.reduce((o, x) => { (o[etDay(x.t)] || (o[etDay(x.t)] = [])).push(x.ns); return o; }, {})).sort().map(([d, w]) => [d, { n: w.length, m: +mean(w).toFixed(5) }])), mae: noStop(a).mae }); };
+  const addNs = (id, desc, a) => { if (!a.length) return; const S0 = a.slice().sort((x, y) => x.t - y.t); items.push({ ...fromList(id, desc, "ret", S0.map(x => x.ns)), days: Object.fromEntries(Object.entries(S0.reduce((o, x) => { (o[etDay(x.t)] || (o[etDay(x.t)] = [])).push(x.ns); return o; }, {})).sort().map(([d, w]) => [d, { n: w.length, m: +mean(w).toFixed(5) }])), mae: noStop(a).mae, maeBy: maeBy(a) }); };
+  // Council, Nov 22 2026 (LETF agent request): the same worst-move quantiles per underlying (10+ held plans), so the page can show
+  // the fund's own tail (a single stock can have a larger tail than an index). Record only: no rule reads it.
+  function maeBy(a) { const o = {}; a.forEach(x => { if (isFinite(x.mae)) (o[x.s] || (o[x.s] = [])).push(x.mae); });
+    return Object.fromEntries(Object.entries(o).filter(([, w]) => w.length >= 10).sort().map(([s, w]) => [s, { n: w.length, q05: q(w, 0.05), q01: q(w, 0.01), min: +Math.min(...w).toFixed(5) }])); }
   addNs("plan.setup.60m.nostop", "Fund page trade plan with NO stop order (as plan.setup.60m, exit at the target or at market 60 min after the fill)", all);
   addNs("plan.setup.full.60m.nostop", "Fund page trade plan, only LONG / SHORT SETUP, with NO stop order (as plan.setup.full.60m, exit at the target or 60 min after the fill)", all.filter(x => x.full));
   // Council, Nov 16 2026 (LETF agent request): plan crowding. "crowd" = the number of underlyings that gave a plan on the SAME side
