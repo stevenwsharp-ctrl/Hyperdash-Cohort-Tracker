@@ -1,5 +1,46 @@
 # Council notes (newest first)
 
+## 2026-11-22 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live. The paper bots stop all live trades when the EV scorecard is 3 or more market days old (a safety limit). A new shadow idea "twin" records "buy the inverse fund when its long twin turns down from a stretch up". No bot trades it. Pages build: success.
+- Cohort Sniper: yes, live. The Outlook backtest now scores the blend that the page really uses ("this page's rule", consPage), and the consensus card shows it. The first scored values come with the Nov 29 backtest. Pages build: success.
+- LETF Sniper: yes, live. The fund page shows the real tail of the no-stop plan (the worst move while held: 1 plan in 20, 1 in 100, and the worst, also in fund terms). The stop comes back by itself if the scorecard cuts or mutes a no-stop item. Pages build: success.
+- Council (record only): the scorecard now scores the twin idea and the no-stop tail per underlying.
+
+### Scoreboard (ev.json 22:02 UTC, Nov 20 market data; Sunday, no new market data)
+- SOXX: 12 muted, 9 cut, 6 backed, 0 changed. Gain: spot VWAP snap-back with a time exit (+0.10 % to +0.13 % per trade, z 4.1 to 4.6, BACK). Loss: the letf bot live (−0.45 % per trade, n 62, newer half −0.91 %, CUT). Paper bots: no market this weekend. Last day (Nov 20): spot −$4, letf −$91, both −$96. On Monday the bots can trade only spot vrev, spot sqz and funds sqz.
+- Cohort: 2 muted, 27 cut, 6 backed, 19 changed. Gain: cohort score 20–70 (BACK, all 6 bands). Loss: the live 2 d lab rule "strict" went BACK → CUT (+0.20 % per step, newer half −0.58 %). New MUTE: cond.mom_with (−1.99 pts per 24 h) and cond.whale (−1.39 pts); the page already uses them only as a penalty. Outlook 48 h: momentum stays gated (both parts lost); fresh flow came back at weight 0.20 by itself (unseen part +0.40 %).
+- LETF: 0 muted, 6 cut, 1 backed. Gain: full SETUP plans with no stop, +0.20 % per plan (n 132, older +0.21 %, newer +0.19 %, BACK). Loss: 🚀 fade −0.34 % and 🚀 alert −0.32 % (CUT); all plans with the stop decay (newer −0.04 %, CUT). Far stops (3 to 8 ATR) lose on the newer half: no disaster stop.
+
+### Agents
+- SOXX agent: ran, good work. It did all 3 tasks. It proved with a seeded old/new run that no bot trade changes. The age limit is fixed (3 days), not fitted, and I checked the code: the twin uses bars up to the signal minute only, and the long twin is read before the inverse fund in the same loop (no look-ahead). The paired stop-vs-time-exit test is correct and it made no rule (day z below 2). No problem.
+- Cohort agent: ran, very good work. It found a data fault: the lab replay uses today's market list for old steps, so the same 2 d step changed from +1.70 % to −0.81 % in one day. It did NOT gate Outlook "pos": it ran the gate decision walk-forward and saw that the gate would never have switched on. That is the correct, strict choice. Task 3 (web record in the relay) is not possible as asked (the web model is per browser); the reason is good.
+- LETF agent: ran, good work. Both tasks done, with 12 Playwright loads (today's scorecard, a CUT copy, and no scorecard). The far-stop read is correct: the stop chosen on the older half loses on the newer half. Small note: the fund-term tail is |leverage| × the underlying move (an estimate); the per-underlying tail comes from the scorecard now.
+- My checks: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright 0 page errors on SOXX, Mastermind, Cohort (main, #lab), LETF (live, ?demo #/f/SOXL, #/f/SOXS). The shared files are the same in all repos that have them (16 files + hf.js). All 3 pages builds: success. Order rules kept (limit entries, no new stop, same bet size, Schwab-only, long-only bots). No revert.
+- Yesterday's "Watch next": the no-stop item is BACK (yes). The far stops lose on the newer half (yes). The "strict" 2 d lab rule did NOT stay BACK (now CUT): the cause is probably the replay fault above, not only the market.
+
+### Lessons shared
+- A replay that re-scores old days with today's inputs can change old results (Cohort). LETF: the plan test uses a rolling 1-month window of 5-min bars, so the older half moves every day. SOXX: the dated record is written once per day, but the "_full" replay rewrites old days when the record version changes. Check that an old day keeps its value from run to run.
+- Decide a gate walk-forward (on the older part only) before you report "lost on both parts" (Cohort). The same applies to the SOXX unmute test and the LETF 🚀 state gate.
+- The best exit depends on the idea (SOXX): snap-back entries lose with a stop; trend entries win with a near target and a stop. LETF plans are limit entries on a pull-back, and no stop wins there too. A far "disaster" stop also lost in LETF, so do not add one to SOXX spot vrev.
+- Stale rules = no rules (SOXX). I agree that stale rules stop ALL live bot trades: a WATCH idea can turn to MUTE in 2 days.
+
+### Tasks for tomorrow (Monday, first market day with the new records)
+- SOXX agent: 1) Check "Watch next": the bots log "EV rules: 27" (not STALE), evOff 0, and only spot vrev, spot sqz and funds sqz trade. 2) Read the first twin.spot / twin.funds items in ev.json and the skip.*.muted and pick.* items; no rule before 5 days. 3) Check that a replayed old day keeps the same dated values from run to run (compare dated.json of 2 runs for Nov 19 and Nov 20).
+- Cohort agent: 1) Backlog 1: measure the lab replay fault (the det block of 5 runs for the same dates); if confirmed, ship the dated step log in lab.json so old steps keep their first value. 2) If "strict" 2 d is below 0 again on Nov 23, check that the lab gates 2 d by itself and the page shows it. 3) Web test: write a record-only script (for example scripts/webreplay.mjs) that loads web.js read-only with a localStorage shim on outlook_lessons.json, learn 60 % / score 40 %. Do not edit web.js; send me any change it needs.
+- LETF agent: 1) Show the fund's own tail from maeBy (per underlying, 10+ plans) on the fund page; use the pooled tail when the underlying has fewer plans. 2) Check that the per-day values of plan.setup.60m (days field) stay the same between two scorecards; report how much the halves move only because the 1-month window rolls. 3) Monday: plan.setup.full.60m.nostop must stay BACK and the no-stop items must not be CUT.
+
+### Changes I made
+- Hyperdash-Cohort-Tracker 9533bf6 (scripts/ev.mjs), record only. New items twin.spot and twin.funds (SOXX request; dated keys, all 15 versions pooled per day, halves, per day and per version; watch, factor 1). New field maeBy on plan.setup.60m.nostop and plan.setup.full.60m.nostop (LETF request: q05, q01 and the worst move per underlying with 10+ plans). No existing item, ruling or factor changed.
+- Checks: node --check; soxx() on the real bots branch files gives 177 items, the same bytes as the old code; with test twin keys, the same 177 items plus the 2 twin items (watch); maeBy unit check. The EV governor runs on push.
+- No shared-file change. No revert.
+
+### What Steven should know
+- Nothing to paste. No Worker change.
+- On Monday the paper bots trade only spot vrev, spot sqz and funds sqz. If the scorecard stops for 3 market days, the bots stop all live trades by themselves.
+- Still your decision (from Nov 21): the LETF fund page shows no stop order. The page now shows the tail: on a 3× fund about −13 % at 1 plan in 100 and about −26 % at the worst, inside the hour. If you want a hard stop for your own risk anyway, tell the LETF agent; it costs some EV.
+
 ## 2026-11-21 · Council
 
 ### Shipped today
