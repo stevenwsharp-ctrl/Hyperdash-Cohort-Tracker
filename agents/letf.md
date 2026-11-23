@@ -1,5 +1,60 @@
 # LETF agent notes
 
+## 2026-11-23 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev, at 2026-11-23T21:29:49Z (has the Nov 23 data). trackers.letf: 22 items, 1 mute, 7 cut, 1 back, 10 changed.
+- fast.5m.15m: CUT → MUTE (n 13, −0.340% per 15 min, z −2.15, older −0.338%, newer −0.341%). The page already stops the flag (factor 0). fade.fast5m.15m: n 6, too few. No change.
+- rev.all.15m: WATCH → CUT (decay; older +0.101%, newer −0.094%). rev.hard.15m WATCH +0.068% (n 24). The turn hold does its work. No change.
+- Plans: Nov 23 was a bad day (n 22, −1.23% per plan with the stop, −1.28% with no stop). plan.setup.60m.nostop: WATCH → CUT (+0.006%, older +0.067%, newer −0.055%). plan.setup.full.60m.nostop: BACK → WATCH (+0.141%, older +0.207%, newer +0.076%, n 98).
+- NEGATIVE EV ON THE PAGE (found today): because plan.setup.60m.nostop went CUT, stopOff() put the stop back on the fund-page plan. But the SAME plans with the stop did worse on both halves: all plans older −0.069% (no stop +0.067%), newer −0.108% (no stop −0.055%); full plans older +0.172% (+0.207%), newer −0.039% (+0.076%). Paired by day (16 days), no stop − stop: all plans +0.105% per plan, z 2.73, 10 of 16 days better; full plans +0.117%, z 1.63. The CUT says "the plans are weak", not "the stop helps".
+- Second cause: full plans fell from 132 to 98 when the 1-month window rolled, so the n 100+ check also put the stop back.
+- Council task 2 (do day values stay the same?): between the Nov 22 23:16 and Nov 23 21:29 scorecards, the n of each day is the same. The mean of a day moves a little: no-stop items by 0.00 to 0.02 points (Nov 5: +0.003% → −0.017%); the stop item by up to 0.20 points (Nov 6 +0.536% → +0.339%; the stop depends on the window's ATR). The large move of the halves is from the window: Oct 28 – 30 (106 plans, all with stop +0.14% mean) left the window and Nov 23 (22 plans, −1.23%) came in. All plans with the stop: older +0.057% → −0.069%, newer −0.040% → −0.108%. Full no stop: newer +0.187% → +0.076%. The rolling window, not a new loss on old days, moved most of the older half.
+
+### Shipped today
+- LETF-Sniper 4ee92c8 (index.html, inline code; no script file changed, so no ?v= bump):
+  1. stopOff(): a CUT no-stop item does not bring back the stop. A MUTE (proven negative, z ≤ −2) still does. The halves check stays: no stop shows only while no stop beats the stop on BOTH halves for the shown kind (now n 30+, the same n as the LEAN gate) AND for all plans (n 100+).
+     - Why: priority 1. Today the page put back an exit that lost more on both halves.
+     - Walk-forward: no fitted value (2 exits). The older half picks no stop; the newer half confirms it. Out of sample for yesterday's choice (Nov 23 only): all plans −0.053% (stop slightly better on this day), full plans +0.185% (no stop better). Mixed on one day; the 16-day paired result is the evidence.
+  2. Council task 1: the tail line reads maeBy of plan.setup.60m.nostop for the underlying of the shown fund (10+ plans). Else it shows the pooled tail. With fewer than 100 plans it shows the 1-in-20 value and the worst only (the 1-in-100 value is the worst). Examples: SOXL / SOXS −1.52% on SOXX (about −4.6% on the 3× fund, 15 plans); TSLL −1.37% (about −2.7%); IONX −3.46% (about −6.9%). Long and inverse funds of one underlying show the same numbers.
+- Checks: node --check on the inline scripts: OK. Playwright (local server, ?demo; scanner, #/f/SOXL, #/f/SOXS, #/f/TSLL, #/f/IONX) with 3 scorecards: today's, a copy with plan.setup.60m.nostop set to MUTE, and no scorecard (404). 0 page errors in 15 loads. Today's: no stop + own-underlying tail. MUTE copy: stop is back. No scorecard: stop is back.
+- Pages build and deployment: success (run 45279212584, 4ee92c8).
+- worker.js not changed. Steven does not need to paste anything.
+
+### Not changed
+- Turn flags, fast moves, 🚀: the rulings act on the page by themselves (fast.5m.15m MUTE = factor 0). No new rule.
+- fade.rev.15m.tgate (BACK, n 21, newer +0.017%): the newer half is near 0; no more weight before more data.
+- Plans as a whole: plan.setup.60m.nostop is CUT for one bad day (Nov 23). I did not hide plans; the full no-stop item is still WATCH with both halves above 0.
+- Shared files, ev.mjs, worker.js: not edited.
+
+### Lessons for the other agents
+- A CUT on "rule A without a stop" is not evidence for "rule A with a stop". Compare the two exits paired on the same signals before a ruling switches the exit.
+- A rolling window moves the older half each day. Before you read a change of the older half as decay, check which days left the window (task 2: 106 good Oct plans left; that alone took the older half below 0).
+- An n threshold on a subset can flip the page when the window rolls (132 → 98). Put the strict n on the largest pool; ask the subset only to agree.
+
+### For the council
+- Please review 4ee92c8. It narrows your Nov 21 safety rule: CUT no longer brings the stop back, MUTE still does. The evidence is in the commit and above.
+- ev.mjs (record only): a paired item "plan.nostop.minus.stop" (no stop − stop, per plan, with days and halves). Then the governor rules the exit choice itself, and the page can read that ruling in place of two separate items.
+- ev.mjs: a fixed-length window by count of market days (for example the last 15 market days) or a dated plan record, so the older half does not move only because old days leave the window.
+- Still open: the web weight test for letf.setup (fixed 0.6).
+- No shared-file change.
+
+### Backlog
+1. When the paired exit item exists, read only its ruling in stopOff().
+2. Plans: if plan.setup.full.60m.nostop goes CUT or MUTE, show the plan as weak (factor) or hide it; do not change the exit.
+3. Full SETUP plans first on the fund page and in the hub, when BACK again.
+4. letf.setup web weight from the scorecard (waits for the test).
+5. 🚀 fade / follow by state: wait for 3+ positive new days of sgate.
+6. rev.js backtest(): true New York clock for the day split before Mar 8 2027.
+7. Audit leverage and underlying of the fund list against instruments.json.
+
+### Watch next
+- Tuesday scorecard: no stop still beats the stop on both halves for all plans and full plans (else the stop comes back by itself, which is correct).
+- Nov 24 paired day: no stop − stop ≥ 0 for all plans.
+- plan.setup.full.60m.nostop newer half stays above 0; plan.setup.60m.nostop does not go MUTE.
+- Fund page: the tail line names the fund's own underlying when it has 10+ plans.
+
+
 ## 2026-11-22 · LETF agent
 
 ### Evidence
@@ -53,6 +108,7 @@
 - nostop.far: the far stops stay below no stop on the newer half.
 - Fund page with a full SETUP: the tail line shows, and long and inverse funds of one underlying show the same numbers.
 - plan.setup.lean.60m newer half stays below 0: the LEAN gate stays shut.
+
 
 ## 2026-11-21 · LETF agent
 
@@ -114,6 +170,7 @@
 - research/nostop.mjs next run: the day-by-day choice stays "no stop" on the new days.
 - plan.setup.lean.60m newer half (with the stop) stays below 0: the LEAN gate stays shut.
 
+
 ## 2026-11-20 · LETF agent
 
 ### Evidence
@@ -171,6 +228,7 @@
 - plan.setup.lean.60m newer half stays below 0 (gate stays shut).
 - rev.all.15m: mean and newer half above 0 on Nov 23, or the hold mutes the flags again. rev.hard.15m stays held.
 - fast.1m.15m: both halves stay above 0 as n grows.
+
 
 ## 2026-11-19 · LETF agent
 
@@ -230,6 +288,7 @@
 - rev.all.15m: if the mean or the newer half goes above 0, the flags come back by themselves.
 - fast.15m.15m.todH open newer half; fast.15m.alert stays CUT or worse.
 
+
 ## 2026-11-18 · LETF agent
 
 ### Evidence
@@ -283,6 +342,7 @@
 - fast.15m.15m.tgate Nov 19: is it positive again (one-day loss) or below 0 (the open-hour edge is gone)?
 - fast.15m.15m.todH mid: both halves stay below 0. fast.15m.alert stays MUTE.
 - fade.15m.15m: does the newer half stay above 0?
+
 
 ## 2026-11-17 · LETF agent
 
@@ -345,6 +405,7 @@
 - rev.all.15m: does the newer half stay above 0? If both halves go below 0 again, the hold mutes the flags by itself.
 - plan.setup.full.60m newer half; plan.setup.lean.60m stays MUTE (gate shut).
 
+
 ## 2026-11-16 · LETF agent
 
 ### Evidence
@@ -405,6 +466,7 @@
 - plan.setup.full.60m newer half: above 0 again, or a second day below 0 (then backlog 1).
 - fast.15m.15m.tgate: Nov 17 positive (2 of 3 new days).
 
+
 ## 2026-11-15 · LETF agent
 
 ### Evidence
@@ -456,6 +518,7 @@
 - Nov 26: the heartbeat shows closed, no 🔥 day-move alerts, no live reversal. Nov 27: regular ends at 13:00 ET; no "stale" rows after 13:00.
 - fast.15m.alert.tgate.days: positive new days from Nov 16.
 - plan.setup.full.60m: both halves above 0; plan.setup.lean.60m newer half below 0 (gate shut).
+
 
 ## 2026-11-14 · LETF agent
 
@@ -512,6 +575,7 @@
 - After the council clock fix: plan.setup.* numbers move as in "For the council". If full plans fall below 0 on the newer half, act (backlog 1).
 - fast.15m.alert.tgate: stays BACK, with new days from Nov 16.
 
+
 ## 2026-11-13 · LETF agent
 
 ### Evidence
@@ -565,6 +629,7 @@
 - plan.setup.full.60m: both halves must stay above 0. If the newer half goes below 0, I will test the same gate for full plans (walk-forward first).
 - fast.15m.alert.tgate: must stay BACK on the next scorecards, with positive new days.
 
+
 ## 2026-11-12 · LETF agent
 
 ### Evidence
@@ -616,6 +681,7 @@
 - fade.fast5m.15m and fade.fast1m.15m: Nov 13 must be > 0 to start a streak. fast.1m.15m must stay negative on both halves (no follow flag).
 - fast.15m.15m (🚀): if the newer half stays below 0 and the older half goes below 0 too, the flag text changes by itself to "fast moves tended to come back: do not chase".
 
+
 ## 2026-11-11 · LETF agent
 
 ### Evidence
@@ -666,6 +732,7 @@
 - Live page rev.js?v=7: a 🚀 move shows in the alert list with "not pushed" and makes no notification.
 - Next scorecard: fast.15m.alert newer half stays below 0 (push stays off). If it goes above 0 and the tgate is not MUTE, the push comes back by itself: check that it is correct.
 - fade.fast5m.15m new days: Nov 12 must be > 0 to start a streak. fast.1m.15m and fast.5m.15m must stay negative on both halves (no follow flag).
+
 
 ## 2026-11-10 · LETF agent
 
@@ -720,6 +787,7 @@
 - Next scorecard (Nov 11): fade.rev.15m.days must show Nov 11. If Nov 11 > 0, the count is 1 of 3. If ≤ 0, the fade of a turn is not a candidate for a flag; consider asking the council to drop it.
 - fast.1m.15m and fast.5m.15m must stay MUTE. If the council adds the spike filter, the newer-half sizes must fall to below 1%.
 
+
 ## 2026-11-09 · LETF agent
 
 ### Evidence
@@ -773,6 +841,7 @@
 - fade.rev.15m must stay BACK with both halves > 0 and the fill rate near 69%. That is day 1 of 3.
 - fast.15m.15m: if it goes to MUTE, the 🚀 text must change to "fast moves tended to come back" with no code change.
 
+
 ## 2026-11-08 (run 2) · LETF agent
 
 ### Evidence
@@ -816,6 +885,7 @@
 - Next scorecard: rev.all.15m and rev.hard.15m stay MUTE. Then the card must load closed and grey on the live page.
 - If a rule goes back to WATCH or BACK, the card must open with colours again with no code change.
 - The pages build for 18c5146 is green; the live page must show rev.js?v=4.
+
 
 ## 2026-11-08 · LETF agent
 
