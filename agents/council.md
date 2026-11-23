@@ -1,4 +1,45 @@
 # Council notes (newest first)
+## 2026-11-23 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live. The bot card shows at the top which ideas the live bots can trade in the next session (with the ruling and the EV of each idea). No bot rule changed. Pages build: success.
+- Cohort Sniper: yes, live. The Bet lab keeps the first value of each closed step (a dated step log). Before, a full replay changed old steps by up to 18 % per step from run to run, and the 2 d gate and the rule pick read these moving values. A record-only test of the Signal web (scripts/webreplay.mjs) is also new. Bet lab and pages build: success.
+- LETF Sniper: yes, live. A CUT on the no-stop plan does not bring back the stop order now (a MUTE still does). The stop lost more on both halves. The tail line now shows the fund's own underlying (for example SOXL / SOXS: worst −1.52 % on SOXX, about −4.6 % on the fund). Pages build: success.
+- Council (record only): the scorecard now scores the exit choice as one paired item, and the lab replay drift.
+
+### Scoreboard (ev.json 21:29 UTC, Nov 23 market data)
+- SOXX: 10 muted, 15 cut, 8 backed, 9 changed. Gain: spot VWAP snap-back with a time exit (+0.10 % to +0.13 % per trade, z 4.3 to 4.8, BACK). Loss: the letf bot live (−0.46 % per trade, n 63, newer half −0.91 %, CUT); the cause is funds vrev (9 live trades, −$342). Funds vrev went MUTE → CUT and funds rsi MUTE → WATCH, so both trade again from Nov 24. Paper bots Nov 23: spot +$21, letf −$8, both +$13.
+- Cohort: 5 muted, 24 cut, 7 backed, 14 changed. Gain: cohort score 20–70 (BACK, +1.6 % to +2.5 % per 24 h, z 7.8 to 12.2). New BACK: the 1 d lab rule "recent" (+0.36 % per step, z 2.1). Loss: the live 2 d rule "strict" (newer half −0.44 %, CUT); the lab gates 2 d and 7 d by itself, so only 1 d shows setups. New MUTE: 3 lab ideas (lab weight was already 0).
+- LETF: 1 muted, 7 cut, 1 backed, 10 changed. Gain: 🚀 fade with the time gate (+0.38 %, n 21, BACK). Loss: Nov 23 was a bad day for plans (−1.23 % per plan); all plans with the stop are CUT (−0.09 %). Fast 5-min move is MUTE (−0.34 %, z −2.15); the page already stops it.
+
+### Agents
+- SOXX agent: ran, good work. All 3 tasks done. The rules are not stale (27 rules, evOff 0). The dated days stay the same from run to run (40 of 40 values). It tested 3 new rules walk-forward (a CUT gate, 5 version-pick rules, a state gate). All failed on the newer half or had a day z below 2, so it shipped none. That is correct. The new card line is read only.
+- Cohort agent: ran, very good work. It measured the replay fault (the same 2 d step: +1.70 %, −0.81 %, −9.99 % in 3 runs) and fixed it. It proved that the log changes nothing when the inputs do not change (byte-identical outputs on a seeded double run). The web test is fair: the web learns only results known at each hour, and the t is corrected for the 24 h overlap. Result: positive, not proven (t about 1), so no weight change. Correct.
+- LETF agent: ran, good work. I checked the evidence again from ev.json: paired by day, no stop − stop = +0.105 % per plan, z 2.73, 10 of 16 days (all plans). Correct. Full plans: +0.117 %, z 1.63, but only 6 of 16 days better, so that half of the evidence is weak. The change keeps the safety: MUTE brings the stop back, and both halves must favour no stop. The n limit for the shown kind fell from 100 to 30 (it matches the LEAN gate; the all-plans check keeps 100). I accept it.
+- My checks: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright 0 page errors on SOXX, Mastermind, Cohort (main, #lab), LETF (?demo, #/f/SOXL, #/f/SOXS, #/f/AMDL), also with the new scorecard. The shared files are the same in all repos that have them (17 files). All pages builds: success. Order rules kept (limit entries, no new stop, same bet size, Schwab-only, long-only bots). No revert.
+- Yesterday's "Watch next": SOXX rules not stale (yes); full no-stop plans stay BACK (NO, now WATCH: 32 good October plans left the 1-month window and Nov 23 lost); no-stop items not CUT (NO, plan.setup.60m.nostop is CUT). The "strict" 2 d rule lost again (the lab gate worked).
+
+### Lessons shared
+- A ruling on "rule A" is not evidence for a different rule. LETF: a CUT on "no stop" made the page bring back a stop that lost more. SOXX: a CUT does not change the bet size, so a CUT idea with EV below 0 still trades. Cohort: check what CUT does on each page.
+- Old values must stay fixed. Cohort fixed its lab replay (step log). SOXX dated days stay the same. LETF day values move a little (stop item up to 0.20 points), and the 1-month window moves the halves every day.
+- Fast moves: LETF fast 5-min follow is MUTE (−0.34 % per 15 min). SOXX funds sqz (a breakout entry) went WATCH → CUT. A fast move on a 3× fund is a bad entry in both trackers; a fade is not proven yet in either one (LETF fade n 6).
+- Overlapping horizons inflate t (Cohort: t / √6 for a 24 h move scored every 4 h). The LETF plan days and the SOXX half-hour keys have the same problem when one move gives many trades.
+
+### Tasks for tomorrow
+- SOXX agent: 1) Watch funds vrev and funds rsi live on Nov 24 (they trade again). If pick.*.funds.vrev is below 0 on 2+ days, run the state gate test per version (backlog 3). 2) Read the Nov 24 twin and pick.*.spot.rsi day 2 values; no rule before day 5. 3) The hysteresis question (leave MUTE only when EV > 0): do not ask for it; collect the per-day result of the ideas that left MUTE with EV below 0 (funds vrev) for 5 days, then test it walk-forward.
+- Cohort agent: 1) Read the Nov 24 lab run: stepDrift (now on the scorecard as lab.drift.1d / 2d) and check that the 2 d halves move only by the new step. 2) Backlog 2: log the 7 d steps too, so the 7 d gate cannot flip with the market list. 3) Check what a CUT does on the Cohort pages (half weight); report any place where a CUT changes a rule other than the one scored.
+- LETF agent: 1) Read plan.nostop.minus.stop and .full (new paired items: all plans would be BACK, +0.094 % per plan, z 3.4, day z 2.73; full plans WATCH, z 1.5, 6 of 16 days). 2) If the evidence stays, change stopOff() to read the paired item (backlog 1): no stop while the paired item has both halves above 0; the stop back when it is CUT or MUTE. Test 3 scorecards in Playwright. 3) Report the day values on Nov 24 for the full plans (paired), because that half of the evidence is weak.
+
+### Changes I made
+- Hyperdash-Cohort-Tracker ac54caf (scripts/ev.mjs), record only. New items plan.nostop.minus.stop and plan.nostop.minus.stop.full (LETF request: per filled plan, the no-stop result minus the stop result on the same fill; halves, per day, day z). New items lab.drift.1d and lab.drift.2d (Cohort request: the lab.json stepDrift). No existing item, ruling or factor changed.
+- Checks: node --check; local run with the real lab and backtest files (cohort 113 items, 0 rulings changed); unit check of the pair item; EV governor on push: success (23:21 UTC), SOXX 10/15/8, Cohort 5/24/7, LETF 1/7/1, the same as before. Playwright with the new scorecard: 0 page errors.
+- Note: the re-run of the governor sets "changed" to 0 for this evening (the rulings are the same as at 21:29). Tomorrow's scorecard compares with this one, so nothing is lost.
+- Not done (later): the web replay in a workflow (Cohort request; the backtest workflow force-writes its branch, so it needs its own file and branch); a fixed window by market days for LETF (bigger change in the plan test). No shared-file change. No revert.
+
+### What Steven should know
+- Nothing to paste. No Worker change.
+- From Nov 24 the paper bots can trade 5 ideas: spot vrev, spot sqz, funds sqz, funds vrev and funds rsi. Funds vrev is CUT (EV below 0, −0.016 % per paper trade) but not proven bad, so it trades at the same bet size. It lost $342 in 9 live trades from Nov 16. The agents watch it each day.
+- The LETF fund page still shows no stop order. The tail line now shows the fund's own underlying. Your decision from Nov 21 is still open: if you want a hard stop for your own risk, tell the LETF agent; it costs some EV.
 
 ## 2026-11-22 · Council
 
