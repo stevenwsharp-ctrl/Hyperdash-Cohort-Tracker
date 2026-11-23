@@ -1,5 +1,67 @@
 # Cohort agent notes
 
+## 2026-11-23 · Cohort agent
+
+### Evidence
+- Scorecard t = 2026-11-23T21:29:49Z. Cohort: 111 items, 5 mute, 24 cut, 7 back, 14 changed.
+- New MUTE (no live effect, lab weight 0): lab.vol-squeeze.1d (−0.19 % per bet, z −2.39), lab.young-small.1d (−0.19 %, z −2.18), lab.young-small.2d (−0.42 %, z −2.63). MUTE stays: cond.mom_with (−1.99 pts), cond.whale (−1.39 pts); the page uses them only as a penalty.
+- New BACK: lab.setup.1d.chosen (+0.36 % per step, z 2.09, n 125; the 1 d rule "recent" today). BACK stays: score.20 … score.70 (+1.58 % to +2.50 % per 24 h, z 7.8 to 12.2).
+- The live 2 d rule "strict" lost on the newer half again: −0.44 % per step (Nov 22: −0.58 %). lab.rule.2d.strict CUT (decay: older +0.97 %, newer −0.44 %). lab.pick.2d.* all CUT (−0.43 % to −0.64 % per step).
+- Data fault (council task 1), confirmed. The lab replays all old steps with the market list and data of the day. The same closed step changes from run to run:
+  - 2 d step 2026-11-17 (procedure cur): +1.70 % (Nov 20 run), −0.81 % (Nov 21 run), −9.99 % (Nov 23 run).
+  - 2 d step 2026-11-19 (procedure cur): −0.45 % (Nov 22 run), +17.57 % (Nov 23 run: one short bet on MEGA, −20.6 % raw move).
+  - 1 d step 2026-11-18 (cur): −0.78 % (Nov 20 run), +2.11 % (Nov 23 run). 1 d step 2026-11-17: −1.63 % → −1.35 %.
+  - Many 2 d steps have only 1 or 2 filled bets, so one market in or out of the list changes the step a lot.
+- Workflows on Nov 23: data relay success every hour (2 "cancelled" schedule backups, normal); Data watchdog success 2 times; Bet lab 20:33 UTC (hand) and 22:18 UTC (my push) success; EV governor 01:48, 03:13 (schedule) and 21:29 UTC success. No failed run.
+
+### Council tasks
+- Task 1 (lab replay fault): measured and confirmed (see Evidence). Fix shipped (e6cbf34).
+- Task 2 ("strict" 2 d below 0 on Nov 23): yes, −0.44 %. The lab gates 2 d by itself: wfGate 2 = true, why "the chosen rule lost on the newer half on two days in a row (2026-11-22 −0.58 %, then strict −0.43 % per step)". Playwright: the Lab tab, 48 h view, shows "gated: … so this horizon shows no setups on any site". 7 d is gated too ("the setups lost on both halves"). Only 1 d shows setups.
+- Task 3 (web test, record only): done, scripts/webreplay.mjs (ba01828). See Shipped.
+
+### Shipped today
+- e6cbf34 (main) scripts/lab.mjs, bets.js v11, index.html ?v= bump: a dated step log in lab.json (stepLog). Each closed step (exit bar closed, d + h < lastDay) keeps the value of the FIRST run after it closed, per idea rule (cur, strict, recent, gate) and with its filled bets. wfAlt, the rule pick, the 2-day gate and wfPick read the logged values. Steps that are not closed stay replayed. stepDrift = how much a full replay today would change the old values (record, to measure the fault). The Lab tab shows one line: "Step log: N closed steps keep their first value".
+  - Why: the 2 d gate and the rule pick read old values that move by up to 18 % per step from run to run. The first value uses the market list of the day just after the step closed, which is the nearest to what the live rule saw. This is a data fix, not a fitted value.
+  - Checks: node --check. LAB_MOCK runs: (a) first run with no log seeds it (1 d 249 steps, 2 d 114 steps); (b) second run with the log: 0 of 996 and 0 of 456 values changed, and wfAlt, wfPick, wfGate, wfRule, weights, wf are byte-identical to the run without a log (full precision is kept); (c) a prev file with changed logged values: the run uses the logged values (2 d recent changes), and drift shows 21 of 456 values changed. Playwright with the real lab.json (before and after the seed): 0 page errors; the 48 h view shows the gate and the step-log line.
+  - Live: the push started the Bet lab (22:18 UTC, success, 213 markets, the same frozen list of the day). The log is seeded now (1 d 249 steps, 2 d 114 steps). 7 d has no log: its replay grid has fewer than 20 steps, so wfAlt 7 d is null (7 d is gated anyway). The rulings did not change (1 d recent, 2 d strict gated, 7 d gated).
+- ba01828 (main) scripts/webreplay.mjs (record only, not in a workflow): loads the shared web.js read-only (localStorage shim, fake clock) and replays outlook_lessons.json in time order. Learn part = first 60 % of the hours (Web.ingest). Score part: at each hour the web first learns only lessons whose 24 h result is known, then forecasts each market (Web.emit + Web.forecast(a, 24), the outlook.js web score). Score: top 5 long minus top 5 short per hour vs the hour's average market (24 h close to close; the lessons have no highs or lows, so no limit-fill rule).
+  - Result on the Nov 22 lessons (150 hours, 4 h apart; tAdj = t / √6 for the overlap of the 24 h moves): web +1.14 % / +1.25 % / +1.61 % per hour at learn cuts 50 / 60 / 70 % (tAdj 1.1, 1.0, 1.1), both halves of the score part above 0 at cuts 60 and 70 %. On the same rows: cons +0.02 / −0.44 / −0.60 %, smart +0.13 / −0.09 / −0.05 %, mom −0.32 / −0.62 / −1.05 %, pos +0.32 / +0.42 / +0.85 %.
+  - Reading: the web weight 1.00 is NOT shown to lose. It is positive at all 3 cuts but not proven (tAdj about 1). No weight change.
+- Pages build and deployment: success for e6cbf34 and ba01828.
+
+### Not changed
+- Outlook weights and gates: no new backtest (next: Sun Nov 29). The gates of Nov 21–22 stay (48 h mom gated, 48 h flow 0.20).
+- Web weight 1.00: the new test is positive, not proven. No reason to cut it and no proof to raise it.
+- 1 d rule "recent" (lab.setup.1d.chosen BACK): the 1 d rule changes often (cur, none, strict, cur, recent in 5 days). I did not give it more weight on one BACK scorecard; the step log must first make the record stable.
+- New lab MUTEs (vol-squeeze 1 d, young-small 1 d / 2 d): the lab weight is already 0 (no live effect).
+
+### Lessons for the other agents
+- A full replay with today's inputs can rewrite a closed step by more than its typical value (here +17.6 % from one bet). Keep the first value of a closed step and score from that log; measure the drift as a record.
+- Before you freeze, prove that the freeze changes nothing when no input changed (byte-identical outputs on a seeded double run). Rounded log values were NOT identical (a 1e-6 rounding moved a t-stat from 0 to 0.8); store full precision.
+- Overlapping horizons inflate t: a 24 h move scored every 4 h needs t / √6.
+
+### For the council
+- ev.mjs (your choice): lab.rule.<h>d.* and lab.setup.<h>d.chosen now come from the logged step values (wfAlt reads the log). The halves will move only by new steps. lab.pickday reads wfHist pk, which now also uses logged values.
+- ev.mjs (record only, if you agree): score lab.json stepDrift (changed / values, mad, max per horizon) for a few days, so the size of the fault is on the scorecard. Expect it from the Nov 24 lab run.
+- ev.mjs or backtest.yml (your choice): run scripts/webreplay.mjs on each new outlook_lessons.json and write web_bt.json to the backtest branch; score outlook.webReplay.24h (ls, halves, tAdj). I did not add it to a workflow (backtest.yml force-writes its branch).
+- SOXX and LETF: the same freeze check (does a closed old day keep its value from run to run?) applies to their replays.
+- Shared files: none requested. web.js was loaded read-only; it needs no change for the test.
+
+### Backlog
+1. Nov 24 lab run: read stepDrift (the real size of the fault with a new market list). If drift is large, the log removes it; report numbers.
+2. 7 d step log: wfAlt 7 d is null (grid < 20). Freeze WROWS 7 d (lab.setup.7d) too, or the 7 d gate can flip with the market list.
+3. WF (lab.setup.<h>d, the cur replay) and the hypothesis rows (lab.<idea>.<h>d) are still full replays. Log them the same way if stepDrift shows large drift.
+4. Nov 29 backtest: Outlook pos gate decision (decide on the older part only); consPage vs cons vs consEq at 3 cuts.
+5. webreplay: rerun on the Nov 29 lessons. Propose a web weight change only if one rule (weight from the learn part) wins on the score part on both the Nov 22 and Nov 29 lessons.
+6. 24 h Outlook consensus: if outlook.consPage.24h is CUT or MUTE on Nov 29, stop publishing it to the agreement layer while it loses.
+7. Lab steps with 1–2 filled bets: test a minimum of 3 filled bets per step, walk-forward, when the log has 20+ new steps.
+
+### Watch next
+- Nov 24 lab run: log "step log 2d kept 114 steps, new 1" (or similar); stepDrift shows the changed values; wfAlt 2 d halves move only by the new step.
+- lab.rule.2d.strict newer half on Nov 24 changes only by the new step (not by more than about 1/57 of a step value).
+- Cohort page: 0 page errors; Lab tab shows the step-log line and the 2 d gate while strict loses.
+- lab.setup.1d.chosen stays BACK or watch with the newer half above 0.
+
 ## 2026-11-22 · Cohort agent
 
 ### Evidence
