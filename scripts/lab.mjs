@@ -192,7 +192,7 @@ SEL.recent = (P, R, d) => { const Q = R.filter(r => r.d >= d - 120).map(r => r.v
 // (the scorecard's mute rule) gets weight 0. On Nov 16 "recent" gave young-small weight 0.66 at 2 d while lab.young-small.2d
 // was MUTE (-0.38 %, z -2.2). Scored on the same grid and split as wfAlt, but NOT a candidate for the pick (nothing live).
 SEL.recentm = (P, R, d) => st(P).t <= -2 ? 0 : SEL.recent(P, R, d);
-const WFALT = {}, WSER = {}, WDET = {};
+const WFALT = {}, WSER = {}, WDET = {}; const STEPLOG = {}, DRIFT = {}, RUNT = new Date().toISOString();
 for (const h of [1, 2, 7]) { const steps = []; for (let d = g0(h); d + h <= lastDay; d += h) steps.push(d);
   const toMap = rows => Object.fromEntries(rows.map(r => [r.d, r.v]));
   const RS = { cur: WROWS[h], strict: wfReplay(h, SEL.strict).rows, recent: wfReplay(h, SEL.recent).rows };
@@ -205,6 +205,24 @@ for (const h of [1, 2, 7]) { const steps = []; for (let d = g0(h); d + h <= last
   // filled bets per step and rule (Council task, 2026-11-17): the same rows as S, so the dated record can carry nb per procedure
   const NB = { cur: Object.fromEntries(RS.cur.map(r => [r.d, r.n])), strict: Object.fromEntries(RS.strict.map(r => [r.d, r.n])), recent: Object.fromEntries(RS.recent.map(r => [r.d, r.n])), gate: {}, none: {} };
   for (const d in S.gate) NB.gate[d] = NB.cur[d] || 0;
+  // Dated step log (Cohort agent, 2026-11-23; council task): a step keeps the value of the FIRST run after its exit bar closed.
+  // Before, each run replayed all old steps with that day's market list and data, so old steps changed from run to run: the
+  // 2 d step of Nov 17 (rule cur) was +1.70 % (Nov 20 run), -0.81 % (Nov 21) and -9.99 % (Nov 23); the 2 d step of Nov 19 was
+  // -0.45 % (Nov 22) and +17.57 % (Nov 23, one short bet on a market that was not in the Nov 22 list). The first value uses the
+  // market list of the day just after the step closed, the nearest to what the live rule saw. wfAlt, the pick, the gate and
+  // wfPick read the logged values; steps that are not closed yet (d + h >= lastDay) stay replayed. drift = today's replay
+  // minus the logged value on the logged steps (record only, to measure the fault). The first run with no log seeds it.
+  { const key = d => new Date(d * D).toISOString().slice(0, 10), rd = v => v == null || !isFinite(v) ? null : v;   // full precision: the logged value must equal the replay value on the run that logs it
+    const old = (PREV && PREV.stepLog && PREV.stepLog[h]) || {}, RK = ["cur", "strict", "recent", "gate"], LG = {}, dif = [];
+    for (const d of grid) { if (d + h >= lastDay) continue; const k = key(d), o = old[k];
+      if (o && o.v) { LG[k] = o;
+        for (const r of RK) { if (!(r in o.v)) continue; dif.push(Math.abs((S[r][d] || 0) - (o.v[r] || 0)));
+          if (o.v[r] == null) { delete S[r][d]; delete NB[r][d]; } else { S[r][d] = o.v[r]; NB[r][d] = o.n && o.n[r] != null ? o.n[r] : NB[r][d] || 0; } } }
+      else LG[k] = { t: RUNT, v: Object.fromEntries(RK.map(r => [r, rd(S[r][d])])), n: Object.fromEntries(RK.map(r => [r, S[r][d] != null ? NB[r][d] || 0 : null])) }; }
+    STEPLOG[h] = LG;
+    DRIFT[h] = { logged: Object.keys(old).length ? Object.values(LG).filter(x => x.t !== RUNT).length : 0, seeded: !Object.keys(old).length, values: dif.length,
+      changed: dif.filter(x => x > 1e-6).length, mad: dif.length ? Math.round(mean(dif) * 1e6) / 1e6 : null, max: dif.length ? Math.round(Math.max(...dif) * 1e6) / 1e6 : null };
+    log("step log", h + "d", DRIFT[h].seeded ? `seeded ${Object.keys(LG).length} steps` : `kept ${DRIFT[h].logged} steps, new ${Object.keys(LG).length - DRIFT[h].logged}; replay drift on kept steps: ${DRIFT[h].changed} of ${DRIFT[h].values} values changed, mean |d| ${((DRIFT[h].mad || 0) * 100).toFixed(3)}%, max ${((DRIFT[h].max || 0) * 100).toFixed(2)}%`); }
   WSER[h] = { S, grid, NB };
   const half = Math.floor(grid.length / 2), o = { steps: grid.length, split: new Date(grid[half] * D).toISOString().slice(0, 10), v: {} };
   for (const k in S) { const a = grid.map(d => S[k][d] || 0); o.v[k] = { all: st(a), first: st(a.slice(0, half)), second: st(a.slice(half)), days: grid.filter(d => S[k][d] != null).length }; }
@@ -310,7 +328,7 @@ for (const c in F0) { const f = F0[c], P = prof[c]; P.setups = {};
 for (const [name, H] of Object.entries(HYP)) { const S = Object.keys(F0).map(c => ({ c, s: H.f(F0[c], M[c]) })).filter(x => Math.abs(x.s) >= 0.3); picks[name] = { L: S.filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 6).map(x => x.c), S: S.filter(x => x.s < 0).sort((a, b) => a.s - b.s).slice(0, 6).map(x => x.c) }; }
 const cur = histOf({ t: new Date(NOW).toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, wfRule: WRULE, wfGate: WFG, wfAlt: WFALT, wfPick: WFPICK, uni: UNI });
 const wfHist = HIST.filter(q => q.t.slice(0, 10) !== cur.t.slice(0, 10)).concat([cur]).slice(-90);
-const out = { uni: UNI, weights: WH, wf: WF, wfGate: WFG, wfAlt: WFALT, wfRule: WRULE, wfWhy: WWHY, wfRef: REF ? { t: REF.t, m2: REF.m2 } : null, wfHist, wfPick: WFPICK, t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
+const out = { uni: UNI, weights: WH, wf: WF, wfGate: WFG, wfAlt: WFALT, wfRule: WRULE, wfWhy: WWHY, wfRef: REF ? { t: REF.t, m2: REF.m2 } : null, wfHist, wfPick: WFPICK, stepLog: STEPLOG, stepDrift: DRIFT, t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
 fs.writeFileSync(path.join(OUT, "lab.json"), JSON.stringify(out));
 for (const [k, R] of Object.entries(RES)) log(k.padEnd(12), [1, 2, 7].map(h => { const a = R.h[h] && R.h[h].all, s = R.h[h] && R.h[h].second; return a ? `${h}d n${a.n} ${(a.m * 100).toFixed(2)}% t${a.t.toFixed(1)} 2nd ${s ? (s.m * 100).toFixed(2) : "-"}% fill ${(R.h[h].fill * 100).toFixed(0)}%` : h + "d -"; }).join(" | "));
 log("done", Object.keys(prof).length, "profiles");
