@@ -191,6 +191,11 @@ function cohort() { const items = [], O = rd("outlook_bt.json"), K = rd("backtes
         // replay of the CURRENT run, and its bets can differ from the run that wrote the dated value. Record only.
         const bets = Object.fromEntries(ds.map(d => { const nb = D[d].nb && D[d].nb[pr]; return [d, Number.isFinite(nb) ? nb : null]; }));
         items.push({ ...it, bets, live: pr === "half", from: ds[0], to: ds[ds.length - 1], vsHalf: pr === "half" ? null : hv.filter(d => D[d].v[pr] >= D[d].v.half).length, vsHalfOf: pr === "half" ? null : hv.length }); } } }
+  // Council, Nov 23 2026 (Cohort agent request): lab.json stepDrift = how much a full replay today would change the logged values
+  // of closed steps (the replay fault). lab.drift.<h>d: n = logged values compared, changed = how many moved, mad / max = mean and
+  // largest absolute move per step. Record only (watch, factor 1): no page reads it.
+  if (L && L.stepDrift) for (const [h, x] of Object.entries(L.stepDrift)) { if (!x) continue;
+    items.push({ id: `lab.drift.${h}d`, desc: `Bet lab: closed ${h} d steps whose value a full replay today would change (record of the replay fault; the step log keeps the first value)`, unit: "ret", n: x.values || 0, ev: isFinite(x.mad) ? x.mad : null, z: null, changed: x.changed || 0, logged: x.logged || 0, max: isFinite(x.max) ? x.max : null, seeded: !!x.seeded, status: "watch", factor: 1, why: "record only" }); }
   return { at: (O && O.t) || (L && L.t), items }; }
 
 // ---------- LETF Sniper: hard reversals and fast moves (7 days of 1-minute bars) ----------
@@ -420,6 +425,16 @@ async function letfPlan() { const setupCore = await pageSetup(); if (!setupCore)
     return Object.fromEntries(Object.entries(o).filter(([, w]) => w.length >= 10).sort().map(([s, w]) => [s, { n: w.length, q05: q(w, 0.05), q01: q(w, 0.01), min: +Math.min(...w).toFixed(5) }])); }
   addNs("plan.setup.60m.nostop", "Fund page trade plan with NO stop order (as plan.setup.60m, exit at the target or at market 60 min after the fill)", all);
   addNs("plan.setup.full.60m.nostop", "Fund page trade plan, only LONG / SHORT SETUP, with NO stop order (as plan.setup.full.60m, exit at the target or 60 min after the fill)", all.filter(x => x.full));
+  // Council, Nov 23 2026 (LETF agent request): the exit choice as ONE paired item. plan.nostop.minus.stop<.full> = per filled plan,
+  // the no-stop result minus the with-stop result on the SAME fill (> 0 = no stop is better). Halves by time; days = per ET day
+  // (n, mean); dayZ = t of the day means (each day counts once). Record only (watch, factor 1, the would-be ruling in "ruling").
+  const addPair = (id, desc, a) => { const S0 = a.filter(x => isFinite(x.ns) && isFinite(x.v)).sort((x, y) => x.t - y.t); if (!S0.length) return;
+    const r = fromList(id, desc, "ret", S0.map(x => x.ns - x.v)), D = {}; S0.forEach(x => { (D[etDay(x.t)] || (D[etDay(x.t)] = [])).push(x.ns - x.v); });
+    const dm = Object.values(D).map(mean), dz = dm.length > 1 ? mean(dm) / ((sd(dm) || 1e-9) / Math.sqrt(dm.length)) : NaN;
+    items.push({ ...r, ruling: r.status, status: "watch", factor: 1, why: `record only (would be ${r.status})`, dayZ: isFinite(dz) ? +dz.toFixed(2) : null, dayUp: dm.filter(v => v > 0).length, nDays: dm.length,
+      days: Object.fromEntries(Object.entries(D).sort().map(([d, w]) => [d, { n: w.length, m: +mean(w).toFixed(5) }])) }); };
+  addPair("plan.nostop.minus.stop", "Fund page trade plan: no stop minus the stop, per filled plan on the same fill (> 0 = no stop is better)", all);
+  addPair("plan.nostop.minus.stop.full", "Fund page trade plan, only LONG / SHORT SETUP: no stop minus the stop, per filled plan (> 0 = no stop is better)", all.filter(x => x.full));
   // Council, Nov 16 2026 (LETF agent request): plan crowding. "crowd" = the number of underlyings that gave a plan on the SAME side
   // at the SAME signal time (known when the plan shows: it counts signals, not fills). Record only (watch, factor 1):
   // plan.setup.60m.crowd3 = filled plans with crowd 3+, plan.setup.60m.crowd12 = crowd 1-2. .hour = per signal time (ET day hh:mm):
