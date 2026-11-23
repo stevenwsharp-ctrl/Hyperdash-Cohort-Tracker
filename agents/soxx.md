@@ -1,5 +1,61 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-23 · SOXX agent
+
+### Evidence
+- Scorecard: ev.json t = 2026-11-23T21:29:49Z (Nov 23 market data). SOXX: 10 muted, 15 cut, 8 backed, 9 changed.
+- Changed today. idea.funds.vrev MUTE → CUT (−0.016 % per paper trade, n 16,650, z −1.70; older −0.054 %, newer +0.149 %). idea.funds.rsi MUTE → WATCH (+0.004 %, z 0.28). idea.funds.sqz WATCH → CUT (+0.156 %, older +0.740 %, newer −0.193 %). bot.both.bt WATCH → CUT. live.letf.early, live.letf.pick, live.both.early WATCH → CUT. half.funds.rsi.3 and .10 WATCH → BACK. From Nov 24, the live bots can trade spot vrev, spot sqz, funds sqz, funds vrev and funds rsi.
+- Negative EV, live: bot.letf.live CUT (−0.456 % per trade, n 63, newer half −0.908 %); bot.both.live CUT (−0.210 %); bot.spot.live CUT (+0.037 %, newer −0.137 %). The cause (state.json, live trades from Nov 16): funds vrev 9 trades −$342 (AMDL −$189 on Nov 19), funds sqz 8 trades −$31, spot vrev 12 trades −$105 (AMD −$94 on Nov 19).
+- Nov 23 bots: spot +$21.11 (SMCI and COIN vrev), letf −$8.43 (AMDL sqz), both +$12.68. Gates: 331 to 509 signals skipped as EV muted. skip.*.muted.rsi: the muted rsi fills made +0.69 % (spot, n 47) and +1.22 % (funds, n 19) on this 1 day. twin.funds: 55 fills, +2.08 % per fill, 1 day (record only). Big swings: 30 today, 0 caught live; most swings were inverse funds with no signal before the low.
+- Paper bots workflow: runs 147, 148, 149, 150 success (relay through the session); 151 in progress. No error.
+
+Council tasks:
+1) Watch next: yes. Run 150 logs "EV rules: 27 (...)", not STALE; bots.json evOff = 0. The live trades on Nov 23 were only spot vrev (2) and funds sqz (1).
+2) twin, skip and pick items: read (numbers above). Only 1 day. No rule (5-day rule). Note: pick.*.spot.rsi +0.66 % (n 49) and pick.*.funds.rsi +1.13 % (n 21) are BACK on 1 day while idea.spot.rsi is MUTE (all-version mean −0.026 %). This is the first data for backlog 1.
+3) Replay keeps old days: yes. I compared the per-day values (perDay) of all dated items for Nov 19 and Nov 20 in 3 scorecards (Nov 22 01:25Z, Nov 23 03:13Z, Nov 23 21:29Z): 40 of 40 values are the same. The bots branch has only 1 commit (each run replaces it), so a byte compare of 2 dated.json files is not possible from git.
+
+Walk-forward tests today (dated.json Oct 29 – Nov 23; at each day, only the days before it):
+- Gate "CUT idea with EV below 0" (treat it as muted, no fitted value): ideas with a record below 0 and not at the day-z mute: older days −0.076 % per fill (n 27,135), newer days +0.043 % (n 24,843). It fails on the newer half. Not shipped.
+- Version pick, shrink by the error (mean − c × se, c = 0, 0.5, 1, 2), by z, z ≥ 2 only, and "use the scorecard's BACK arm" (the scorecard of the evening before each day): none beat the current pick (best mean) on both halves with a day z of 2. lb128 (mean − 1.28 se): +$0.19 per day older (z 1.0), +$9.88 newer (z 1.49): too weak. BACK-arm pick: −$4.3 per day older (z −1.9), −$25.9 newer. Not shipped.
+- Funds sqz: the bot pick 1 ATR t6a had older +0.407 % / newer −0.196 % per fill; 0.25 ATR t3s (BACK) had +0.183 % / +0.123 %. A one-idea switch is picking the winner on the reported data, so no change; the general pick tests above fail.
+- Funds vrev by market state (ctx, all versions, by day): every state has mixed days (d1o1: Nov 17 +1.45 %, Nov 20 −1.53 %). No change to the state gate (d0o0 stays off).
+
+### Shipped today
+- 593f6e3 (botcard.js v17, index.html): a line at the top of the bot card, "Next session, ideas on": per class, the ideas that are on (scorecard ruling, EV per paper trade, "was X" when the ruling changed) and the ideas that are off (MUTE, or the bots' own idea gate). It also says that CUT does not change the bet size, so a CUT idea with EV below 0 (funds vrev today) still trades, and why it is not gated (the walk-forward above). Why: priority 4. Today the scorecard turned 3 funds ideas, and the card showed this only inside "What they learned". Read only: no bot rule changes, so no walk-forward is needed for the change itself.
+- Checks: node --check botcard.js; tests/engines.test.mjs ALL PASSED; Playwright index.html and mastermind/ with the real bots.json and ev.json: 0 page errors, the line shows. Pages build and deployment: success (run 45278157819).
+
+### Not changed
+- No bot rule. All 3 rule tests above fail the walk-forward check on the newer half or have a day z below 2.
+- No gate for funds vrev and funds rsi. The scorecard opened them; my CUT-gate test fails on the newer half. The bots' own idea gate (90 % upper bound below 0, last 3,000 paper trades) stays open: funds vrev −0.043 % per trade, upper bound +0.020 %.
+- No stop for funds vrev (paired test Nov 22: tim beats every stop plan for vrev on both halves).
+
+### Lessons for the other agents
+- "Unmuted" is not "proven": the scorecard opens an idea when z rises above −2, also when its EV is still below 0 (funds vrev today). With a fixed bet size, CUT has no effect in the bots. Check what CUT does in your tracker.
+- Picking the version with the best mean picks the noisy deep-limit version (funds sqz 1 ATR t6a: older +0.41 %, newer −0.20 %). But the fixes I tried (shrink by se, z, the scorecard BACK arm) did not win on both halves either. Test a pick rule walk-forward before you change it.
+- Old scorecards in the ev branch history are a good source for a "known at that time" walk-forward (a ruling of the evening before each day).
+
+### For the council
+- ev.mjs question: should an idea leave MUTE only when its EV is above 0 (a hysteresis), not only when z rises above −2? My walk-forward of the simpler gate ("not muted, EV below 0 → off") fails on the newer half, so I do not ask for it now. Funds vrev went WATCH → MUTE → CUT in 3 market days; I will report the next days.
+- ev.mjs (record only, from about Nov 30): a scored item for the bots' version-pick procedure against the pooled mean per idea (pick.* minus idea.* per day, paired), so the version-choice test (backlog 4) has a daily number.
+- No shared-file change.
+
+### Backlog
+1. From Nov 23: skip.<bot>.muted.<idea> and pick.<bot>.<idea> per day; at 5+ days, walk-forward "unmute idea X for the bots by the picked-version record" (spot rsi first: pick +0.66 % against the idea mean −0.026 % on day 1).
+2. Twin (step 2): at 5+ market days, fit the version and state on the older days and check on the newer days; then step 3 (scorecard item, bots trade it only if both halves are above 0 and day z ≥ 2).
+3. Funds vrev and funds rsi back in live trading: read live.* and pick.* per day; if the live loss of Nov 19–20 repeats, test the state gate per version (ctx|L|vrev|state|limit|plan).
+4. Version choice: repeat the pick tests (mean, mean − 1.28 se, BACK arm) at 25+ days of dated.json, and with pickn| keys.
+5. Funds time gate: the 200-trade rule against the day-z rule only, on skip|*|time (5+ days from Nov 23).
+6. MAXPOS 3 against 5 on skip|*|full (5+ days).
+7. Exit by idea: repeat the paired stop-vs-tim test at 5+ new days.
+8. ctx d1 states for rsi and vrev on spot: walk-forward at 5+ days after Nov 16.
+9. Live stop exits again at 30+ post-Nov-7 stops per bot.
+
+### Watch next
+- Nov 24: the bot card shows "Next session, ideas on" with funds vrev CUT and funds rsi WATCH, 0 page errors.
+- The bots log "EV rules: 26 or 27" with idea.funds.vrev=0.5 and no idea.funds.rsi=0; funds vrev and funds rsi live trades appear (only at a capitulation state for funds vrev).
+- bot.letf.live: the newer half stops falling; if funds vrev loses again live (pick.*.funds.vrev below 0 on 2+ days), report it for backlog 3.
+- twin.funds and pick.*.spot.rsi: day 2 values (no rule before day 5).
+
 ## 2026-11-22 · SOXX agent
 
 ### Evidence
@@ -735,4 +791,3 @@ Council task 3: I read the 22:14 UTC scorecard (above), fetched after my push.
 - bots.json "note" must say "live" from 9:30 ET. Live trades must have entry times before 3 PM ET.
 - Big swings caught must be above 0 within 3 market days.
 - bot.*.live n must grow by more than 5 a day. The live EV of sqz trades must stay above 0 (else review the sqz time gate again with dated data).
-
