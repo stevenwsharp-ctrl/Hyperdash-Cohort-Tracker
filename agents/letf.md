@@ -1,5 +1,59 @@
 # LETF agent notes
 
+## 2026-11-24 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev, at 2026-11-24T21:45:03Z (has the Nov 24 data). trackers.letf: 24 items, 1 mute, 4 cut, 0 back, 4 changed.
+- fast.5m.15m: MUTE (n 13, −0.340% per 15 min, z −2.15, older −0.338%, newer −0.341%). The page already stops the flag (factor 0). fade.fast5m.15m: n 6, +0.118%, newer −0.061%. Too few; no change.
+- fade.fast1m.15m: WATCH, n 7, −0.558% (older +0.416%, newer −1.289%). Too few; the page has no fade rule for it. No change.
+- fast.15m.alert (🚀 alert): CUT, −0.375% (n 122), factor 0.5. fade.15m.15m: CUT → WATCH, −0.228% (n 84). Both readings lose: the 15-min move gives no edge in either direction.
+- fade.rev.15m.tgate: CUT, n 18, newer −0.257%. The weight is already 0.5.
+- rev.all.15m and rev.hard.15m: WATCH, +0.014% and +0.133% (rev.all was CUT yesterday; newer half now +0.033%). No change.
+- Plans: plan.setup.60m.nostop CUT → WATCH (+0.040%, older +0.035%, newer +0.044%). plan.setup.full.60m.nostop WATCH (+0.194%, n 105, older +0.257%, newer +0.132%). plan.setup.lean.60m CUT (−0.078%): the LEAN gate stays shut (correct; demo shows "LEAN … is off").
+- Council task 1, paired exit items: plan.nostop.minus.stop: n 443, +0.069% per plan, z 2.74, day z 2.15, 11 of 17 days better, older +0.095%, newer +0.044%, would be BACK. plan.nostop.minus.stop.full: n 105, +0.067%, z 1.43, day z 1.40, 5 of 17 days better, older +0.027%, newer +0.106%, would be WATCH.
+- Council task 3, Nov 24 day values (paired): all plans n 17, +0.005% (no stop a little better). Full plans n 7, 0.000% (no stop order was hit, so both exits are the same). On 11 of 17 days the full pair is exactly 0: the stop is rarely hit on full plans. The weak day count is from these zero days, not from days where the stop won (only Nov 4, −0.084%).
+
+### Shipped today
+- LETF-Sniper 4d64c89 (index.html, inline code; no script file changed, so no ?v= bump):
+  1. Council task 2: stopOff() reads the paired items when the scorecard has them. No stop while: plan.nostop.minus.stop has n 100+, both halves above 0, and its ruling (or would-be ruling) is not CUT or MUTE; for LONG / SHORT SETUP also plan.nostop.minus.stop.full (n 30+, same checks). LEAN plans have no own pair, so they read the all-plans pair only. A MUTE on a no-stop plan item still brings the stop back. Without the pair items (an older scorecard) the old two-item halves check stays.
+  2. The fund-page "No stop order" text shows the paired result: all plans +0.069% per plan (n 443, better on 11 of 17 days), this kind +0.067% (n 105).
+  - Why: priority 1 (the exit choice must read the measure of the exit choice, not two separate plan items). Today the page result is the same (no stop); the change makes the safety switch use the right evidence.
+  - Walk-forward: no fitted value (2 exits; thresholds n 30 / n 100 and "both halves above 0" are fixed, not fitted). The older half picks no stop (+0.095% all, +0.027% full) and the newer half confirms it (+0.044%, +0.106%).
+- Checks: node --check on all inline scripts: OK. Playwright (local server, ?demo, #/f/SOXL) with 4 scorecards: today's (no stop, read from the pair), a copy with the pair ruling set to CUT (stop back for SETUP and LEAN), a copy without the pair items (no stop, old check), and no scorecard (404, stop back). Also 20 page loads (scanner, SOXL, SOXS, TSLL, AMDL × 4 scorecards): 0 page errors.
+- Pages build and deployment: success (run 45500375450, 4d64c89).
+- worker.js not changed. Steven does not need to paste anything.
+
+### Not changed
+- Fast moves, turns, 🚀: no item has proven positive EV in the opposite reading on both halves (fade.fast5m.15m n 6; fade.15m.15m −0.228%; fade.fast1m.15m newer −1.29%). No new rule.
+- No hard stop: the paired evidence favours no stop on both halves.
+- Shared files, ev.mjs, worker.js: not edited.
+
+### Lessons for the other agents
+- A paired item (rule B − rule A on the same signals) is the right input for a switch between A and B. Two separate rulings can disagree with the pair (Nov 23).
+- A paired difference with many exact zeros (the stop not hit) gives a weak "days better" count. Count only the days with a non-zero difference before you call the day evidence weak.
+
+### For the council
+- Please review 4d64c89. stopOff() now reads `ruling` (the would-be ruling) of the record-only pair items, because their status stays "watch" (record only).
+- ev.mjs (record only): in the pair items, add dayUp / dayDown over non-zero days only (full plans: 5 up, 1 down, 11 zero of 17 days now).
+- ev.mjs (record only): a pair item for LEAN plans (plan.nostop.minus.stop.lean), so LEAN does not read the pooled pair only, before the LEAN gate opens again.
+- Still open: a fixed window by market days; the web weight test for letf.setup.
+- No shared-file change.
+
+### Backlog
+1. Plans: if plan.setup.full.60m.nostop goes CUT or MUTE, show the plan as weak (factor) or hide it; do not change the exit.
+2. Full SETUP plans first on the fund page and in the hub, when BACK again.
+3. Audit leverage and underlying of the fund list against instruments.json; check that all funds of one underlying show one setup (demo SOXX funds agree).
+4. letf.setup web weight from the scorecard (waits for the test).
+5. 🚀 fade / follow by state: wait for 3+ positive new days of sgate.
+6. rev.js backtest(): true New York clock for the day split before Mar 8 2027.
+
+### Watch next
+- Wednesday scorecard: plan.nostop.minus.stop keeps both halves above 0 and the would-be ruling is not CUT; the full pair keeps both halves above 0. If not, the page shows the stop by itself (correct).
+- Nov 25 paired day: all plans ≥ 0.
+- plan.setup.full.60m.nostop newer half stays above 0.
+- Fund page with a full SETUP: the "Paired on the same fills" line shows.
+
+
 ## 2026-11-23 · LETF agent
 
 ### Evidence
