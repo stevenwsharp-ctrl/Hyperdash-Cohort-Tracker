@@ -89,10 +89,13 @@
   // base of the "today" move (Nov 24 2026 fix): the last daily close from a day BEFORE the 5-minute bars' day. In pre-market,
   // Yahoo's chart meta can still hold the close before the last session, so a down pre-market showed as a big gain.
   const ETD = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }), dOf = ms => ETD.format(new Date(ms));
-  function baseOf(I, B, m) { const d = dOf(I[I.length - 1][0]); if (B) for (let k = B.length - 1; k >= 0; k--) if (dOf(B[k][0]) < d) return B[k][4]; return m && m.prevClose; }
-  function today(I, Im, SI, SIm, B, now, S) {
+  // crypto (BTC-USD …) trades 24/7: Yahoo's daily bars start at 00:00 UTC (7 pm ET the day before) and the last one is live,
+  // so the date rule above would use the live price as the base. Crypto keeps Yahoo's previous close (the 00:00 UTC day).
+  function baseOf(I, B, m, c24) { if (c24) return m && m.prevClose > 0 ? m.prevClose : B && B.length > 1 ? B[B.length - 2][4] : NaN;
+    const d = dOf(I[I.length - 1][0]); if (B) for (let k = B.length - 1; k >= 0; k--) if (dOf(B[k][0]) < d) return B[k][4]; return m && m.prevClose; }
+  function today(I, Im, SI, SIm, B, now, S, c24) {
     if (!I || I.length < 3 || !Im || !SI || SI.length < 3 || !SIm) return null;
-    const b0 = baseOf(I, B, Im), sb0 = baseOf(SI, S, SIm); if (!(b0 > 0) || !(sb0 > 0)) return null;
+    const b0 = baseOf(I, B, Im, c24), sb0 = baseOf(SI, S, SIm); if (!(b0 > 0) || !(sb0 > 0)) return null;
     const ret = I[I.length - 1][4] / b0 - 1, sret = SI[SI.length - 1][4] / sb0 - 1, rel = ret - sret;
     const F = cmfOf(I, 0, I.length - 1), j = B && B.length ? B.length - 1 : -1, sg = j > 5 ? sigma(B, j) : 0.015;
     let bd = 0, bn = 0; if (B) for (let k = Math.max(0, B.length - 21); k < B.length - 1; k++) { bd += B[k][4] * B[k][5]; bn++; }
@@ -122,7 +125,7 @@
     for (const p of P) {
       const B = clean(daily[p.t] && daily[p.t].bars); if (B.length < 30) continue;
       const w5 = win(B, S, iS, 5), w21 = win(B, S, iS, 21), w63 = win(B, S, iS, 63) || w21;
-      const ii = intra[p.t], td = ii ? today(clean(ii.bars), ii.meta, SI, SIm, B, now, S) : null, w1 = td || win(B, S, iS, 1);
+      const ii = intra[p.t], td = ii ? today(clean(ii.bars), ii.meta, SI, SIm, B, now, S, /-USD$/.test(p.t)) : null, w1 = td || win(B, S, iS, 1);
       if (!w1 || !w5 || !w21) continue;
       const r = { t: p.t, a: p.a, n: p.n, g: p.g, risk: p.risk, bull: p.bull, bear: p.bear, m: p.m, px: ii && ii.bars && ii.bars.length ? ii.bars[ii.bars.length - 1][4] : B[B.length - 1][4],
         low: w1.s, med: w5.s, high: c1(0.6 * w21.s + 0.4 * w63.s), retT: w1.ret, relT: w1.rel, rvolT: w1.rvol, ret5: w5.ret, ret21: w21.ret, ret63: w63.ret, live: !!td };
