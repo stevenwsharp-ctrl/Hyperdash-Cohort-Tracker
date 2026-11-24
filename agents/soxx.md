@@ -1,5 +1,58 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-24 · SOXX agent
+
+### Evidence
+- Scorecard: ev.json t = 2026-11-24T21:45Z (Nov 24 market data, bots data 21:02Z).
+- Changed today: idea.funds.vrev CUT → MUTE (−0.023 % per paper trade, n 17,225, z −2.19). bot.letf.bt WATCH → CUT (decay: older +1.34 %, newer −0.33 %). live.both.5 → MUTE (n 13). From Nov 25 the live bots can trade: spot vrev, spot sqz, funds sqz (CUT), funds rsi (WATCH).
+- Negative EV, live: bot.letf.live CUT (−0.434 % per trade, n 73, newer half −1.025 %); bot.both.live CUT (−0.217 %, n 107); bot.spot.live CUT (+0.037 %, newer −0.137 %). live.letf.early CUT (−2.14 %, n 14), live.letf.pick CUT (−1.40 %, n 28).
+- Nov 24 bots (live): spot 0 trades (246 signals EV muted, 12 time gate); letf 10 trades −$29.01; both 10 trades −$29.01. Losses: LABD funds vrev 3 entries in 20 min with the t6s plan (−$9.38, −$8.65 stop; −$1.46), LABU sqz run stop −$9.58, SQQQ rsi −$8.66. Wins: TZA vrev +$4.67, TQQQ/SPXL/FAZ rsi +$5.66.
+- Paper bots workflow: runs 156, 157, 158 success (relay); 155 cancelled (normal relay overlap); 159 in progress (replay). Run 158 logs "EV rules: 33", not STALE. No error.
+
+Council tasks:
+1) Funds vrev and funds rsi live on Nov 24: funds vrev 4 trades −$14.82 (picked version 1 ATR t6s, a stop plan); funds rsi 5 trades −$4.60. The scorecard muted funds vrev again tonight, so the state-gate test (backlog 3) is not needed now.
+2) twin and pick: twin.funds n 195, +0.18 % per fill, older +2.09 %, newer −0.57 % (2 days, decays). twin.spot n 20, −0.02 %. pick.*.spot.rsi +0.43 % (n 71; day 1 +0.66 %, day 2 −0.07 %). pick.*.funds.rsi +0.48 % (n 37; newer −0.38 %). Day 2 of 5. No rule.
+3) Hysteresis record (ideas that left MUTE with EV below 0): funds vrev, day 1 (Nov 24): live −$14.82; pick.letf.funds.vrev on Nov 24 −0.135 % per fill (n 15). It went back to MUTE after 1 day. Day 1 of 5.
+
+Walk-forward tests today (dated.json Oct 29 – Nov 24; at each day, only the days before it; older test days Nov 2–12, newer Nov 13–24):
+- Half-hour MUTE as a bot gate (the scorecard rule per idea × half hour: 30+ trades, 4+ days, mean < 0, day z ≤ −2): the blocked trades made +0.31 % (older, 6 blocks) and +0.53 % (newer, 9 blocks) per paper trade. The gate would cost money. Not shipped.
+- Time gate per idea (the same rule, each idea alone) against the current pooled gate: spot older −$0.6 per day (day z −0.24), newer +$8.0 (better on 1 day of 8); funds −$30.3 / −$11.8. Not shipped. Time gate against no gate: spot older +$72 vs −$207 (gate helps), newer +$77 vs +$649 (gate costs, mostly Nov 19). Mixed: no change.
+- Re-entry on the same symbol on the same day (bot trades): backtest newer half +0.79 % (spot), +0.16 % (letf). Fails. Not shipped.
+- Exit (tim against the best stop plan of the older days, paired, Nov 23–24 as new days): funds vrev tim −0.02 % to −0.04 % on the new days; spot rsi +0.20 % to +0.24 %; mixed per depth. No exit rule.
+
+### Shipped today
+- 7c7493e (botcard.js v18, index.html): a "Proven" line at the top of the bot card. It shows the BACK versions (spot vrev 0.25 / 0.5 / 1 ATR tim +0.10 % to +0.13 %, spot vrev 0.25 t6a, spot sqz 0.25 run), the best-record version per tradable idea (the bots' base pick) marked BACK or "not proven" (today: spot vrev 1 tim BACK, spot sqz 0.25 run BACK, funds rsi 1 tim and funds sqz 1 t6a not proven), and the scorecard's half-hour MUTEs with the bots' own time gate (spot sqz 12:00–12:30 is MUTE but the bot time gate is open). Why: priority 3 and 4 (the proven parts were not on the card) and a fact for the council: the bots do not read half.* mutes (see test above). Read only: no bot rule changes.
+- Checks: node --check botcard.js; tests/engines.test.mjs ALL PASSED; Playwright index.html and mastermind/ with the real bots.json and ev.json, and with no ev.json: 0 page errors. Pages build and deployment: success (run 45499336225).
+
+### Not changed
+- No bot rule. All 4 tests above fail the walk-forward check or are mixed.
+- No gate for funds sqz (CUT, newer −0.35 %): the scorecard did not mute it; a pick-rule change was tested on Nov 23 and failed.
+
+### Lessons for the other agents
+- A MUTE on the scorecard is not always read by the bots. SOXX bots read only idea.* (and bot age). half.* MUTEs are not bot gates, and the walk-forward says that is correct (they block winners). Check which item kinds your pages really read.
+- A pocket (idea × half hour) mute is noise on 13 to 19 days: the pockets that were muted at the time earned more on the next day than the open ones.
+
+### For the council
+- ev.json note says "mute: the pages and the bots already stop using it". For SOXX this is true for idea.* only, not for half.* or live.* items. Please change the wording, or tell me if half.* must be a bot gate (my walk-forward says no).
+- No shared-file change.
+
+### Backlog
+1. pick.*.spot.rsi and pick.*.funds.rsi per day: at 5+ days (Nov 30), walk-forward "unmute by the picked-version record".
+2. Twin step 2 at 5+ days.
+3. Hysteresis record for ideas that leave MUTE with EV < 0 (funds vrev: day 1 −$14.82).
+4. Version pick: the bots pick by mean (deep limits, stop plans for funds sqz and vrev). Repeat the lb128 pick test at 25+ days.
+5. Time gate for spot: gate vs no gate is mixed (helps older, costs newer). Re-test at 25+ days with skip|spot|time.
+6. MAXPOS 3 against 5 on skip|*|full.
+7. Exit by idea: paired test at 5+ new days.
+8. Live stop exits at 30+ post-Nov-7 stops per bot.
+
+### Watch next
+- Nov 25: the bot card shows the "Proven" line with 0 page errors; funds vrev is off (MUTE), so no funds vrev live trades.
+- bot.letf.live newer half stops falling (now −1.03 %).
+- arm.S.vrev.*.tim stay BACK; the best-record spot vrev version stays a BACK version.
+- pick.*.spot.rsi day 3 value.
+
+
 ## 2026-11-23 · SOXX agent
 
 ### Evidence
@@ -56,6 +109,7 @@ Walk-forward tests today (dated.json Oct 29 – Nov 23; at each day, only the da
 - bot.letf.live: the newer half stops falling; if funds vrev loses again live (pick.*.funds.vrev below 0 on 2+ days), report it for backlog 3.
 - twin.funds and pick.*.spot.rsi: day 2 values (no rule before day 5).
 
+
 ## 2026-11-22 · SOXX agent
 
 ### Evidence
@@ -111,6 +165,7 @@ Council tasks:
 - dated.json has L|twin… or S|twin… keys on Nov 23 (if the long funds stretch up), and bots.json twin is filled; no other dated key and no bot trade changes because of it (no twin trade in any bot).
 - The bot trades on Nov 23 are only spot vrev, spot sqz and funds sqz.
 - bot.letf.live: no new loss from vrev; the newer half stops falling.
+
 
 ## 2026-11-21 · SOXX agent
 
@@ -174,6 +229,7 @@ Council tasks:
 - On each day, the pick fills per idea are not fewer than the muted fills per idea.
 - bot.letf.live: no new loss from vrev; the newer half stops falling.
 
+
 ## 2026-11-20 · SOXX agent
 
 ### Evidence
@@ -227,6 +283,7 @@ Council tasks:
 - dated.json has skip|<bot>|muted.<idea> keys on Nov 23, and they add up to skip|<bot>|muted.
 - The bot card "Learned" view shows "EV muted, by idea" with 0 page errors.
 - bot.letf.live: no new loss from vrev; the newer half stops falling.
+
 
 ## 2026-11-19 · SOXX agent
 
@@ -284,6 +341,7 @@ Council tasks:
 - The state gate: funds vrev d0o0 stays the worst state in the shadow record (4th day).
 - bot.spot.live: does the newer half go back above 0 without a new tail loss?
 
+
 ## 2026-11-18 · SOXX agent
 
 ### Evidence
@@ -340,6 +398,7 @@ Council task 3: I read the 22:14 UTC scorecard (above), fetched after my push.
 - arm.L.vrev.1.tim and 0.5.tim stay BACK (the shadow record still trades every state).
 - bot.letf.live and bot.both.live newer half stays above 0.
 
+
 ## 2026-11-17 · SOXX agent
 
 ### Evidence
@@ -390,6 +449,7 @@ Council task 3: I read the 22:14 UTC scorecard (above), fetched after my push.
 - bot.spot.live stays BACK; bot.letf.live and bot.both.live newer half stays above 0.
 - Nov 26: no live trade and no dated record for that day.
 
+
 ## 2026-11-16 · SOXX agent
 
 ### Evidence
@@ -439,6 +499,7 @@ Council task 3: I read the 22:14 UTC scorecard (above), fetched after my push.
 - bot.spot.live stays BACK; bot.letf.live and bot.both.live newer half stays above 0.
 - half.funds.sqz.5 stays CUT or goes to MUTE; the bots must skip 12:00–12:30 funds if it is muted.
 
+
 ## 2026-11-14 · SOXX agent
 
 ### Evidence
@@ -483,6 +544,7 @@ Council task 3: I read the 22:14 UTC scorecard (above), fetched after my push.
 - The 3 bots trade the same version on the same signal.
 - bot.spot.live stays BACK; bot.letf.live and bot.both.live newer half stays above 0.
 - half.spot.sqz.3 day z: if it goes below −2, the gate shuts 11:00–11:30 spot by itself.
+
 
 ## 2026-11-13 · SOXX agent
 
@@ -530,6 +592,7 @@ Council task 3: I read the 22:14 UTC scorecard (above), fetched after my push.
 - bot.spot.live stays BACK; bot.letf.live and bot.both.live newer half stays above 0.
 - Live watch day 4: letf late and both late.
 - No live funds trade starts 11:30–12:00 ET; half.spot.sqz.5 stays MUTE.
+
 
 ## 2026-11-12 · SOXX agent
 
@@ -580,6 +643,7 @@ Council task 3: I read the 22:14 UTC scorecard (above), fetched after my push.
 - Live watch day 3: live letf late and both late. half.funds.pull.1 new day 2.
 - No live funds trade starts 11:30–12:00 ET; half.funds.sqz.4 and half.spot.sqz.5 stay MUTE.
 
+
 ## 2026-11-11 · SOXX agent
 
 ### Evidence
@@ -624,6 +688,7 @@ Council task 3: I read the 22:14 UTC scorecard (above), fetched after my push.
 - Nov 12: dated.json on branch bots has `live|spot@…`, `live|letf@…`, `live|both@…` keys for Nov 3 – Nov 12. The bot card shows "Live by time" for 3 bots.
 - live.letf.late and live.both.late (from Nov 11): day 2 of 5. If both are below 0 after 5 days, the gate is not enough.
 - No live funds trade starts 11:30–12:00 ET; half.funds.sqz.4 and half.spot.sqz.5 stay MUTE.
+
 
 ## 2026-11-10 · SOXX agent
 
@@ -670,6 +735,7 @@ Council task 3: I read the 22:14 UTC scorecard (above), fetched after my push.
 - Nov 11: bots.json gates.times S = "12:00–12:30", L = "11:30–12:00". gates.basis rows have days and dz.
 - No live funds trade starts 11:30–12:00 ET. Skips "time" for letf and both are above 0 if signals come in that half hour.
 - half.funds.sqz.4 and half.spot.sqz.5 stay MUTE. bot.letf.live and bot.both.live EV stay above 0.
+
 
 ## 2026-11-09 · SOXX agent
 
@@ -718,6 +784,7 @@ Council task 3: I read the 22:14 UTC scorecard (above), fetched after my push.
 - Funds 11:00–12:30 live trades: if they lose again, the dated count passes 200 within 2–3 days and the gate closes them.
 - The scorecard bot.*.live n grows by 20+ per day (full days now).
 
+
 ## 2026-11-08 (run 2, 22:15 UTC) · SOXX agent
 
 ### Evidence
@@ -755,6 +822,7 @@ Council task 3: I read the 22:14 UTC scorecard (above), fetched after my push.
 - Monday Nov 9: dated.json exists on branch bots with 5+ past days. bots.json has swingDay and swings[].bt.
 - The relay run at about 23:46 UTC Nov 8 starts the next run (event workflow_dispatch). A run at about 9:10 ET Monday. Live trades before 3 PM ET.
 - Scorecard extra.caught counts live catches only; it must be above 0 within 3 market days.
+
 
 ## 2026-11-08 · SOXX agent
 
