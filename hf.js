@@ -86,9 +86,14 @@
     return { s: score(z, F.cmf, rvol), ret, rel, cmf: F.cmf, rvol, z };
   }
   // today: 5-minute bars of the session (I), prevClose from the chart meta; SPY the same
-  function today(I, Im, SI, SIm, B, now) {
-    if (!I || I.length < 3 || !Im || !(Im.prevClose > 0) || !SI || SI.length < 3 || !SIm || !(SIm.prevClose > 0)) return null;
-    const ret = I[I.length - 1][4] / Im.prevClose - 1, sret = SI[SI.length - 1][4] / SIm.prevClose - 1, rel = ret - sret;
+  // base of the "today" move (Nov 24 2026 fix): the last daily close from a day BEFORE the 5-minute bars' day. In pre-market,
+  // Yahoo's chart meta can still hold the close before the last session, so a down pre-market showed as a big gain.
+  const ETD = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }), dOf = ms => ETD.format(new Date(ms));
+  function baseOf(I, B, m) { const d = dOf(I[I.length - 1][0]); if (B) for (let k = B.length - 1; k >= 0; k--) if (dOf(B[k][0]) < d) return B[k][4]; return m && m.prevClose; }
+  function today(I, Im, SI, SIm, B, now, S) {
+    if (!I || I.length < 3 || !Im || !SI || SI.length < 3 || !SIm) return null;
+    const b0 = baseOf(I, B, Im), sb0 = baseOf(SI, S, SIm); if (!(b0 > 0) || !(sb0 > 0)) return null;
+    const ret = I[I.length - 1][4] / b0 - 1, sret = SI[SI.length - 1][4] / sb0 - 1, rel = ret - sret;
     const F = cmfOf(I, 0, I.length - 1), j = B && B.length ? B.length - 1 : -1, sg = j > 5 ? sigma(B, j) : 0.015;
     let bd = 0, bn = 0; if (B) for (let k = Math.max(0, B.length - 21); k < B.length - 1; k++) { bd += B[k][4] * B[k][5]; bn++; }
     const R = Im.period && Im.period.regular, t0 = R && R.start ? R.start * 1000 : I[0][0], t1 = R && R.end ? R.end * 1000 : t0 + 6.5 * 36e5;
@@ -117,7 +122,7 @@
     for (const p of P) {
       const B = clean(daily[p.t] && daily[p.t].bars); if (B.length < 30) continue;
       const w5 = win(B, S, iS, 5), w21 = win(B, S, iS, 21), w63 = win(B, S, iS, 63) || w21;
-      const ii = intra[p.t], td = ii ? today(clean(ii.bars), ii.meta, SI, SIm, B, now) : null, w1 = td || win(B, S, iS, 1);
+      const ii = intra[p.t], td = ii ? today(clean(ii.bars), ii.meta, SI, SIm, B, now, S) : null, w1 = td || win(B, S, iS, 1);
       if (!w1 || !w5 || !w21) continue;
       const r = { t: p.t, a: p.a, n: p.n, g: p.g, risk: p.risk, bull: p.bull, bear: p.bear, m: p.m, px: ii && ii.bars && ii.bars.length ? ii.bars[ii.bars.length - 1][4] : B[B.length - 1][4],
         low: w1.s, med: w5.s, high: c1(0.6 * w21.s + 0.4 * w63.s), retT: w1.ret, relT: w1.rel, rvolT: w1.rvol, ret5: w5.ret, ret21: w21.ret, ret63: w63.ret, live: !!td };
@@ -152,7 +157,7 @@
     if (loud > 1.35) B.push({ k: "Loud", d: 0, txt: `The crowd is loud: typical volume today is ${loud.toFixed(1)}× normal for this time of day.` });
     else if (loud < 0.75) B.push({ k: "Quiet", d: 0, txt: `The crowd is quiet: typical volume today is ${loud.toFixed(1)}× normal. Moves on low volume are easier to reverse.` });
     const byT = [...rows].sort((a, b) => b.low - a.low), byB = [...rows].sort((a, b) => b.blend - a.blend);
-    return { at: now, rows, byT, byB, mood, moodLab, spreadT, spreadW, breadth, vix, loud, sd, beh: B, top: byB.slice(0, 3), bottom: byB.slice(-3).reverse(), live: rows.some(r => r.live) };
+    return { at: now, rows, byT, byB, mood, moodLab, spreadT, spreadW, breadth, vix, loud, sd, beh: B, top: byB.slice(0, 3), bottom: byB.slice(-3).reverse(), live: rows.some(r => r.live), sessD: SI && SI.length ? dOf(SI[SI.length - 1][0]) : (S.length ? dOf(S[S.length - 1][0]) : "") };
   }
   // does following the flow pay? the week's top 3 vs bottom 3, next day and next 5 days (relative to each other)
   function backtest(daily) {
@@ -293,7 +298,7 @@
       const G = UI.grp === "all" ? x.rows : x.rows.filter(r => r.g === UI.grp), L = [...G].sort((a, b) => b[UI.sort] - a[UI.sort]);
       const th = (k, t) => `<th data-hfs="${k}" class="${UI.sort === k ? "on" : ""}">${t}${UI.sort === k ? " ▼" : ""}</th>`, chip = (k, t) => `<button data-hfg="${k}" class="${UI.grp === k ? "on" : ""}">${t}</button>`;
       body += `<h4>Sector Pulse · how money flows, by time frame</h4><div class="hfChips">${chip("all", "All 20")}${chip("sector", "Sectors")}${chip("theme", "Themes")}${chip("haven", "Havens / alt")}</div>
-        <div class="hfScroll"><table class="hfPulse"><tr><th>Place</th>${th("low", "Today (low)")}${th("med", "Week (medium)")}${th("high", "1–3 mo (high)")}${th("blend", "Blend")}<th>Trend</th><th class="hfOpt">Speed</th><th class="hfOpt">Vol today</th><th class="hfOpt">Ride it with</th></tr>
+        <div class="hfScroll"><table class="hfPulse"><tr><th>Place</th>${th("low", R && R.sessD && R.sessD < dOf(Date.now()) ? "Last session (low)" : "Today (low)")}${th("med", "Week (medium)")}${th("high", "1–3 mo (high)")}${th("blend", "Blend")}<th>Trend</th><th class="hfOpt">Speed</th><th class="hfOpt">Vol today</th><th class="hfOpt">Ride it with</th></tr>
         ${L.map(r => `<tr data-hf="${r.t}" class="${SELT === r.t ? "sel" : ""}"><td><b>${esc(r.n)}</b> <span class="hfDim">${esc(r.a)}</span></td><td>${bar(r.low)} <span class="hfDim">${pct(r.retT)}</span></td><td>${bar(r.med)}</td><td>${bar(r.high)}</td><td>${bar(r.blend)}</td><td class="${cls(r.labDir)}">${esc(r.lab)}</td>
           <td class="hfOpt ${r.acc > 0.3 ? "hfU" : r.acc < -0.3 ? "hfD" : "hfDim"}">${r.acc > 0.3 ? "▲ speeding up" : r.acc < -0.3 ? "▼ slowing" : "steady"}</td><td class="hfOpt ${r.rvolT > 1.3 ? "" : "hfDim"}" style="${r.rvolT > 1.3 ? "color:var(--hfA)" : ""}">${r.rvolT.toFixed(1)}×</td><td class="hfOpt hfDim">${r.bull.length ? `<span class="hfU">${esc(r.bull.slice(0, 2).join(" "))}</span>` : "–"}${r.bear.length ? ` / <span class="hfD">${esc(r.bear.slice(0, 2).join(" "))}</span>` : ""}</td></tr>`).join("")}</table></div>`;
       // the last days' bullseye and the honest check
