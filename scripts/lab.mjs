@@ -174,7 +174,21 @@ function wfReplay(h, sel) { const rows = []; let orders = 0, fills = 0, nI = 0;
     const all = Lg.map(x => res(x, 1)).concat(Sh.map(x => res(x, -1))).filter(v => v != null); if (all.length) { rows.push({ d, v: mean(all), n: all.length, b: bl, base: [r4(base[1]), r4(base[-1])] }); nI += Object.keys(W).length; } }
   return { rows, orders, fills, nI }; }
 const SEL = { cur: P => { const x = st(P), sec = P.slice(Math.floor(P.length / 2)); return x.t > 0.5 && mean(sec) > 0 ? Math.min(3, x.t) : 0; } };
-for (const h of [1, 2, 7]) { const { rows, orders, fills, nI } = wfReplay(h, SEL.cur); WROWS[h] = rows;
+// Frozen setup record (Cohort agent, 2026-11-24; council task): lab.setup.<h>d (WF), the "both halves lost" gate and the "gate"
+// rule's last-20 check read the setups' steps from the dated step log (stepLog, rule cur), like wfAlt. Before, they read a full
+// replay with today's market list: on Nov 24, 815 of 992 logged 1 d values and 371 of 452 logged 2 d values moved (mean
+// 0.43 % and 1.02 % per step, max 11.9 % and 14.4 %). 7 d had no log (its grid is too short for wfAlt), so the 7 d gate could
+// flip with the market list; 7 d now logs rule cur here. WRAW keeps the replay (wfAlt and the drift record read it, unchanged).
+const WRAW = {}, STEPLOG = {}, DRIFT = {}, RUNT = new Date().toISOString(), dkey = d => new Date(d * D).toISOString().slice(0, 10);
+function freezeWF(h, rows) { const old = (PREV && PREV.stepLog && PREV.stepLog[h]) || {}, byD = new Map(rows.map(r => [r.d, r])), first = rows.length ? rows[0].d : null, out = [], LG = {}, dif = [];
+  for (let d = g0(h); d + h <= lastDay; d += h) { const r = byD.get(d), k = dkey(d), o = old[k], closed = first != null && d >= first && d + h < lastDay;
+    if (closed && o && o.v && "cur" in o.v) { LG[k] = o; dif.push(Math.abs((r ? r.v : 0) - (o.v.cur || 0))); if (o.v.cur != null) out.push({ d, v: o.v.cur, n: o.n && o.n.cur != null ? o.n.cur : r ? r.n : 0, logged: 1 }); }
+    else { if (r) out.push(r); if (closed) LG[k] = { t: RUNT, v: { cur: r ? r.v : null }, n: { cur: r ? r.n : null } }; } }
+  if (h === 7) { STEPLOG[7] = LG; DRIFT[7] = { logged: Object.keys(old).length ? Object.values(LG).filter(x => x.t !== RUNT).length : 0, seeded: !Object.keys(old).length, values: dif.length,
+    changed: dif.filter(x => x > 1e-6).length, mad: dif.length ? Math.round(mean(dif) * 1e6) / 1e6 : null, max: dif.length ? Math.round(Math.max(...dif) * 1e6) / 1e6 : null };
+    log("step log", h + "d", DRIFT[7].seeded ? `seeded ${Object.keys(LG).length} steps (rule cur)` : `kept ${DRIFT[7].logged} steps, new ${Object.keys(LG).length - DRIFT[7].logged}; replay drift: ${DRIFT[7].changed} of ${DRIFT[7].values} values changed, max ${((DRIFT[7].max || 0) * 100).toFixed(2)}%`); }
+  return out; }
+for (const h of [1, 2, 7]) { const { rows: raw, orders, fills, nI } = wfReplay(h, SEL.cur); WRAW[h] = raw; const rows = WROWS[h] = freezeWF(h, raw);
   const v = rows.map(r => r.v), half = Math.floor(v.length / 2);
   WF[h] = { all: st(v), first: st(v.slice(0, half)), second: st(v.slice(half)), bets: rows.reduce((s, r) => s + r.n, 0), fill: orders ? fills / orders : null, ideas: rows.length ? Math.round(nI / rows.length * 10) / 10 : null, from: rows.length ? new Date(rows[0].d * D).toISOString().slice(0, 10) : null };
   log("setups walk-forward", h + "d", WF[h].all ? `n${WF[h].all.n} ${(WF[h].all.m * 100).toFixed(2)}% t${WF[h].all.t.toFixed(1)} 1st ${WF[h].first ? (WF[h].first.m * 100).toFixed(2) : "-"}% 2nd ${WF[h].second ? (WF[h].second.m * 100).toFixed(2) : "-"}% ideas ${WF[h].ideas}` : "-"); }
@@ -192,16 +206,16 @@ SEL.recent = (P, R, d) => { const Q = R.filter(r => r.d >= d - 120).map(r => r.v
 // (the scorecard's mute rule) gets weight 0. On Nov 16 "recent" gave young-small weight 0.66 at 2 d while lab.young-small.2d
 // was MUTE (-0.38 %, z -2.2). Scored on the same grid and split as wfAlt, but NOT a candidate for the pick (nothing live).
 SEL.recentm = (P, R, d) => st(P).t <= -2 ? 0 : SEL.recent(P, R, d);
-const WFALT = {}, WSER = {}, WDET = {}; const STEPLOG = {}, DRIFT = {}, RUNT = new Date().toISOString();
+const WFALT = {}, WSER = {}, WDET = {};
 for (const h of [1, 2, 7]) { const steps = []; for (let d = g0(h); d + h <= lastDay; d += h) steps.push(d);
   const toMap = rows => Object.fromEntries(rows.map(r => [r.d, r.v]));
-  const RS = { cur: WROWS[h], strict: wfReplay(h, SEL.strict).rows, recent: wfReplay(h, SEL.recent).rows };
+  const RS = { cur: WRAW[h], strict: wfReplay(h, SEL.strict).rows, recent: wfReplay(h, SEL.recent).rows };
   const S = { cur: toMap(RS.cur), strict: toMap(RS.strict), recent: toMap(RS.recent), gate: {}, none: {} };
   // the bets of the last 5 steps with a closed exit bar, per rule (record only; to check a large step such as 1 d Nov 13 +10.8 %)
   WDET[h] = Object.fromEntries(steps.filter(d => d + h < lastDay).slice(-5).map(d => [new Date(d * D).toISOString().slice(0, 10),
     Object.fromEntries(Object.entries(RS).map(([k, R]) => { const r = R.find(q => q.d === d); return [k, r ? { v: r4(r.v), base: r.base, b: r.b } : null]; }))]));
-  for (const r of WROWS[h]) { const past = WROWS[h].filter(q => q.d + h <= r.d).slice(-20).map(q => q.v); if (past.length >= 10 && mean(past) >= 0) S.gate[r.d] = r.v; }
-  const first = WROWS[h].length ? WROWS[h][0].d : null, grid = steps.filter(d => first != null && d >= first); if (grid.length < 20) { WFALT[h] = null; continue; }
+  for (const r of WRAW[h]) { const past = WRAW[h].filter(q => q.d + h <= r.d).slice(-20).map(q => q.v); if (past.length >= 10 && mean(past) >= 0) S.gate[r.d] = r.v; }
+  const first = WRAW[h].length ? WRAW[h][0].d : null, grid = steps.filter(d => first != null && d >= first); if (grid.length < 20) { WFALT[h] = null; continue; }
   // filled bets per step and rule (Council task, 2026-11-17): the same rows as S, so the dated record can carry nb per procedure
   const NB = { cur: Object.fromEntries(RS.cur.map(r => [r.d, r.n])), strict: Object.fromEntries(RS.strict.map(r => [r.d, r.n])), recent: Object.fromEntries(RS.recent.map(r => [r.d, r.n])), gate: {}, none: {} };
   for (const d in S.gate) NB.gate[d] = NB.cur[d] || 0;
