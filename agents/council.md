@@ -1,4 +1,48 @@
 # Council notes (newest first)
+## 2026-11-24 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live (7c7493e, pages build success). The bot card has a "Proven" line at the top: the BACK versions (spot VWAP snap-back with the time exit, +0.10 % to +0.13 % per trade), the bots' base pick per idea (BACK or "not proven"), and the half-hour MUTEs. Read only. No bot rule changed.
+- Cohort Sniper: yes, live (93155f5, Bet lab and pages build success). The scored setup record and the lab gates now read the frozen step log, not a new replay. The replay hid a decay: the 2 d setups' newer half is −0.60 % per step (the replay said +0.04 %). 7 d steps are logged too.
+- LETF Sniper: yes, live (4d64c89, pages build success). The "no stop order" choice on the fund page now reads the paired item (no stop minus stop on the same fill). The stop comes back by itself if the pair is CUT or MUTE or a half is not above 0. Today the page result is the same: no stop.
+- Council: the scorecard counts the pair days without the zero days, has a pair item for LEAN plans, and its note now says where a MUTE acts. Record only.
+
+### Scoreboard (ev.json 23:15 UTC, Nov 24 market data)
+- SOXX: 12 muted, 15 cut, 8 backed. Gain: spot VWAP snap-back with the time exit (BACK, z 4.3 to 4.8). Loss: the letf bot live (−0.43 % per trade, n 73, newer half −1.03 %, CUT). Funds VWAP snap-back went CUT → MUTE again (it lost −$14.82 live on Nov 24), so the bots stop it from Nov 25. Paper bots Nov 24: spot 0 trades, letf −$29.01 (10 trades), both −$29.01 (10 trades).
+- Cohort: 5 muted, 24 cut, 7 backed. Gain: cohort score 20–70 (BACK, +1.6 % to +2.5 % per 24 h). Loss: the 2 d lab setups (WATCH → CUT, newer half −0.60 %). The lab gates all horizons (1 d, 2 d, 7 d), so no setup shows. At 22:49 UTC (after the evening lab run): lab ath 1 d → WATCH, lab ath 2 d → CUT, lab pump-fade 2 d → WATCH (lab ideas only, no page rule changes).
+- LETF: 1 muted, 6 cut, 0 backed. Gain: no stop on the plans (pair +0.091 % per plan, n 444, both halves above 0, would be BACK). Loss: 🚀 alert follow (−0.36 %, CUT) and the fast 5-min follow (MUTE, −0.34 %; the page already stops it).
+
+### Agents
+- SOXX agent: ran, good work. All 3 tasks done. It tested 4 rules walk-forward (half-hour mute as a bot gate, time gate per idea, same-day re-entry, exit choice). All failed or were mixed, so it shipped none. Correct: the half-hour mute would have blocked trades that made +0.31 % and +0.53 % per trade. The new card line is honest. Problem: the letf bot keeps losing (newer half −1.03 %); a card line does not fix that. Tomorrow's task goes at that loss.
+- Cohort agent: ran, very good work. It found that the scored record still used the replay and fixed it with identity checks (byte-identical outputs with no log and on a seeded second run). It checked every CUT on the Cohort pages: each CUT changes only its own rule. Correct not to switch the 2 d rule to "recent" (that picks the winner on the reported half).
+- LETF agent: ran, good work. I read the code: MUTE still brings the stop back first; the pair must have n 100+ (all plans) and n 30+ (full plans), both halves above 0, and no CUT or MUTE ruling. No fitted value. I accept it.
+- My checks: node --check on all changed files and on the LETF inline scripts; tests/engines.test.mjs ALL PASSED; Playwright 0 page errors on SOXX, Mastermind, Cohort (main, #lab), LETF (?demo, SOXL, SOXS, TSLL). The 17 shared files are the same in all repos that have them. All pages builds: success. Order rules kept (limit entries, no new stop, same bet size, Schwab-only, long-only bots). No revert.
+- Yesterday's "Watch next": funds vrev and funds rsi traded on Nov 24 and lost (−$14.82, −$4.60); funds vrev is MUTE again after 1 day. The 2 d halves moved only by the new step (yes). The pair items stay positive on both halves (yes). Full plans' weak day count: 10 of 17 days are exact zeros (the stop was not hit); on the other 7 days no stop won 6, lost 1.
+
+### Lessons shared
+- A MUTE acts only where a page or bot reads that item. SOXX bots read idea.* only; half.* MUTEs are not gates, and the walk-forward says that is correct. All agents: check which item kinds your pages really read.
+- Time pockets are noise on 2–4 weeks of data (SOXX: muted half-hours earned more the next day). LETF and Cohort: do not gate by a time-of-day pocket without a walk-forward check.
+- Freeze every scored record, not only the first one (Cohort). SOXX dated days are frozen; the LETF plan days still move with the 1-month window.
+- A paired item is the right input for a switch between two rules (LETF). Count the non-zero days only. SOXX can use the same idea for its exit choice (time exit against the stop plan per idea).
+- Fast moves on 3× funds: SOXX funds losses on Nov 24 were LABD 3 entries in 20 min and a LABU breakout stop; LETF fast 5-min follow is MUTE. Both trackers lose on entries right after a fast move.
+
+### Tasks for tomorrow
+- SOXX agent: 1) Find why bot.letf.live falls (newer half −1.03 %): split the 73 live trades by idea and by exit plan (stop plans such as t6s against tim). If the stop plans cause the loss on both halves, test walk-forward "funds pick only time-exit versions". 2) Tag each live funds trade with the LETF fast-move flag of its underlying (5-min move at entry) and report the result of tagged against untagged trades (record only). 3) Collect day 2 of the hysteresis record and day 3 of pick.*.rsi; no rule before day 5.
+- Cohort agent: 1) Yes to backlog 1: log the hypothesis rows (lab.<idea>.<h>d) per closed step, with the same seeded identity checks. 2) Read the Nov 25 lab run: 7 d log kept, lab.setup.2d newer half stays near −0.60 %. 3) Find why the Bet lab ran at 22:45 UTC by schedule today (a second run on the same UTC day) and check that it did not change any logged step.
+- LETF agent: 1) Read the new fields: dayUpNz / dayDownNz / dayZero on the pair items, and the new plan.nostop.minus.stop.lean (n 339, +0.097 %, both halves above 0, would be BACK). If it stays, let LEAN plans read their own pair in stopOff(). 2) Report how much the plan day values moved from Nov 23 to Nov 24 (the window moves); if old days move more than 0.05 points, ask me for a dated day log like SOXX. 3) Backlog 3: check that all funds of one underlying show one setup (SOXL/SOXS, TQQQ/SQQQ) on the live data.
+
+### Changes I made
+- Hyperdash-Cohort-Tracker 9f63935 (scripts/ev.mjs), record only. Pair items get dayUpNz, dayDownNz, dayZero (LETF request). New item plan.nostop.minus.stop.lean (LETF request). The ev.json note and the header now say that a factor acts only where a page or bot reads that item id (SOXX request). No item, ruling or factor changed.
+- Checks: node --check; unit check of the pair item on synthetic plans; EV governor on push: success (23:15 UTC), SOXX 12/15/8, Cohort 5/24/7, LETF 1/6/0 (25 items, +1 new). Pages build: success.
+- Note: my governor run sets "changed" to 0 for tonight; the Cohort changes at 22:49 UTC are listed in the scoreboard above.
+- No shared-file change. No revert.
+
+### What Steven should know
+- Nothing to paste. No Worker change.
+- From Nov 25 the paper bots can trade 4 ideas: spot VWAP snap-back, spot squeeze, funds squeeze (CUT, newer half −0.35 %) and funds RSI (WATCH). Funds VWAP snap-back is off again (MUTE).
+- The letf paper bot lost on both live days this week. The SOXX agent will look for the cause tomorrow.
+- The LETF fund page still shows no stop order. Your decision from Nov 21 is still open: if you want a hard stop for your own risk, tell the LETF agent; it costs some EV.
+
 ## 2026-11-23 · Council
 
 ### Shipped today
@@ -164,6 +208,7 @@
 - Nothing to paste. No Worker change.
 - The 2×/3× paper bots lost on Nov 19 and Nov 20 with the funds VWAP snap-back. The scorecard now mutes it, so the bots stop that idea on Monday.
 - The scorecard now runs at about 21:10 UTC each day, also when GitHub starts the schedule late.
+
 ## 2026-11-19 · Council
 
 ### Shipped today
@@ -204,6 +249,7 @@
 - Nothing to paste. No Worker change.
 - The paper bots lost on Nov 19 because of one fast drop in AMD at 10:16 ET (AMDL −18.9 % in 30 min). No stop was added: the test shows a stop would lose more on other days.
 - Possible missed profit: the muted ideas would have won on the last 4 days. This is not proven yet. The SOXX agent will test it before any change.
+
 ## 2026-11-18 · Council
 
 ### Shipped today
@@ -244,6 +290,7 @@
 - Nothing to paste. No Worker change.
 - The 2×/3× paper bots now take the VWAP snap-back only at a capitulation (deep under VWAP with RSI ≤ 30, or the day down 3 %+). The spot bot is not changed.
 - LETF: the open-hour 🚀 edge is CUT after one bad day (Nov 18). The page now says "no proven edge, do not chase" in the open hour. Push alerts stay off.
+
 ## 2026-11-17 · Council
 
 ### Shipped today
@@ -284,6 +331,7 @@
 - Nothing to paste. No Worker change.
 - The paper bots trade the VWAP snap-back (vrev) again from Nov 18, on spot and on funds. The scorecard took off the mute because the Nov 17 rebound (SOXL +9 % from the low) made the trade mean positive. Without that one day the idea still loses (−0.06 % spot, −0.17 % funds per trade), and only half of the days were positive. This is "not proven", not a win. The SOXX agent tests it tomorrow. If you want the mute kept until it is tested, that is your decision; tell the SOXX agent or me.
 - LETF page: a mid-day 🚀 now says "lost in the test: do not chase". An open-hour 🚀 says "limit entry only". Push alerts stay off.
+
 ## 2026-11-16 · Council
 
 ### Shipped today
@@ -327,6 +375,7 @@
 - On the LETF page the reversal card says "MUTED · both test halves lose". This is correct: the turns still lose on both halves.
 - Full LONG / SHORT SETUP plans on the LETF fund page lost on Nov 16 (−0.57 % per plan) and are now CUT. LEAN plans stay shut. Use full plans with care until the newer half is above 0 again.
 - New lead (record only, not a rule yet): fund-page plans lose when many stocks give the same side at the same time (one market move), and do better when only 1–2 do.
+
 ## 2026-11-15 · Council
 
 ### Shipped today
@@ -369,6 +418,7 @@
 - Nothing to paste. No Worker change. No decision is necessary.
 - Thanksgiving (Nov 26): the SOXX and LETF pages now show "closed". Nov 27 and Dec 24 end at 1:00 pm ET.
 - The Cohort Bet lab 2 d setups lose now (the live pick −0.53 % per step); the sites already gate them, so trust only the 1 d setups and the cohort score.
+
 ## 2026-11-14 · Council
 
 ### Shipped today
@@ -409,6 +459,7 @@
 - Nothing to paste. No Worker change. No decision is necessary.
 - The fund-page plan test on LETF Sniper was too good before (wrong clock on October days). With the true clock, all plans are −0.06 % per plan, full LONG / SHORT SETUP plans are +0.08 %, LEAN plans are −0.10 %. Trust full SETUP plans only; LEAN shows WAIT.
 - On Monday the SOXX paper bots skip fewer good signals (the pick uses proven versions only).
+
 ## 2026-11-13 · Council
 
 ### Shipped today
@@ -451,6 +502,7 @@
 - Nothing to paste. No Worker change. No decision is necessary.
 - From Monday, the three paper bots trade the same version on the same signal. Compare the live result with Nov 11–13.
 - On LETF Sniper, trust "LONG SETUP" or "SHORT SETUP" only. LEAN plans show WAIT. Most plan profit comes from plans that end on time, not on the stop.
+
 ## 2026-11-12 · Council
 
 ### Shipped today
@@ -498,6 +550,7 @@
 - Nothing to paste. No Worker change. No decision is necessary.
 - The LETF fund-page plan now has a score. Plans where all three filters agree made +0.12 % per plan on the underlying (not proven). LEAN plans (2 of 3 filters) lost on the newer days. Until the test is done, trust only "LONG SETUP" or "SHORT SETUP", not "LEAN".
 - Cohort 1-day setups are off (gated) because they lost on new data two times. 2-day setups show nothing today.
+
 ## 2026-11-11 · Council
 
 ### Shipped today
@@ -549,6 +602,7 @@
 - The Cohort data stopped for about 2 hours tonight (20:23–22:14 UTC). It runs again, and a new watchdog restarts it if it stops again.
 - The LETF 🚀 alert no longer sends a phone or desktop push. It lost on the newer days of the test. It comes back by itself when the test turns positive.
 - Cohort 1-day and 2-day setups still lose a little on new data (−0.14 % and −0.12 % per bet). Do not use them alone.
+
 ## 2026-11-10 · Council
 
 ### Shipped today
@@ -594,6 +648,7 @@
 - The live funds bots made money today (+$68 and +$53, one SOXS trade each). From tomorrow they do not trade 11:30–12:00 ET, where they lost on 5 of 5 days.
 - LETF: the large "fade the fast move" numbers were bad prints. Do not trade fast moves in either direction. Do not trade the fade of a turn: it failed on 2 of 2 new days.
 - Cohort: the 7-day lab setups are hidden on all sites (they lost in the walk-forward test). The 1-day and 2-day setups lose on the newer half: do not use them alone.
+
 ## 2026-11-09 · Council
 
 ### Shipped today
@@ -639,6 +694,7 @@
 - The bots trade only the squeeze idea. Spot made money today (+$44). Funds lost (−$13) and the combined bot lost (−$31); the scorecard now cuts both live funds bots. A decision for you: if the funds bots still lose after the SOXX agent's check, you can stop the funds bots and keep only spot.
 - LETF: do not trade the fade of a turn yet. It failed on the first new market day.
 - From tomorrow the scorecard is made each day before the agents run, also when GitHub skips its schedule.
+
 ## 2026-11-08 · Council
 
 ### Shipped today
