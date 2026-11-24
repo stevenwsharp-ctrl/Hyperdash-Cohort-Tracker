@@ -116,17 +116,20 @@
     if (Math.abs(L) < 0.15) return ["Quiet today", 0];
     return L > 0 ? ["Leaning in", 1] : ["Leaning out", -1];
   }
+  // add the newest live trade as a last bar when it is newer than the 5-minute bars (volume 0: it does not change the money flow)
+  function withLive(I, L) { if (!L || !(L.p > 0) || !(L.t > 0) || (I.length && L.t <= I[I.length - 1][0] + 1000)) return I;
+    if (I.length && dOf(L.t) !== dOf(I[I.length - 1][0]) && dOf(L.t) < dOf(I[I.length - 1][0])) return I; return [...I, [L.t, L.p, L.p, L.p, L.p, 0]]; }
   // all of it from bars: daily = { SYM: {bars} }, intra = { SYM: {bars, meta} }
   function compute(daily, intra, now) {
     now = now || Date.now(); intra = intra || {};
     const S = clean(daily[BENCH] && daily[BENCH].bars); if (S.length < 70) return null;
-    const iS = S.length - 1, SI = intra[BENCH] ? clean(intra[BENCH].bars) : null, SIm = intra[BENCH] && intra[BENCH].meta;
+    const iS = S.length - 1, SI = intra[BENCH] ? withLive(clean(intra[BENCH].bars), intra[BENCH].live) : null, SIm = intra[BENCH] && intra[BENCH].meta;
     const rows = [];
     for (const p of P) {
       const B = clean(daily[p.t] && daily[p.t].bars); if (B.length < 30) continue;
       const w5 = win(B, S, iS, 5), w21 = win(B, S, iS, 21), w63 = win(B, S, iS, 63) || w21;
       // today: only bars from the same session day as SPY's bars; no trade yet today (a quiet ETF in pre-market) = 0, not yesterday's move
-      const ii = intra[p.t], I1 = ii ? clean(ii.bars) : [], sD = SI && SI.length ? dOf(SI[SI.length - 1][0]) : "",
+      const ii = intra[p.t], I1 = ii ? withLive(clean(ii.bars), ii.live) : [], sD = SI && SI.length ? dOf(SI[SI.length - 1][0]) : "",
         c24 = /-USD$/.test(p.t), same = I1.length && (c24 || (sD && dOf(I1[I1.length - 1][0]) === sD)), none = !same && !c24 && sD && sD > dOf(B[B.length - 1][0]),
         td = same ? today(I1, ii.meta, SI, SIm, B, now, S, c24) : null,
         w1 = td || (none ? { s: 0, ret: 0, rel: 0, cmf: 0, rvol: 0, z: 0, none: true } : win(B, S, iS, 1));
@@ -187,7 +190,11 @@
   async function get(t, range, interval) { const r = await fetch(`${proxy()}/chart?t=${encodeURIComponent(t)}&range=${range}&interval=${interval}`); const j = await r.json(); if (j.status !== "ok") throw new Error(j.error || "chart error"); return j; }
   async function pool(list, fn, n = 4) { let i = 0, bad = 0; await Promise.all(Array.from({ length: n }, async () => { while (i < list.length) { const t = list[i++]; try { await fn(t); } catch (e) { bad++; } } })); return bad; }
   async function loadDaily() { if (busyD) return; busyD = true; try { const bad = await pool(TICK, async t => { DAILY[t] = await get(t, "1y", "1d"); }); atD = Date.now(); err = bad > 8 ? "The Worker did not answer for many tickers. Check the Worker link in Settings." : ""; BT = backtest(DAILY); } finally { busyD = false; } }
-  async function loadIntra() { if (busyI) return; busyI = true; try { await pool(TICK, async t => { INTRA[t] = await get(t, "1d", "5m"); }); atI = Date.now(); } finally { busyI = false; } }
+  async function loadIntra() { if (busyI) return; busyI = true; try { await pool(TICK, async t => { INTRA[t] = await get(t, "1d", "5m"); });
+    // newest trade from the Worker's live quotes (Yahoo + StockTwits): Yahoo's 5-minute bars lag for quiet ETFs in pre-market
+    try { const L = TICK.filter(t => !t.startsWith("^")), parts = await Promise.all([L.slice(0, 12), L.slice(12)].map(l => fetch(`${proxy()}/ext?t=${l.join(",")}`).then(r => r.json()).catch(() => ({}))));
+      parts.forEach(j => { for (const t in (j && j.quotes) || {}) { const x = j.quotes[t]; if (INTRA[t] && x && x.price > 0 && x.time > 0) INTRA[t].live = { p: x.price, t: x.time }; } }); } catch (e) { }
+    atI = Date.now(); } finally { busyI = false; } }
   async function refresh(force) {
     const now = Date.now(), hid = typeof document !== "undefined" && document.hidden;
     if (force || now - atD > (hid ? 60 : 30) * 6e4) await loadDaily();
