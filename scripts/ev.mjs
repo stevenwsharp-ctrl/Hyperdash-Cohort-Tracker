@@ -1,7 +1,8 @@
 // EV governor · one scorecard for SOXX Sniper, Cohort Sniper and LETF Sniper. Runs after the US close (GitHub Actions).
 // For every decision, prediction and result that can be scored, it writes: trades, expected value (EV) per trade, the
 // z-score, the recent half vs the older half, and a ruling:
-//   mute    EV < 0 with z ≤ −2 (a proven loser): the pages stop using it (factor 0)
+//   mute    EV < 0 with z ≤ −2 (a proven loser): factor 0, but only where a page or bot reads that item id
+//           (council Nov 24: the SOXX bots read idea.* only; half.* and live.* are shown, not gates)
 //   cut     EV < 0 with z ≤ −1, or the recent half lost while the whole won (decay): half weight (factor 0.5)
 //   back    EV > 0 with z ≥ 2 and the recent half also > 0: more weight (factor 1.25)
 //   watch   not proven either way (factor 1)
@@ -432,9 +433,14 @@ async function letfPlan() { const setupCore = await pageSetup(); if (!setupCore)
     const r = fromList(id, desc, "ret", S0.map(x => x.ns - x.v)), D = {}; S0.forEach(x => { (D[etDay(x.t)] || (D[etDay(x.t)] = [])).push(x.ns - x.v); });
     const dm = Object.values(D).map(mean), dz = dm.length > 1 ? mean(dm) / ((sd(dm) || 1e-9) / Math.sqrt(dm.length)) : NaN;
     items.push({ ...r, ruling: r.status, status: "watch", factor: 1, why: `record only (would be ${r.status})`, dayZ: isFinite(dz) ? +dz.toFixed(2) : null, dayUp: dm.filter(v => v > 0).length, nDays: dm.length,
+      // Council, Nov 24 2026 (LETF agent request): day counts over NON-ZERO days only (a day where the stop was never hit has a
+      // pair mean of exactly 0 and says nothing about the exit choice). Record only.
+      dayUpNz: dm.filter(v => v > 1e-9).length, dayDownNz: dm.filter(v => v < -1e-9).length, dayZero: dm.filter(v => Math.abs(v) <= 1e-9).length,
       days: Object.fromEntries(Object.entries(D).sort().map(([d, w]) => [d, { n: w.length, m: +mean(w).toFixed(5) }])) }); };
   addPair("plan.nostop.minus.stop", "Fund page trade plan: no stop minus the stop, per filled plan on the same fill (> 0 = no stop is better)", all);
   addPair("plan.nostop.minus.stop.full", "Fund page trade plan, only LONG / SHORT SETUP: no stop minus the stop, per filled plan (> 0 = no stop is better)", all.filter(x => x.full));
+  // Council, Nov 24 2026 (LETF agent request): the LEAN plans' own pair, so a LEAN plan need not read the pooled pair only. Record only.
+  addPair("plan.nostop.minus.stop.lean", "Fund page trade plan, only LEAN LONG / LEAN SHORT: no stop minus the stop, per filled plan (> 0 = no stop is better)", all.filter(x => !x.full));
   // Council, Nov 16 2026 (LETF agent request): plan crowding. "crowd" = the number of underlyings that gave a plan on the SAME side
   // at the SAME signal time (known when the plan shows: it counts signals, not fills). Record only (watch, factor 1):
   // plan.setup.60m.crowd3 = filled plans with crowd 3+, plan.setup.60m.crowd12 = crowd 1-2. .hour = per signal time (ET day hh:mm):
@@ -463,7 +469,7 @@ async function main() {
     x.items.forEach(it => { const o = p && p.items && p.items.find(y => y.id === it.id); if (o) { it.prev = o.status; it.changed = o.status !== it.status; if (it.rule != null && o.rule != null) { it.rulePrev = o.rule; it.ruleChanged = o.rule !== it.rule; } } });
     x.summary = { n: x.items.length, mute: x.items.filter(i => i.status === "mute").length, cut: x.items.filter(i => i.status === "cut").length, back: x.items.filter(i => i.status === "back").length, changed: x.items.filter(i => i.changed).length };
     x.rules = Object.fromEntries(x.items.filter(i => i.factor !== 1).map(i => [i.id, i.factor])); }
-  const ev = { t: new Date().toISOString(), note: "factor 0 = mute, 0.5 = cut, 1.25 = back; agents read this file every market day", trackers: T };
+  const ev = { t: new Date().toISOString(), note: "factor 0 = mute, 0.5 = cut, 1.25 = back; a factor acts only where a page or bot reads that item id (SOXX bots: idea.* only); agents read this file every market day", trackers: T };
   fs.writeFileSync(`${OUT}/ev.json`, JSON.stringify(ev, null, 1));
   for (const [k, x] of Object.entries(T)) console.log(k, JSON.stringify(x.summary || x.err), x.extra ? JSON.stringify(x.extra) : "");
 }
