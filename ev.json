@@ -1,5 +1,5 @@
 {
- "t": "2026-11-24T05:22:06.896Z",
+ "t": "2026-11-24T06:29:57.003Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; agents read this file every market day",
  "trackers": {
   "soxx": {
@@ -4871,8 +4871,8 @@
      "status": "back",
      "factor": 1.25,
      "why": "proven positive EV",
-     "prev": "watch",
-     "changed": true
+     "prev": "back",
+     "changed": false
     },
     {
      "id": "lab.rs-peer.1d",
@@ -5339,8 +5339,8 @@
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.setup.7d",
@@ -5441,10 +5441,10 @@
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
-     "prev": "back",
-     "changed": true,
-     "rulePrev": "recent",
-     "ruleChanged": true
+     "prev": "watch",
+     "changed": false,
+     "rulePrev": "none",
+     "ruleChanged": false
     },
     {
      "id": "lab.rule.2d.cur",
@@ -5669,8 +5669,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.pick.2d.last60",
@@ -6090,7 +6090,7 @@
     "mute": 5,
     "cut": 24,
     "back": 7,
-    "changed": 4
+    "changed": 0
    },
    "rules": {
     "outlook.mom.24h": 0.5,
@@ -6132,15 +6132,15 @@
    }
   },
   "letf": {
-   "at": "2026-11-24T05:22:06.893Z",
+   "at": "2026-11-24T06:29:57.001Z",
    "items": [
     {
      "id": "rev.all.15m",
      "desc": "Hard reversal detector, all turns (score ≥ 0.6), on the underlying: trade the new direction, next 15 min",
      "unit": "ret",
      "n": 157,
-     "ev": -0.000001523634175639612,
-     "z": -0.0024417601155601893,
+     "ev": -0.000001523634175639656,
+     "z": -0.00244176011556026,
      "hit": 0.4394904458598726,
      "older": 0.0008229963158538894,
      "recent": -0.0008156066228123891,
@@ -6177,8 +6177,8 @@
        "m": -0.00185
       }
      },
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "rev.hard.15m",
@@ -6227,10 +6227,10 @@
      "desc": "Fast 5-minute move (4σ+) of the underlying: follow it, next 15 min (negative EV = fade it)",
      "unit": "ret",
      "n": 13,
-     "ev": -0.0033987018427437993,
-     "z": -2.1468802583018394,
+     "ev": -0.0033987018427437997,
+     "z": -2.14688025830184,
      "hit": 0.3076923076923077,
-     "older": -0.003382244028714928,
+     "older": -0.003382244028714929,
      "recent": -0.0034128085404828315,
      "status": "mute",
      "factor": 0,
@@ -6322,8 +6322,8 @@
      "desc": "Fade a fast 5-minute move (4σ+): LIMIT entry against the move 0.5 × 5-min σ past the close, alive 5 min, counts only when touched; exit 15 min after the fill; cost 0.02% of the underlying",
      "unit": "ret",
      "n": 6,
-     "ev": 0.0011759235334021635,
-     "z": 0.7740497302804635,
+     "ev": 0.0011759235334021633,
+     "z": 0.7740497302804634,
      "hit": 0.5,
      "older": 0.0029603761460849295,
      "recent": -0.0006085290792806026,
@@ -6482,8 +6482,8 @@
        }
       }
      },
-     "prev": "back",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "fast.15m.15m",
@@ -6803,8 +6803,8 @@
        }
       }
      },
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "fast.15m.15m.tgate",
@@ -7003,7 +7003,7 @@
      "z": -1.119711567099907,
      "hit": 0.48826291079812206,
      "older": -0.0003089293661975287,
-     "recent": -0.0009689124383148495,
+     "recent": -0.0009689124383148502,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -8037,11 +8037,11 @@
      "desc": "Fund page trade plan, only LEAN LONG / LEAN SHORT (2 of 3 filters): as plan.setup.60m",
      "unit": "ret",
      "n": 328,
-     "ev": -0.0010346876641162334,
-     "z": -1.5814497561267216,
+     "ev": -0.0010346876641162339,
+     "z": -1.5814497561267222,
      "hit": 0.4695121951219512,
      "older": -0.0009273352930208753,
-     "recent": -0.001142040035211592,
+     "recent": -0.0011420400352115925,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -8186,10 +8186,10 @@
      "desc": "Fund page trade plan with NO stop order (as plan.setup.60m, exit at the target or at market 60 min after the fill)",
      "unit": "ret",
      "n": 426,
-     "ev": 0.00008143722093770506,
-     "z": 0.1379033464936566,
+     "ev": 0.00008143722093770483,
+     "z": 0.1379033464936562,
      "hit": 0.5305164319248826,
-     "older": 0.000717323003960833,
+     "older": 0.0007173230039608327,
      "recent": -0.0005544485620854228,
      "status": "cut",
      "factor": 0.5,
@@ -8684,8 +8684,8 @@
      "ev": -0.0006906262456138319,
      "z": -1.1229007058804052,
      "hit": 0.5,
-     "older": -0.000765214640265471,
-     "recent": -0.000616037850962193,
+     "older": -0.0007652146402654705,
+     "recent": -0.0006160378509621929,
      "status": "watch",
      "factor": 1,
      "why": "record only (would be cut)",
@@ -8872,7 +8872,7 @@
     "mute": 1,
     "cut": 8,
     "back": 0,
-    "changed": 3
+    "changed": 0
    },
    "rules": {
     "fast.5m.15m": 0,
