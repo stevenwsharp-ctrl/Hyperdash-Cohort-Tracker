@@ -94,7 +94,7 @@
   function baseOf(I, B, m, c24) { if (c24) return m && m.prevClose > 0 ? m.prevClose : B && B.length > 1 ? B[B.length - 2][4] : NaN;
     const d = dOf(I[I.length - 1][0]); if (B) for (let k = B.length - 1; k >= 0; k--) if (dOf(B[k][0]) < d) return B[k][4]; return m && m.prevClose; }
   function today(I, Im, SI, SIm, B, now, S, c24) {
-    if (!I || I.length < 3 || !Im || !SI || SI.length < 3 || !SIm) return null;
+    if (!I || I.length < 1 || !Im || !SI || SI.length < 3 || !SIm) return null;   // a place with 1-2 pre-market trades still counts (Nov 24 2026)
     const b0 = baseOf(I, B, Im, c24), sb0 = baseOf(SI, S, SIm); if (!(b0 > 0) || !(sb0 > 0)) return null;
     const ret = I[I.length - 1][4] / b0 - 1, sret = SI[SI.length - 1][4] / sb0 - 1, rel = ret - sret;
     const F = cmfOf(I, 0, I.length - 1), j = B && B.length ? B.length - 1 : -1, sg = j > 5 ? sigma(B, j) : 0.015;
@@ -125,10 +125,14 @@
     for (const p of P) {
       const B = clean(daily[p.t] && daily[p.t].bars); if (B.length < 30) continue;
       const w5 = win(B, S, iS, 5), w21 = win(B, S, iS, 21), w63 = win(B, S, iS, 63) || w21;
-      const ii = intra[p.t], td = ii ? today(clean(ii.bars), ii.meta, SI, SIm, B, now, S, /-USD$/.test(p.t)) : null, w1 = td || win(B, S, iS, 1);
+      // today: only bars from the same session day as SPY's bars; no trade yet today (a quiet ETF in pre-market) = 0, not yesterday's move
+      const ii = intra[p.t], I1 = ii ? clean(ii.bars) : [], sD = SI && SI.length ? dOf(SI[SI.length - 1][0]) : "",
+        c24 = /-USD$/.test(p.t), same = I1.length && (c24 || (sD && dOf(I1[I1.length - 1][0]) === sD)), none = !same && !c24 && sD && sD > dOf(B[B.length - 1][0]),
+        td = same ? today(I1, ii.meta, SI, SIm, B, now, S, c24) : null,
+        w1 = td || (none ? { s: 0, ret: 0, rel: 0, cmf: 0, rvol: 0, z: 0, none: true } : win(B, S, iS, 1));
       if (!w1 || !w5 || !w21) continue;
       const r = { t: p.t, a: p.a, n: p.n, g: p.g, risk: p.risk, bull: p.bull, bear: p.bear, m: p.m, px: ii && ii.bars && ii.bars.length ? ii.bars[ii.bars.length - 1][4] : B[B.length - 1][4],
-        low: w1.s, med: w5.s, high: c1(0.6 * w21.s + 0.4 * w63.s), retT: w1.ret, relT: w1.rel, rvolT: w1.rvol, ret5: w5.ret, ret21: w21.ret, ret63: w63.ret, live: !!td };
+        low: w1.s, med: w5.s, high: c1(0.6 * w21.s + 0.4 * w63.s), retT: w1.ret, relT: w1.rel, rvolT: w1.rvol, ret5: w5.ret, ret21: w21.ret, ret63: w63.ret, live: !!td, none: !!w1.none };
       r.blend = c1(0.6 * r.low + 0.3 * r.med + 0.1 * r.high); r.acc = r.low - r.med; [r.lab, r.labDir] = label(r); rows.push(r);
     }
     if (rows.length < 8) return null;
@@ -302,7 +306,7 @@
       const th = (k, t) => `<th data-hfs="${k}" class="${UI.sort === k ? "on" : ""}">${t}${UI.sort === k ? " ▼" : ""}</th>`, chip = (k, t) => `<button data-hfg="${k}" class="${UI.grp === k ? "on" : ""}">${t}</button>`;
       body += `<h4>Sector Pulse · how money flows, by time frame</h4><div class="hfChips">${chip("all", "All 20")}${chip("sector", "Sectors")}${chip("theme", "Themes")}${chip("haven", "Havens / alt")}</div>
         <div class="hfScroll"><table class="hfPulse"><tr><th>Place</th>${th("low", R && R.sessD && R.sessD < dOf(Date.now()) ? "Last session (low)" : "Today (low)")}${th("med", "Week (medium)")}${th("high", "1–3 mo (high)")}${th("blend", "Blend")}<th>Trend</th><th class="hfOpt">Speed</th><th class="hfOpt">Vol today</th><th class="hfOpt">Ride it with</th></tr>
-        ${L.map(r => `<tr data-hf="${r.t}" class="${SELT === r.t ? "sel" : ""}"><td><b>${esc(r.n)}</b> <span class="hfDim">${esc(r.a)}</span></td><td>${bar(r.low)} <span class="hfDim">${pct(r.retT)}</span></td><td>${bar(r.med)}</td><td>${bar(r.high)}</td><td>${bar(r.blend)}</td><td class="${cls(r.labDir)}">${esc(r.lab)}</td>
+        ${L.map(r => `<tr data-hf="${r.t}" class="${SELT === r.t ? "sel" : ""}"><td><b>${esc(r.n)}</b> <span class="hfDim">${esc(r.a)}</span></td><td>${bar(r.low)} <span class="hfDim">${r.none ? "no trades yet" : pct(r.retT)}</span></td><td>${bar(r.med)}</td><td>${bar(r.high)}</td><td>${bar(r.blend)}</td><td class="${cls(r.labDir)}">${esc(r.lab)}</td>
           <td class="hfOpt ${r.acc > 0.3 ? "hfU" : r.acc < -0.3 ? "hfD" : "hfDim"}">${r.acc > 0.3 ? "▲ speeding up" : r.acc < -0.3 ? "▼ slowing" : "steady"}</td><td class="hfOpt ${r.rvolT > 1.3 ? "" : "hfDim"}" style="${r.rvolT > 1.3 ? "color:var(--hfA)" : ""}">${r.rvolT.toFixed(1)}×</td><td class="hfOpt hfDim">${r.bull.length ? `<span class="hfU">${esc(r.bull.slice(0, 2).join(" "))}</span>` : "–"}${r.bear.length ? ` / <span class="hfD">${esc(r.bear.slice(0, 2).join(" "))}</span>` : ""}</td></tr>`).join("")}</table></div>`;
       // the last days' bullseye and the honest check
       const days = Object.keys(hist).sort().slice(-12).reverse();
