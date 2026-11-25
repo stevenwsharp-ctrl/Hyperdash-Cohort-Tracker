@@ -1643,7 +1643,7 @@ function repoInfo(){
 }
 let shaFails = 0;
 let shaApiT = 0;
-const workerUrl = () => { try { return (localStorage.getItem("soxx_fred_proxy") || "").trim().replace(/\/+$/, ""); } catch (e) { return ""; } };
+const workerUrl = () => { try { return (localStorage.getItem("soxx_fred_proxy") || "").trim().replace(/\/+$/, "") || "https://soxx-sniper-fred.sharpventures.workers.dev"; } catch (e) { return "https://soxx-sniper-fred.sharpventures.workers.dev"; } };
 async function newestSha(){
   const ri = repoInfo(); if (!ri) return null;
   const w = workerUrl();
