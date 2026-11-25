@@ -137,6 +137,18 @@ function bet(m, f, d, side, h) {   // limit entry 1/4 sigma_h better, alive max(
 const st = a => { if (!a.length) return null; const m = mean(a), s = sd(a); return { n: a.length, m, hit: a.filter(v => v > 0).length / a.length, t: s ? m / s * Math.sqrt(a.length) : 0 }; };
 function baseAt(F, U, d, h) { const K = h + ":" + d; if (BASEC[K]) return BASEC[K]; const base = {}; for (const side of [1, -1]) { const a = U.map(c => bet(M[c], F[c], d, side, h)).filter(b => b.fill && b.r != null).map(b => side * b.r); base[side] = a.length ? mean(a) : 0; } return (BASEC[K] = base); }   // the same for every hypothesis on a day: computed once
 const RES = {}, ROWS = {}, BASEC = {};
+// Dated log of the idea rows (Cohort agent, 2026-11-25; follow-up of the step log): a closed step (exit bar closed, d + h <
+// lastDay) of each idea keeps the value [mean result, filled bets] of the FIRST run after it closed (null = no bet that step).
+// Before, each run replayed all old steps with that day's market list, so the idea rulings (lab.<idea>.<h>d), the live idea
+// weights and the rule replays (wfReplay reads ROWS) moved with the list; the setup steps built from them moved by 0.4 % to
+// 1 % per step on Nov 24. hypDrift = how much today's replay would change the logged values (record only). byClass, byInd,
+// ex and fill stay from the replay (descriptive). The first run with no log seeds it from the replay (same outputs).
+const HYPLOG = {}, HYPDRIFT = {}, hkey = d => new Date(d * D).toISOString().slice(0, 10);
+function freezeHyp(name, h, steps, rows) { const old = (PREV && PREV.hypLog && PREV.hypLog[name] && PREV.hypLog[name][h]) || {}, byD = new Map(rows.map(r => [r.d, r])), out = [], LG = {}, X = HYPDRIFT[h] = HYPDRIFT[h] || { values: 0, changed: 0, sum: 0, max: 0 };
+  for (const d of steps) { const r = byD.get(d), k = hkey(d), closed = d + h < lastDay;
+    if (closed && k in old) { const o = old[k]; LG[k] = o; const dv = Math.abs((r ? r.v : 0) - (o ? o[0] : 0)); X.values++; if (dv > 1e-9) X.changed++; X.sum += dv; X.max = Math.max(X.max, dv); if (o) out.push({ d, v: o[0], n: o[1] }); }
+    else { if (r) out.push(r); if (closed) LG[k] = r ? [r.v, r.n] : null; } }
+  (HYPLOG[name] = HYPLOG[name] || {})[h] = LG; return out; }
 for (const h of [1, 2, 7]) for (const [name, H] of Object.entries(HYP)) {
   const steps = []; for (let d = g0(h); d + h <= lastDay; d += h) steps.push(d);
   const rows = [], byC = {}, byI = {}, EX = []; let orders = 0, fills = 0;
@@ -149,10 +161,11 @@ for (const h of [1, 2, 7]) for (const [name, H] of Object.entries(HYP)) {
     const res = (x, side) => { orders++; const b = bet(M[x.c], F[x.c], d, side, h); if (b.open || !b.fill || b.r == null) return null; fills++; EX.push({ mae: b.mae, mfe: b.mfe, r: side * b.r }); const v = side * b.r - base[side] - 0.001; const t = M[x.c].tg, k1 = t.cls, k2 = t.ind || t.cls;
       (byC[k1] = byC[k1] || []).push(v); (byI[k2] = byI[k2] || []).push(v); return v; };
     const lv = Lg.map(x => res(x, 1)).filter(v => v != null), sv = Sh.map(x => res(x, -1)).filter(v => v != null), all = lv.concat(sv); if (all.length) rows.push({ d, v: mean(all), n: all.length }); }
-  (ROWS[name] = ROWS[name] || {})[h] = rows;
-  const v = rows.map(r => r.v), half = Math.floor(v.length / 2), pk = o => Object.fromEntries(Object.entries(o).filter(([, a]) => a.length >= 8).map(([k, a]) => [k, st(a)]));
+  (ROWS[name] = ROWS[name] || {})[h] = freezeHyp(name, h, steps, rows);
+  const v = ROWS[name][h].map(r => r.v), half = Math.floor(v.length / 2), pk = o => Object.fromEntries(Object.entries(o).filter(([, a]) => a.length >= 8).map(([k, a]) => [k, st(a)]));
   (RES[name] = RES[name] || { d: H.d, h: {} }).h[h] = { all: st(v), first: st(v.slice(0, half)), second: st(v.slice(half)), bets: rows.reduce((s, r) => s + r.n, 0), fill: orders ? fills / orders : null, byClass: pk(byC), byInd: pk(byI), ex: exStats(EX) };
 }
+for (const h of [1, 2, 7]) { const x = HYPDRIFT[h]; if (x) log("idea log", h + "d", !(PREV && PREV.hypLog) ? "seeded" : `replay drift on kept idea steps: ${x.changed} of ${x.values} values changed, mean |d| ${(x.values ? x.sum / x.values * 100 : 0).toFixed(3)}%, max ${(x.max * 100).toFixed(2)}%`); }
 // ---------- walk-forward record of the setups (EV agent, 2026-11-10) ----------
 // The live setups blend the hypotheses that held up (t > 0.5 and a positive second half), chosen on ALL past bets, so their
 // own record was never tested. This replays the same rule day by day: on day d the weights use only bets that had ENDED by d
@@ -342,7 +355,7 @@ for (const c in F0) { const f = F0[c], P = prof[c]; P.setups = {};
 for (const [name, H] of Object.entries(HYP)) { const S = Object.keys(F0).map(c => ({ c, s: H.f(F0[c], M[c]) })).filter(x => Math.abs(x.s) >= 0.3); picks[name] = { L: S.filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 6).map(x => x.c), S: S.filter(x => x.s < 0).sort((a, b) => a.s - b.s).slice(0, 6).map(x => x.c) }; }
 const cur = histOf({ t: new Date(NOW).toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, wfRule: WRULE, wfGate: WFG, wfAlt: WFALT, wfPick: WFPICK, uni: UNI });
 const wfHist = HIST.filter(q => q.t.slice(0, 10) !== cur.t.slice(0, 10)).concat([cur]).slice(-90);
-const out = { uni: UNI, weights: WH, wf: WF, wfGate: WFG, wfAlt: WFALT, wfRule: WRULE, wfWhy: WWHY, wfRef: REF ? { t: REF.t, m2: REF.m2 } : null, wfHist, wfPick: WFPICK, stepLog: STEPLOG, stepDrift: DRIFT, t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
+const out = { uni: UNI, weights: WH, wf: WF, wfGate: WFG, wfAlt: WFALT, wfRule: WRULE, wfWhy: WWHY, wfRef: REF ? { t: REF.t, m2: REF.m2 } : null, wfHist, wfPick: WFPICK, stepLog: STEPLOG, stepDrift: DRIFT, hypLog: HYPLOG, hypDrift: Object.fromEntries(Object.entries(HYPDRIFT).map(([h, x]) => [h, { seeded: !(PREV && PREV.hypLog), values: x.values, changed: x.changed, mad: x.values ? Math.round(x.sum / x.values * 1e6) / 1e6 : null, max: Math.round(x.max * 1e6) / 1e6 }])), t: new Date().toISOString(), asOf: new Date(lastDay * D).toISOString().slice(0, 10), markets: Object.keys(M).length, entry: "limit 1/4 sigma of the horizon better than the close, alive the first quarter of the horizon (1 day min); exit at market at the end; vs the average market; 0.1% costs", hyp: RES, prof, picks };
 fs.writeFileSync(path.join(OUT, "lab.json"), JSON.stringify(out));
 for (const [k, R] of Object.entries(RES)) log(k.padEnd(12), [1, 2, 7].map(h => { const a = R.h[h] && R.h[h].all, s = R.h[h] && R.h[h].second; return a ? `${h}d n${a.n} ${(a.m * 100).toFixed(2)}% t${a.t.toFixed(1)} 2nd ${s ? (s.m * 100).toFixed(2) : "-"}% fill ${(R.h[h].fill * 100).toFixed(0)}%` : h + "d -"; }).join(" | "));
 log("done", Object.keys(prof).length, "profiles");
