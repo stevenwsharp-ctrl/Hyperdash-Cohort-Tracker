@@ -1,4 +1,48 @@
 # Council notes (newest first)
+## 2026-11-25 · Council
+
+### Shipped today
+- SOXX Sniper: yes, live (b7babff, pages build success). The paper bots record a fast-move flag at each signal (the 5-min move in units of the day's 1-min σ; 4σ = the LETF value, not fitted). Record only. No bot rule changed. The first bot run on the new code starts now (run 170).
+- Cohort Sniper: yes, live (31e0a6a, pages build success). The backtest also writes the smart side's 24 h result after the market's own move, counted per day. Record only; the data comes with the Sunday Nov 29 backtest.
+- LETF Sniper: yes, live (16ef9f5, pages build success). LEAN plans read their own "no stop minus stop" pair for the stop choice. Today the result is the same: no stop.
+- Council: the scorecard keeps a frozen day log for the LETF plans (letf_days.json), and has new record-only items for the SOXX fast-move flag, the Cohort market-relative score and the LETF crowd split by kind.
+
+### Scoreboard (ev.json 23:21 UTC, Nov 25 market data)
+- SOXX: 15 muted, 14 cut, 6 backed. Gain: spot VWAP snap-back with the time exit (BACK, +0.08 % to +0.11 % per trade, z 3.7 to 4.0). Loss: the letf bot live (−0.51 % per trade, n 79, newer half −1.13 %, CUT); funds RSI is now MUTE (−0.03 %, z −3.0). Paper bots Nov 25: spot −$6.70 (2 trades), letf −$86.76 (6 trades, all funds RSI on inverse funds on an up day), both −$58.06 (7 trades).
+- Cohort: 5 muted, 24 cut, 7 backed. Gain: gap score 20–70 (BACK, +1.6 % to +2.5 % per 24 h). But the Cohort agent showed that this gain is mostly the market's fall (97 % of the samples are shorts). After the market's move it is about 0 on the learn part and +0.4 % to +1.0 % on the unseen part (day t 2.0 to 3.4). Loss: the 2 d lab setups (CUT, newer half −0.61 % per step).
+- LETF: 1 muted, 4 cut, 2 backed (29 items, 4 new). Gain: full SETUP plans with no stop (BACK, +0.30 % per plan, both halves above 0). Loss: the 🚀 alert follow (MUTE, −0.53 %; the push stays off). Note: the LEAN plans went CUT → WATCH at 22:02 and back to CUT at 23:21 (the final Nov 25 bars changed the newer half). The page closes the LEAN gate again by itself.
+
+### Agents
+- SOXX agent: ran, good work. It split the letf bot loss by idea and by exit plan: the cause is the idea (funds VWAP snap-back, then funds RSI), not the time exit. Both ideas are now MUTE, so the bots stop them. Correct not to ship "funds pick only time-exit versions" (its own condition failed). The fast-move tag has no look-ahead (bars up to the signal bar only). I accept it.
+- Cohort agent: ran, very good work. It found that the BACK ruling of the gap score rewards the market's fall, and it counted days, not coin-days. Correct not to change the score weight now (that would pick on the unseen part). All 3 tasks done.
+- LETF agent: ran, good work. I read 16ef9f5: a LEAN plan reads the LEAN pair with the same checks (n 30+, both halves above 0, not CUT or MUTE); without the pair it falls back as before. No fitted value. Its report on moving day values (up to 0.26 points with the same n) was the reason for the frozen log.
+- My checks: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright on SOXX, Mastermind, Cohort (main, #lab), LETF (?demo, SOXL, SOXS): 0 new page errors. The SOXX main page has 1 old error when the Worker does not answer (capex.js, from Nov 24; not from today's work; task below). All pages builds: success. Order rules kept. No revert.
+- Shared files: idx.js was not the same in SOXX (two spellings of the same Worker default from Nov 24). I copied the SOXX file to the other two repos. The other 15 shared files are the same in all repos that have them.
+- Yesterday's "Watch next": funds VWAP snap-back was off and funds RSI lost again (−$86.76), now MUTE. The 2 d lab halves stayed near −0.60 % (yes). The pair items stayed above 0 on both halves (yes). SOXL/SOXS setups agree on the demo data; I could not check live data from the cloud.
+
+### Lessons shared
+- Check the side mix and the market move before you trust an edge (Cohort). SOXX: the funds RSI losses were dip-buys on inverse funds on an up day: one market-direction bet. LETF: check if full SETUP plans with no stop are mostly one side in a trending month.
+- Split a loss by idea AND by exit on the same fills before you blame the exit (SOXX). LETF and Cohort: the same applies to the stop choice and to the lab rules.
+- Count days, not samples, when many samples share one day's move (Cohort, SOXX dated record). The new LETF frozen log gives day-level z for the plans.
+- A ruling can flip in one evening when the last bars of the day change (LETF LEAN, 22:02 → 23:21). Do not open a gate on one scorecard.
+
+### Tasks for tomorrow
+- SOXX agent: 1) Check the first bot runs on b7babff: "dated record: N past days filled", fast| keys in dated.json, fz on new bot trades, and that the new fast.* items show in the scorecard (record only). 2) capex.js on the main page: catch the failed Worker fetch in daily()/load() so a Worker outage gives no page error (Playwright with the network blocked). 3) Keep the hysteresis and pick.*.rsi records (day 4 of 5); no rule before day 5.
+- Cohort agent: 1) Nov 26: record the 1 d lab pick ("recent" or "none") and start the 7-day flip log (backlog 5). 2) Prepare the Nov 29 read: score.<th>.rel items appear in the scorecard from the Nov 29 backtest; write now the rule you will test then (learn part only), so the choice is not made on the unseen part. 3) Check that the Outlook "smart" baseline and the score.* items use the same 24 h window.
+- LETF agent: 1) Read the new .frozen field on the plan items (16 frozen days, Nov 3–24) and .drift. Compare the frozen halves with the window halves for plan.setup.lean.60m and the pairs. 2) LEAN gate: propose a rule against one-evening flips (for example: open only after 2 scorecards on different market days, or read the frozen halves); test it on the frozen days, older half first. 3) Read plan.setup.60m.crowd3/crowd12 .full / .lean (new; crowd3.full +0.23 % n 121, crowd12.lean −0.14 % n 39). Record only; no rule before n 30+ on both halves.
+
+### Changes I made
+- Hyperdash-Cohort-Tracker a1303f7 (scripts/ev.mjs), record only: frozen LETF plan day log (letf_days.json on the ev branch, a day is written once after it closed and never changes; .frozen and .drift on the plan items); fast.<spot|funds>.<idea>.<f0|fu|fd> items from the SOXX dated fast| keys; score.<th>.rel items from the backtest day24 field (from Nov 29); LETF crowd split by kind; the ev.json note says that bot.*, half.*, live.*, skip.*, pick.*, twin.* and fast.* are not gates.
+- Checks: a harness with mocked sources: 0 existing items changed against the old script; a second and third run keep all frozen days the same. EV governor on push: success (23:21 UTC).
+- idx.js one copy in all three repos, idx.js?v=3: Hyperdash-Cohort-Tracker 43114ac, SOXX-Sniper 04adc48, LETF-Sniper 5085012. No behavior change. Pages builds: success.
+- Not done: the hub.js change for the market-relative score (Cohort request). It waits for the Nov 29 data, so I can test it on real fields.
+
+### What Steven should know
+- Nothing to paste. No Worker change.
+- From Nov 27 the paper bots can trade only spot VWAP snap-back, spot squeeze and funds squeeze. Funds RSI and funds VWAP snap-back are off (MUTE). Thursday is a holiday; Friday is a half day.
+- The Cohort gap score looks strong (z 8 to 12), but most of it is the market's fall: the smart side is short in a falling market. Do not size up on the score alone. The Nov 29 backtest gives the honest number.
+- Your Nov 21 decision is still open: the LETF plans show no stop order. If you want a hard stop for your own risk, tell the LETF agent; it costs some EV.
+
 ## 2026-11-24 · Council
 
 ### Shipped today
