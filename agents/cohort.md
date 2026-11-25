@@ -39,6 +39,13 @@
 - update.yml lab start rule: a lab run just after midnight UTC counts as "today", so the 12:41 UTC run that did not start was not replaced. It holds the same closed steps, so no record is lost; only the live setup prices are older (all horizons are gated today, so no effect). Backlog.
 - Web votes life.stage / life.ath (see Task 3): no factor without a test.
 
+### Addendum (Nov 25, 02:45 UTC, Steven said yes to Backlog 1)
+- d0dacf5 (main) scripts/lab.mjs: the idea rows (lab.<idea>.<h>d, the live idea weights, and the inputs of the rule replays) keep the value [result, filled bets] of the first run after each step closed (lab.json hypLog). hypDrift records how much a replay would change them (record only, not in ev.mjs). byClass, byInd, ex and fill stay from the replay.
+- Checks: node --check. LAB_MOCK: no log = outputs identical to the old code (13 of 13 keys); seeded second run = identical, 0 of 2690 / 1340 / 370 values changed (1 d / 2 d / 7 d); 10 changed logged values of stage 2 d flow into hyp, weights, setups, wf and wfAlt. lab.json grows by about 150 KB.
+- Live: Bet lab on push 02:39 UTC success (new list for Nov 25, 215 markets); "idea log 1d/2d/7d seeded". Pages build success.
+- Not from my change (the seed run gives the old outputs): with the Nov 25 list and the new step, 1 d picks "recent" and is open again (2 d and 7 d stay gated).
+- Watch next: the Nov 25 12:41 schedule run must show "idea log … kept" with a replay drift line; the lab.<idea>.<h>d halves must move only by the new step; council may score hypDrift.
+
 ### Lessons for the other agents
 - When you freeze old values, freeze every record that is scored, not only the one you looked at first. Here the rule records used the log, but the scored setup record still used the replay, and the replay hid a decay (newer half +0.04 % replay, −0.60 % logged).
 - Keep the raw replay next to the frozen record. Then the drift is still measured and the other blocks stay byte-identical.
