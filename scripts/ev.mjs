@@ -143,6 +143,17 @@ async function soxx() { const B = await getJ("https://raw.githubusercontent.com/
     for (const [c, byD] of Object.entries(TW).sort()) { const ds = Object.keys(byD).sort(), n0 = items.length;
       fromDays(`twin.${c}`, `${c}: shadow idea "twin" (inverse fund when its long twin turns down from a stretch up), all 15 versions pooled (dated record, by day) — record only, no bot trades it`, ds.map(d => byD[d]), { from: ds[0] }, 1);
       if (items.length > n0) { const it = items[items.length - 1]; Object.assign(it, { ruling: it.status, status: "watch", factor: 1, why: `record only (would be ${it.status})`, perDay: Object.fromEntries(ds.map(d => [d, { n: byD[d][0], m: +(byD[d][1] / byD[d][0]).toFixed(5) }])), versions: Object.fromEntries(Object.entries(TV[c]).sort().map(([k, y]) => [k, { n: y[0], m: +(y[1] / y[0]).toFixed(5) }])) }); } } }
+  // Council, Nov 25 2026 (SOXX agent request): the fast-move flag at each signal (bots.mjs b7babff). Dated keys
+  // "fast|<S|L>|<idea>|<f0|fu|fd>" = [n, sum r, sum r², wins], all versions pooled per day. f0 = no fast move, fu / fd = the
+  // 5-min move at the signal bar was 4σ+ up / down (σ of the 1-min moves up to that bar; 4 = the LETF fast.5m.15m value, not
+  // fitted). fast.<spot|funds>.<idea>.<f0|fu|fd>: n and EV per fill, z over the days, older / newer half of the days, n and mean
+  // per day. Record only (status watch, factor 1): no bot or page reads it. A gate needs a walk-forward test on older days first.
+  { const FS = {}; if (DT && DT.days) for (const [d, X] of Object.entries(DT.days)) for (const [kk, v] of Object.entries(X || {})) { const m = /^fast\|([SL])\|([a-z0-9_]+)\|(f0|fu|fd)$/.exec(kk); if (!m || !Array.isArray(v) || !(v[0] > 0)) continue;
+      const id = `fast.${m[1] === "L" ? "funds" : "spot"}.${m[2]}.${m[3]}`, o = ((FS[id] || (FS[id] = {}))[d] || (FS[id][d] = [0, 0, 0, 0])); v.forEach((x, i) => o[i] += x); }
+    const TX = { f0: "no fast move at the signal", fu: "after a fast move UP (5-min move 4σ+)", fd: "after a fast move DOWN (5-min move 4σ+)" };
+    for (const [id, byD] of Object.entries(FS).sort()) { const ds = Object.keys(byD).sort(), [, c, idea, f] = id.split("."), n0 = items.length;
+      fromDays(id, `${c} ${idea}: shadow fills ${TX[f]}, all versions pooled (dated record, by day) — record only`, ds.map(d => byD[d]), { from: ds[0] }, 1);
+      if (items.length > n0) { const it = items[items.length - 1]; Object.assign(it, { ruling: it.status, status: "watch", factor: 1, why: `record only (would be ${it.status})`, perDay: Object.fromEntries(ds.map(d => [d, { n: byD[d][0], m: +(byD[d][1] / byD[d][0]).toFixed(5) }])) }); } } }
   // swings of the last market day (swingDay): caught = a LIVE bot trade won in the swing; bt = only the replay caught it
   const sw = B.swings || []; return { at: B.at, items, extra: { swingDay: B.swingDay || null, swingsToday: sw.length, caught: sw.filter(x => x.caught).length, caughtBt: sw.filter(x => !x.caught && x.bt).length } }; }
 
@@ -159,6 +170,12 @@ function cohort() { const items = [], O = rd("outlook_bt.json"), K = rd("backtes
   if (K && K.conditions) K.conditions.forEach(c => { const y = c.test && c.test.yes, o = c.test && c.test.no, D = diff(y, o), Dt = diff(c.train && c.train.yes, c.train && c.train.no); if (!D) return;
     items.push(rule({ id: `cond.${c.id}`, desc: `Signal condition: ${c.label} (unseen part, 24 h: with it minus without it, % move)`, unit: "pct", n: y.n, ev: D.d, z: D.z, hit: y.hit / 100, older: Dt ? Dt.d : NaN, recent: D.d, verdict: c.verdict })); });
   if (K && K.thresholds) K.thresholds.forEach(t => { const r = t.test && t.test.r24; if (r) items.push(rule({ id: `score.${t.th}`, desc: `Gap score ≥ ${t.th}, next 24 h (unseen part, %)`, unit: "pct", n: r.n, ev: r.avg, z: r.t, hit: r.hit / 100, older: t.train && t.train.r24 ? t.train.r24.avg : NaN, recent: r.avg })); });
+  // Council, Nov 25 2026 (Cohort agent request): the same gap score AFTER the market's own 24 h move, counted per day
+  // (backtest.json thresholds[].test.day24 from the Nov 29 run: one value per day, so t counts days, not coin-days that share
+  // one market move). score.<th>.rel: n = days, EV per day (%), z = t over days, older = the learn part, recent = the unseen part.
+  // Record only (watch, factor 1, the would-be ruling in "ruling"): the page and the hub still read score.<th>.
+  if (K && K.thresholds) K.thresholds.forEach(t => { const r = t.test && t.test.day24; if (!r || !(r.n > 0)) return; const x = rule({ id: `score.${t.th}.rel`, desc: `Gap score ≥ ${t.th}, next 24 h after the market's own move, per day (unseen part, %; t over days)`, unit: "pct", n: r.n, ev: r.avg, z: r.t, hit: r.hit / 100, older: t.train && t.train.day24 ? t.train.day24.avg : NaN, recent: r.avg, longs: t.test.longs });
+    items.push({ ...x, ruling: x.status, status: "watch", factor: 1, why: `record only (would be ${x.status})` }); });
   if (L && L.hyp) for (const [id, H] of Object.entries(L.hyp)) for (const [h, R] of Object.entries(H.h || {})) { const a = R.all; if (!a) continue; items.push(rule({ id: `lab.${id}.${h}d`, desc: `Bet lab: ${H.d.slice(0, 90)} · ${h} d`, unit: "ret", n: a.n, ev: a.m, z: a.t, hit: a.hit, older: R.first && R.first.m, recent: R.second && R.second.m })); }
   // Council, Nov 10 2026 (Cohort agent request): the walk-forward record of the BLENDED setups that the sites show (lab.json wf:
   // idea weights from bets that ended before each day; first = older half of the days, second = newer half). wfGate in lab.json
@@ -441,6 +458,28 @@ async function letfPlan() { const setupCore = await pageSetup(); if (!setupCore)
   addPair("plan.nostop.minus.stop.full", "Fund page trade plan, only LONG / SHORT SETUP: no stop minus the stop, per filled plan (> 0 = no stop is better)", all.filter(x => x.full));
   // Council, Nov 24 2026 (LETF agent request): the LEAN plans' own pair, so a LEAN plan need not read the pooled pair only. Record only.
   addPair("plan.nostop.minus.stop.lean", "Fund page trade plan, only LEAN LONG / LEAN SHORT: no stop minus the stop, per filled plan (> 0 = no stop is better)", all.filter(x => !x.full));
+  // Council, Nov 25 2026 (LETF agent request): a FROZEN day log for the plan items, as the SOXX dated record. The 1-month 5-min
+  // bar window moves and old day values moved up to 0.26 points between two scorecards with the same n. letf_days.json (ev
+  // branch) keeps per ET day and item [n, sum, sum², wins]. A day is written ONE time, when a later market day exists (the day
+  // is closed), it is not the first day with plans in the window (that day can be cut by the 400-bar warm-up), and 90 %+ of the
+  // markets gave bars on this run; after that it never changes, and it stays when the bar window drops it. Each plan item gets
+  // .frozen: n, EV, z over the days (each day counts once), older / newer half of the days, from / to. .drift = the days where the
+  // current window's mean now differs from the frozen mean by more than 0.05 points. Record only: no ruling reads .frozen.
+  { const FZ = rd(`${OUT}/letf_days.json`) || { v: 1, days: {} }, D0 = FZ.days || (FZ.days = {});
+    const ser = [["plan.setup.60m", all, x => x.v], ["plan.setup.full.60m", all.filter(x => x.full), x => x.v], ["plan.setup.lean.60m", all.filter(x => !x.full), x => x.v],
+      ["plan.setup.60m.nostop", all, x => x.ns], ["plan.setup.full.60m.nostop", all.filter(x => x.full), x => x.ns], ["plan.setup.lean.60m.nostop", all.filter(x => !x.full), x => x.ns],
+      ["plan.nostop.minus.stop", all, x => x.ns - x.v], ["plan.nostop.minus.stop.full", all.filter(x => x.full), x => x.ns - x.v], ["plan.nostop.minus.stop.lean", all.filter(x => !x.full), x => x.ns - x.v]];
+    const cur = {}; ser.forEach(([id, a, f]) => a.forEach(x => { const r = f(x); if (!isFinite(r)) return; const d = etDay(x.t), o = ((cur[d] || (cur[d] = {}))[id] || (cur[d][id] = [0, 0, 0, 0])); o[0]++; o[1] += r; o[2] += r * r; if (r > 0) o[3]++; }));
+    const dsAll = [...new Set(all.map(x => etDay(x.t)))].sort(), first = dsAll[0], last = dsAll[dsAll.length - 1], okRun = got >= 0.9 * LETF_U.length; let added = 0;
+    if (okRun) for (const d of dsAll) if (d !== first && d < last && !D0[d]) { D0[d] = Object.fromEntries(Object.entries(cur[d] || {}).map(([id, o]) => [id, [o[0], +o[1].toFixed(6), +o[2].toFixed(8), o[3]]])); added++; }
+    const keep = Object.keys(D0).sort().slice(-250); for (const d of Object.keys(D0)) if (!keep.includes(d)) delete D0[d];
+    FZ.note = "LETF plan items per ET day: [n, sum r, sum r², wins]; a day is written once after it closed and never changes (council Nov 25 2026)"; FZ.at = new Date().toISOString();
+    fs.writeFileSync(`${OUT}/letf_days.json`, JSON.stringify(FZ));
+    for (const [id] of ser) { const it = items.find(i => i.id === id), ds = keep.filter(d => D0[d][id] && D0[d][id][0] > 0); if (!it || !ds.length) continue;
+      const rows = ds.map(d => D0[d][id]), n = rows.reduce((p, v) => p + v[0], 0), m = rows.reduce((p, v) => p + v[1], 0) / n, dm = rows.map(v => v[1] / v[0]), h = Math.floor(dm.length / 2);
+      const drift = ds.filter(d => cur[d] && cur[d][id] && Math.abs(cur[d][id][1] / cur[d][id][0] - D0[d][id][1] / D0[d][id][0]) > 0.0005).length;
+      it.frozen = { n, ev: +m.toFixed(6), days: dm.length, z: dm.length > 1 ? +(mean(dm) / ((sd(dm) || 1e-9) / Math.sqrt(dm.length))).toFixed(2) : null, older: dm.length > 1 ? +mean(dm.slice(0, h)).toFixed(6) : null, recent: dm.length > 1 ? +mean(dm.slice(h)).toFixed(6) : null, from: ds[0], to: ds[ds.length - 1], drift }; }
+    console.log("letf frozen plan days:", Object.keys(D0).length, "kept,", added, "new", okRun ? "" : "(not written: fewer than 90 % of the markets)"); }
   // Council, Nov 16 2026 (LETF agent request): plan crowding. "crowd" = the number of underlyings that gave a plan on the SAME side
   // at the SAME signal time (known when the plan shows: it counts signals, not fills). Record only (watch, factor 1):
   // plan.setup.60m.crowd3 = filled plans with crowd 3+, plan.setup.60m.crowd12 = crowd 1-2. .hour = per signal time (ET day hh:mm):
@@ -449,6 +488,10 @@ async function letfPlan() { const setupCore = await pageSetup(); if (!setupCore)
     const rec = (id, desc, a) => { if (a.length) { const r = fromList(id, desc, "ret", v(a)); items.push({ ...r, ruling: r.status, status: "watch", factor: 1, why: `record only (would be ${r.status})`, days: perD(a), byExit: byExit(a) }); } };
     rec("plan.setup.60m.crowd3", "Fund page trade plan (as plan.setup.60m), only when 3+ underlyings gave a plan on the same side at the same signal time", all.filter(x => x.crowd >= 3));
     rec("plan.setup.60m.crowd12", "Fund page trade plan (as plan.setup.60m), only when 1-2 underlyings gave a plan on the same side at the same signal time", all.filter(x => x.crowd < 3));
+    // Council, Nov 25 2026 (LETF agent request): the same crowd split per kind (full SETUP / LEAN). Record only.
+    for (const [kn, kf] of [["full", x => x.full], ["lean", x => !x.full]]) {
+      rec(`plan.setup.60m.crowd3.${kn}`, `Fund page trade plan (as plan.setup.60m), only ${kn === "full" ? "LONG / SHORT SETUP" : "LEAN"}, when 3+ underlyings gave a plan on the same side at the same signal time`, all.filter(x => kf(x) && x.crowd >= 3));
+      rec(`plan.setup.60m.crowd12.${kn}`, `Fund page trade plan (as plan.setup.60m), only ${kn === "full" ? "LONG / SHORT SETUP" : "LEAN"}, when 1-2 underlyings gave a plan on the same side at the same signal time`, all.filter(x => kf(x) && x.crowd < 3)); }
     const H = {}; const hk = t => { const d = new Date(nyT(t)); return d.toISOString().slice(0, 10) + " " + d.toISOString().slice(11, 16); };
     sigAll.forEach(x => { const o = H[hk(x.t)] || (H[hk(x.t)] = { L: 0, S: 0, fill: 0, stop: 0 }); x.d > 0 ? o.L++ : o.S++; });
     all.forEach(x => { const o = H[hk(x.t)]; if (o) { o.fill++; if (x.why === "stop") o.stop++; const k = x.d > 0 ? "sL" : "sS"; o[k] = (o[k] || 0) + x.v; o[x.d > 0 ? "nL" : "nS"] = (o[x.d > 0 ? "nL" : "nS"] || 0) + 1; } });
@@ -469,7 +512,7 @@ async function main() {
     x.items.forEach(it => { const o = p && p.items && p.items.find(y => y.id === it.id); if (o) { it.prev = o.status; it.changed = o.status !== it.status; if (it.rule != null && o.rule != null) { it.rulePrev = o.rule; it.ruleChanged = o.rule !== it.rule; } } });
     x.summary = { n: x.items.length, mute: x.items.filter(i => i.status === "mute").length, cut: x.items.filter(i => i.status === "cut").length, back: x.items.filter(i => i.status === "back").length, changed: x.items.filter(i => i.changed).length };
     x.rules = Object.fromEntries(x.items.filter(i => i.factor !== 1).map(i => [i.id, i.factor])); }
-  const ev = { t: new Date().toISOString(), note: "factor 0 = mute, 0.5 = cut, 1.25 = back; a factor acts only where a page or bot reads that item id (SOXX bots: idea.* only); agents read this file every market day", trackers: T };
+  const ev = { t: new Date().toISOString(), note: "factor 0 = mute, 0.5 = cut, 1.25 = back; a factor acts only where a page or bot reads that item id (SOXX bots: idea.* only; bot.*, half.*, live.*, skip.*, pick.*, twin.* and fast.* are shown, not gates); agents read this file every market day", trackers: T };
   fs.writeFileSync(`${OUT}/ev.json`, JSON.stringify(ev, null, 1));
   for (const [k, x] of Object.entries(T)) console.log(k, JSON.stringify(x.summary || x.err), x.extra ? JSON.stringify(x.extra) : "");
 }
