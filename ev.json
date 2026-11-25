@@ -1,5 +1,5 @@
 {
- "t": "2026-11-25T04:18:54.223Z",
+ "t": "2026-11-25T05:04:19.682Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; a factor acts only where a page or bot reads that item id (SOXX bots: idea.* only); agents read this file every market day",
  "trackers": {
   "soxx": {
@@ -5075,8 +5075,8 @@
      "status": "cut",
      "factor": 0.5,
      "why": "decay: the recent half lost",
-     "prev": "back",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "lab.rs-peer.1d",
@@ -5299,8 +5299,8 @@
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "lab.ath.7d",
@@ -5645,10 +5645,10 @@
      "status": "back",
      "factor": 1.25,
      "why": "proven positive EV",
-     "prev": "watch",
-     "changed": true,
-     "rulePrev": "none",
-     "ruleChanged": true
+     "prev": "back",
+     "changed": false,
+     "rulePrev": "recent",
+     "ruleChanged": false
     },
     {
      "id": "lab.rule.2d.cur",
@@ -6315,7 +6315,7 @@
     "mute": 5,
     "cut": 24,
     "back": 7,
-    "changed": 3
+    "changed": 0
    },
    "rules": {
     "outlook.mom.24h": 0.5,
@@ -6357,15 +6357,15 @@
    }
   },
   "letf": {
-   "at": "2026-11-25T04:18:54.221Z",
+   "at": "2026-11-25T05:04:19.680Z",
    "items": [
     {
      "id": "rev.all.15m",
      "desc": "Hard reversal detector, all turns (score ≥ 0.6), on the underlying: trade the new direction, next 15 min",
      "unit": "ret",
      "n": 155,
-     "ev": 0.00014340569011735325,
-     "z": 0.2253781252542443,
+     "ev": 0.00014340569011735344,
+     "z": 0.2253781252542446,
      "hit": 0.43870967741935485,
      "older": -0.00004692546943424679,
      "recent": 0.000331296706597779,
@@ -6402,8 +6402,8 @@
        "m": -0.00016
       }
      },
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "rev.hard.15m",
@@ -6539,8 +6539,8 @@
        "m": -0.00045
       }
      },
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "fade.fast5m.15m",
@@ -7261,11 +7261,11 @@
      "desc": "Fund page trade plan (setupOf on the underlying's 5-min bars, LONG/SHORT SETUP and LEAN): LIMIT entry 0.5 × 5-min ATR, alive 60 min, counts only when touched; exit at the plan's stop or target or 60 min after the fill; cost 0.02% of the underlying; one per underlying per hour",
      "unit": "ret",
      "n": 443,
-     "ev": -0.00030669847914857026,
-     "z": -0.5438928672462208,
+     "ev": -0.00030669847914857037,
+     "z": -0.543892867246221,
      "hit": 0.5011286681715575,
      "older": -0.000590011278640237,
-     "recent": -0.000024661863438397003,
+     "recent": -0.000024661863438397064,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
@@ -8173,7 +8173,7 @@
      "unit": "ret",
      "n": 105,
      "ev": 0.0012676389629111434,
-     "z": 1.1408668094334244,
+     "z": 1.1408668094334247,
      "hit": 0.580952380952381,
      "older": 0.0022990062902642537,
      "recent": 0.0002557313964514879,
@@ -8355,8 +8355,8 @@
      "ev": -0.000795767802865345,
      "z": -1.2202853563340308,
      "hit": 0.47633136094674555,
-     "older": -0.001235592917461284,
-     "recent": -0.00035594268826940673,
+     "older": -0.0011849525733264431,
+     "recent": -0.00040658303240424765,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -8458,8 +8458,8 @@
      "nostop": {
       "n": 338,
       "m": -0.00008,
-      "older": -0.00003,
-      "recent": -0.00013,
+      "older": 0.00002,
+      "recent": -0.00019,
       "mae": {
        "q01": -0.06193,
        "q05": -0.03578,
@@ -8470,29 +8470,29 @@
        "3": {
         "n": 338,
         "m": -0.00078,
-        "older": -0.00126,
-        "recent": -0.00029,
+        "older": -0.00121,
+        "recent": -0.00034,
         "stops": 36
        },
        "4": {
         "n": 338,
         "m": -0.00088,
-        "older": -0.00156,
-        "recent": -0.0002,
+        "older": -0.00151,
+        "recent": -0.00025,
         "stops": 19
        },
        "6": {
         "n": 338,
         "m": -0.0009,
-        "older": -0.00143,
-        "recent": -0.00037,
+        "older": -0.00138,
+        "recent": -0.00042,
         "stops": 8
        },
        "8": {
         "n": 338,
         "m": -0.00043,
-        "older": -0.00072,
-        "recent": -0.00013,
+        "older": -0.00067,
+        "recent": -0.00019,
         "stops": 3
        }
       }
@@ -8509,7 +8509,7 @@
      "z": 0.6839128195386804,
      "hit": 0.5440180586907449,
      "older": 0.0003622127155249727,
-     "recent": 0.00043367813109615103,
+     "recent": 0.0004336781310961512,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -8747,7 +8747,7 @@
      "z": 1.6700770340718187,
      "hit": 0.6,
      "older": 0.0025726718468416804,
-     "recent": 0.0013172754541211703,
+     "recent": 0.0013172754541211698,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -9115,11 +9115,11 @@
      "desc": "Fund page trade plan (as plan.setup.60m), only when 3+ underlyings gave a plan on the same side at the same signal time",
      "unit": "ret",
      "n": 397,
-     "ev": -0.0002909585217477861,
-     "z": -0.475750340652409,
+     "ev": -0.000290958521747786,
+     "z": -0.47575034065240884,
      "hit": 0.5138539042821159,
-     "older": -0.0009923536693506206,
-     "recent": 0.0004069120271233755,
+     "older": -0.0009386593627130677,
+     "recent": 0.0003534875411221924,
      "status": "watch",
      "factor": 1,
      "why": "record only (would be watch)",
@@ -9220,7 +9220,7 @@
      "z": -0.3423295065007623,
      "hit": 0.391304347826087,
      "older": 0.0014868421194258348,
-     "recent": -0.002371924429379982,
+     "recent": -0.0023719244293799826,
      "status": "watch",
      "factor": 1,
      "why": "record only (would be watch)",
@@ -9314,7 +9314,7 @@
     "mute": 1,
     "cut": 4,
     "back": 0,
-    "changed": 2
+    "changed": 0
    },
    "rules": {
     "fast.5m.15m": 0,
