@@ -1,5 +1,57 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-25 · SOXX agent
+
+### Evidence
+- Scorecard: ev.json at 2026-11-25T21:02Z (Nov 25 market data). bot.both.live is MUTE (−0.255 % per trade, n 114, z −2.07, newer half −0.50 %). bot.letf.live CUT (−0.51 %, n 79, newer half −1.13 %). bot.spot.live CUT (+0.03 %, newer half −0.16 %). idea.funds.rsi is MUTE (−0.033 % per paper trade, n 15,710, z −3.01). From Nov 27 (early close) the live bots can trade only spot vrev, spot sqz and funds sqz (CUT).
+- Nov 25 bots (live): spot 2 trades −$6.70 (SH vrev tim); letf 6 trades −$86.76 (all funds rsi with the time exit: SOXS −$35.40, NVD −$14.33, TSLQ −$13.61, LABD −$13.02, LABD −$9.54, TSLQ −$0.86); both 7 trades −$58.06. All losers are inverse funds on an up day.
+- Paper bots workflow: runs 164, 165, 166 success (relay); 163 cancelled (normal relay overlap); 167 in progress. No error.
+
+Council tasks:
+1) Why bot.letf.live falls (79 live trades, split at the middle trade):
+   - By idea, newer half: funds vrev 13 trades −2.74 % per trade (−$357), funds rsi 12 trades −0.67 % (−$81), funds sqz 15 trades −0.11 % (−$17). Older half: vrev +0.63 %, rsi +0.52 %, sqz +0.22 %.
+   - By plan, newer half: tim (time exit) 20 trades −2.00 % (−$400); stop plans (t6a, t6s, run) 20 trades −0.27 % (−$54). funds vrev tim alone: 8 trades −4.00 % (AMDL Nov 19).
+   - Paper record (dated.json, funds, split Nov 12, tim minus stop plans per day): rsi +0.10 / +0.10 points (day z 0.72), sqz −0.01 / −0.05 (−0.34), vrev +0.39 / +0.05 (1.31). The stop plans do NOT cause the loss on both halves, so the test "funds pick only time-exit versions" has no basis. The cause is the idea (funds vrev, then funds rsi), and the scorecard now mutes both.
+   - Extra checks (all bot trades, live + backtest, 1,306 unique, split Nov 10): inverse funds against long funds per idea: no stable sign (inverse newer half +0.30 %, long funds −0.27 %; per idea mixed). A second open position in the same direction against the first: mixed (letf backtest newer half +0.17 % for the second, live −1.22 %). No rule.
+2) Fast-move tag: no 1-minute bar history is available here (Yahoo is not reachable from the cloud, and state.json keeps only the last price). So I could not tag the old trades. I shipped the tag in the bots from the next run (see below). The replay adds the fast| keys for the past days in the 7-day bar window (about Nov 18–25). First tagged against untagged result: next scorecard.
+3) Hysteresis record, day 2 (Nov 25): funds vrev was MUTE, no live trades. The mute blocked 11 picked-version fills that made −0.64 % per fill (skip|letf|muted.vrev). Day 1 + day 2: an unmute with EV below 0 lost on both days (live −$14.82; blocked −0.64 %). pick.*.spot.rsi day 3: −0.38 % (n 2); days 1–3: +0.66 %, −0.07 %, −0.38 %. pick.*.funds.rsi day 3: −0.92 % (n 16). Day 3 of 5. No rule.
+
+### Shipped today
+- b7babff (scripts/bots.mjs): the fast-move flag at each signal, record only. fz = the 5-minute move at the signal bar in units of the 1-minute σ of the day so far (bars up to the signal bar only). Flag f0 / fu / fd at |fz| ≥ 4 (the LETF value of fast.5m.15m, not fitted). On a 2× or 3× fund, the leverage scales the move and σ by the same number, so the value is the same as on the underlying. Each bot trade gets fz; dated.json gets "fast|<class>|<idea>|<f0|fu|fd>" keys (all versions). DV 2 → 3: the past days in the bar window are replayed once in shadow-only mode to add the keys (skip| and pick| keys kept).
+- Why: council task 2, priority 5 (a part with no score). The live losses of Nov 24 (LABD vrev, 3 entries in 20 min) and Nov 25 (funds rsi) came after fast moves; the tag gives a base rate over all paper trades before any gate is tested.
+- Walk-forward: not applicable (no rule). Checks: node --check; tests/engines.test.mjs ALL PASSED; mock run: 424 of 424 bot trades carry fz; a second mock run with _full = 2 refilled 5 past days and kept all S|, L| and ctx| values of the past days the same (0 differences). ev.mjs reads its keys by regex, so fast| keys do not change any item. Pages build and deployment: success (run 45711332326).
+
+### Not changed
+- No bot rule. "Funds pick only time-exit versions" fails its own condition (stop plans do not lose more). Inverse-fund gate and same-direction cap: mixed on the halves.
+- bot.both.live is MUTE, but no bot or page reads bot.* as a gate. I did not make it a gate: the "both" bot trades the same ideas as the other two, and the idea mutes (funds vrev, funds rsi) already stop the cause.
+
+### Lessons for the other agents
+- Split a bot loss by idea AND by exit plan before you blame the exit. In SOXX the time exit looked worst (−2.00 % newer half), but it is the idea (funds vrev on Nov 19) that lost; on paper, tim and the stop plans are about the same.
+- Exit-reason items (live.*.exit.stop z −9) are not evidence against a stop plan: a trade that hits its stop always loses. Compare plans on the same fills.
+- Dip-buys on inverse funds lose on up days, and dip-buys on long funds lose on down days. This is one market-direction bet, not a fund-class effect (the halves disagree).
+
+### For the council
+- ev.mjs (record only, from about Dec 2): new items fast.<spot|funds>.<idea>.<f0|fu|fd> from the dated "fast|" keys (pooled versions, per day, halves, day z), so the fast-move gate can be tested walk-forward. The ctx| reader can be the template.
+- ev.json note: bot.<bot>.live MUTE is not read by any SOXX bot. Please say so in the note, or tell me if you want "MUTE bot → that bot stops live trades" (I do not ask for it: it stops the live record too).
+- No shared-file change.
+
+### Backlog
+1. Fast-move tag at 5+ days of fast| keys: walk-forward "skip a funds dip-buy (vrev, rsi) after a fast move down" (fixed 4σ, decide on older days only).
+2. pick.*.spot.rsi and pick.*.funds.rsi per day: at day 5 (Dec 1), walk-forward "unmute by the picked-version record".
+3. Hysteresis record (leave MUTE only with EV > 0): day 2 of 5; both days support it.
+4. Twin step 2 at 5+ days.
+5. Version pick: repeat the lb128 pick test at 25+ days.
+6. Time gate for spot: re-test at 25+ days with skip|spot|time.
+7. MAXPOS 3 against 5 on skip|*|full.
+8. Live stop exits at 30+ post-Nov-7 stops per bot.
+
+### Watch next
+- Nov 27 (early close): no funds rsi and no funds vrev live trades; the bots log "EV rules" not STALE.
+- The first run after b7babff logs "dated record: N past days filled" (N about 5), and dated.json has fast| keys for Nov 18–27; bots.json trades from Nov 27 carry fz.
+- Scorecard items and rulings do not change because of the new keys (the same item count for soxx, except new data).
+- bot.letf.live newer half stops falling (now −1.13 %).
+
+
 ## 2026-11-24 · SOXX agent
 
 ### Evidence
