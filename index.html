@@ -582,9 +582,13 @@ function btEdge(score){
   const b = BT.calib.find(x => score >= x.lo && score < x.hi); if (!b || !b.train || !b.test) return null;
   const F = b.train.r24, C = b.test.r24; if (!F || !C || F.n < 20 || C.n < 20) return null;
   const same = Math.sign(F.avg) === Math.sign(C.avg);
-  return { lo: b.lo, hi: b.hi, fit: F, check: C, same, avg: same ? (F.avg * F.n + C.avg * C.n) / (F.n + C.n) : null, hit: same ? Math.round((F.hit * F.n + C.hit * C.n) / (F.n + C.n)) : null, n: F.n + C.n };
+  // Cohort agent (2026-11-25): the smart side is short in ~97% of the samples, so the raw return is mostly the market's own
+  // move. day24 (backtest.mjs, from the Nov 29 run) = the return after the market's 24 h move, averaged per day; t counts days.
+  const rF = b.train.day24, rC = b.test.day24, rel = rF && rC && rF.n >= 5 && rC.n >= 5 && rF.avg != null && rC.avg != null ? { fit: rF, check: rC } : null;
+  return { lo: b.lo, hi: b.hi, fit: F, check: C, same, rel, avg: same ? (F.avg * F.n + C.avg * C.n) / (F.n + C.n) : null, hit: same ? Math.round((F.hit * F.n + C.hit * C.n) / (F.n + C.n)) : null, n: F.n + C.n };
 }
-const edgeTxt = e => `disparity ${e.lo}–${e.hi === 101 ? 100 : e.hi}: ${pc(e.fit.avg)} (${e.fit.hit}% hit) then ${pc(e.check.avg)} (${e.check.hit}% hit) in 24h for the smart side${e.same ? "" : " — the two periods disagree, so no reliable edge"}`;
+const relTxt = e => e.rel ? `after the market's own 24h move: ${pc(e.rel.fit.avg)} (t ${e.rel.fit.t != null ? e.rel.fit.t.toFixed(1) : "–"}, ${e.rel.fit.n} days) then ${pc(e.rel.check.avg)} (t ${e.rel.check.t != null ? e.rel.check.t.toFixed(1) : "–"}, ${e.rel.check.n} days)` : "";
+const edgeTxt = e => `disparity ${e.lo}–${e.hi === 101 ? 100 : e.hi}: ${pc(e.fit.avg)} (${e.fit.hit}% hit) then ${pc(e.check.avg)} (${e.check.hit}% hit) in 24h for the smart side${e.same ? "" : " — the two periods disagree, so no reliable edge"}${e.rel ? "; " + relTxt(e) : ""}`;
 
 const specSide = b => b == null ? "nothing" : b > 0.2 ? "long" : b < -0.2 ? "short" : "both sides";
 function specState(r){
@@ -1319,7 +1323,7 @@ function ratingCard(r){
   const rows = r.factors.map(f => `<div class="inst"><div><b class="${f.mult >= 1 ? "L" : "S"}">${f.mult >= 1 ? "+" : "−"}${Math.abs(Math.round((f.mult - 1) * 100))}%</b> ${esc(f.name)}<div class="nm" style="white-space:normal;max-width:none">${esc(f.why)}</div></div></div>`).join("");
   const e = btEdge(r.score);
   return `<div class="card"><h4>Rating ${r.rating} = disparity ${r.score}${r.factors.length ? " × context" : ""}</h4>
-    ${e ? `<div class="kv"><span>Backtest, next 24h for the smart side (disparity ${e.lo}–${e.hi === 101 ? 100 : e.hi})</span><b class="${!e.same ? "" : e.avg >= 0 ? "L" : "S"}">fit ${pc(e.fit.avg)} · ${e.fit.hit}% / check ${pc(e.check.avg)} · ${e.check.hit}%${e.same ? "" : " · mixed"}</b></div>` : ""}
+    ${e ? `<div class="kv"><span>Backtest, next 24h for the smart side (disparity ${e.lo}–${e.hi === 101 ? 100 : e.hi})</span><b class="${!e.same ? "" : e.avg >= 0 ? "L" : "S"}">fit ${pc(e.fit.avg)} · ${e.fit.hit}% / check ${pc(e.check.avg)} · ${e.check.hit}%${e.same ? "" : " · mixed"}</b></div>${e.rel ? `<div class="kv"><span>The same, after the market's own 24h move (per day)</span><b class="${e.rel.fit.avg > 0 && e.rel.check.avg > 0 ? "L" : ""}">fit ${pc(e.rel.fit.avg)} · t ${e.rel.fit.t != null ? e.rel.fit.t.toFixed(1) : "–"} / check ${pc(e.rel.check.avg)} · t ${e.rel.check.t != null ? e.rel.check.t.toFixed(1) : "–"}</b></div>` : ""}` : ""}
     ${(() => { const R = window.ratingRecord ? ratingRecord() : null; if (!R) return ""; const band = R[24].find(x => x.n) ? R[24] : R[4], h = R[24].find(x => x.n) ? 24 : 4;
       return band.some(x => x.n) ? `<div class="kv"><span>Live record in this browser · smart side right after ${h}h, by rating</span><b>${band.map(x => `${x.lab}: ${x.hit == null ? "–" : Math.round(x.hit * 100) + "%"} <span style="color:var(--faint)">(${x.n})</span>`).join(" · ")}</b></div>` : `<div class="kv"><span>Live record</span><b style="font-weight:400;color:var(--faint)">grading starts 4 hours after you first open the page</b></div>`; })()}
     <div class="kv"><span>Smart bias ($ / count / blended)</span><b>${pct(r.sm.bd)} / ${pct(r.sm.bc)} / ${pct(r.sm.b)}</b></div>

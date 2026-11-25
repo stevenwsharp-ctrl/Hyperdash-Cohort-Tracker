@@ -266,6 +266,12 @@ async function main() {
   const bias = (a, i, w) => { const n = a.L[i] + a.S[i], c = a.lc[i] + a.sc[i]; if (!n || !c) return null; return w * (a.L[i] - a.S[i]) / n + (1 - w) * (a.lc[i] - a.sc[i]) / c; };
   const W = [1, 0.8, 0.6, 0.4, 0.2, 0];
   const ROWS = []; // one per valid coin-hour
+  // Cohort agent (2026-11-25): the market's own 24 h move at each hour (equal weight, every coin with a price at both ends).
+  // The smart side is short in about 97% of the samples, so a raw "smart side" return is mostly the market's fall
+  // (Nov 22 run: score >= 20 unseen part +1.58% raw, +0.39% after the market move; learn part +0.68% raw, -0.01% after it).
+  const MKT24 = new Float64Array(NH + 1).fill(NaN);
+  for (let i = 0; i + 24 <= NH; i++) { if (T0 + (i + 24) * H > NOW) continue; let s = 0, n = 0;
+    for (const k of coins) { const p = M[k].px; if (p[i] > 0 && p[i + 24] > 0) { s += p[i + 24] / p[i] - 1; n++; } } if (n >= 10) MKT24[i] = s / n; }
   for (const k of coins) {
     const m = M[k], [Sg, Fg, Ng] = A[k];
     for (let i = 24; i <= NH; i++) {
@@ -294,7 +300,8 @@ async function main() {
         vpPos: !isNaN(m.val[i]) ? (m.px[i] < m.val[i] ? -1 : m.px[i] > m.vah[i] ? 1 : 0) * dir : null,   // -1 = smart side trades from outside value back toward it, +1 = broke out in the smart direction
         whale: Math.abs(sbD - sbC) >= 0.5 && Math.sign(sbD) !== Math.sign(sbC),
         placebo: pb != null ? (pb - bias(Fg, i, 0.6)) / 2 : null, smartOnly: bias(Sg, i, 0.6), foolsOnly: -bias(Fg, i, 0.6),
-        r4: fwd(4), r24: fwd(24), r72: fwd(72), raw4: fwd(4), raw24: fwd(24)
+        r4: fwd(4), r24: fwd(24), r72: fwd(72), raw4: fwd(4), raw24: fwd(24),
+        rel24: fwd(24) != null && !isNaN(MKT24[i]) ? fwd(24) - MKT24[i] : null      // 24 h move minus the market's 24 h move
       });
     }
   }
@@ -323,7 +330,12 @@ async function main() {
   // 6b. Event study: one sample per coin per 24h (non-overlapping), direction = smart side
   const daily24 = ROWS.filter(r => r.i % 24 === 0);
   const adj = (r, h) => r[h] != null ? r[h] * r.dir : null;
-  const ev = (rs) => ({ r4: evStats(rs.map(r => adj(r, "r4"))), r24: evStats(rs.map(r => adj(r, "r24"))), r72: evStats(rs.map(r => adj(r, "r72"))) });
+  // rel24 = the smart side's 24 h return after the market's own move; day24 = rel24 averaged per day first (one value per
+  // day, so t counts days, not coin-days that share one market move); longs = how many samples had the smart side long.
+  // Record only (Cohort agent, 2026-11-25): r4 / r24 / r72 are unchanged, and the scorecard still reads r24.
+  const byDay = rs => { const D = new Map(); for (const r of rs) { const v = adj(r, "rel24"); if (v == null) continue; (D.get(r.i) || D.set(r.i, []).get(r.i)).push(v); } return [...D.values()].map(a => a.reduce((s, x) => s + x, 0) / a.length); };
+  const ev = (rs) => ({ r4: evStats(rs.map(r => adj(r, "r4"))), r24: evStats(rs.map(r => adj(r, "r24"))), r72: evStats(rs.map(r => adj(r, "r72"))),
+    rel24: evStats(rs.map(r => adj(r, "rel24"))), day24: evStats(byDay(rs)), longs: rs.filter(r => r.dir > 0).length });
   const TH = [20, 30, 40, 50, 60, 70];
   const thresholds = TH.map(th => ({ th, train: ev(daily24.filter(r => part(r) === "train" && r.score >= th)), test: ev(daily24.filter(r => part(r) === "test" && r.score >= th)) }));
   const BUCK = [[0, 20], [20, 30], [30, 40], [40, 50], [50, 60], [60, 101]];
