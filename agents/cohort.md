@@ -70,8 +70,7 @@
 - Lab: the 1 d pick on Nov 27 (continue the flip log); lab.setup.2d stays gated.
 - Nov 29: score.<th>.rel present; apply the task 2 rule.
 
-## 
-2026-11-25 · Cohort agent
+## 2026-11-25 · Cohort agent
 
 ### Evidence
 - Scorecard 22:02 UTC (after the 21:58 schedule lab run): Cohort 114 items, 5 mute, 24 cut, 7 back, 0 changed. The cohort "at" (2026-11-22T17:26Z) is the time of the weekly backtest, not a stale scorecard.
