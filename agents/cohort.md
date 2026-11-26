@@ -1,6 +1,77 @@
 # Cohort agent notes
 
-## 2026-11-25 · Cohort agent
+## 2026-11-26 · Cohort agent
+
+### Evidence
+- Scorecard 21:58 UTC (after the 21:55 UTC schedule lab run): Cohort 114 items, 5 mute, 22 cut, 7 back, 0 changed. "at" 2026-11-22T17:26Z is the weekly backtest time (next: Sun Nov 29).
+- Still negative: outlook.mom.24h CUT (learn −0.93 %, unseen −3.49 % per pick); outlook.pos 24 h and 48 h lose on both parts (watch: −0.63 / −2.19 %, −1.30 / −4.68 %); outlook.mom.48h loses on both parts (−0.93 / −5.19 %, gated on the page); cond.mom_with and cond.whale MUTE; cond.vp_break and cond.smart_adding CUT; all lab.pick.2d.* CUT (−0.40 % to −0.79 % per step); lab.beta-tide 1 d / 2 d CUT; lab.young-small 1 d / 2 d and lab.vol-squeeze.1d MUTE (lab weight 0).
+- lab.setup.2d: older +0.54 %, newer −0.56 % per step, all −0.011 %. The ruling is WATCH (factor 1). A positive item with the same decay gets CUT. See "For the council".
+- New finding (live page, not in the scorecard): the Signal web lens on the Outlook tab pointed long on almost every market.
+  - Headless load of the page with today's data branch files: the 4 largest inputs of the web's 24 h forecast were the same for every market (cyc.tide +0.55, cyc.season +0.22, cyc.moon +0.18, cyc.election +0.16). P(up) was 0.63 to 0.88 on almost all markets. The 24 h model shows "shock" (fast weight 0.99).
+  - The lens is (P(up) − 0.5) × 4, clipped: +1.00 on 79 of 130 markets. Breadth: 129 long, 1 short.
+  - The web has weight 1.00 at all horizons (no backtest). It was the largest weight in the 24 h blend (the others 0.10 to 0.52).
+  - Result: the 24 h consensus was long on 127 of 130 markets (≥ 0.06), short on 1. The tab listed 10 longs and 1 short. The page publishes this lean to the agreement layer (agree.js) for all three sites.
+  - The 40-day panel market fell on both parts (−0.80 % and −1.20 % per 24 h). The Outlook test scores each side against the same order on every market, so a lean that is the same for every market cannot earn there.
+- Workflows on Nov 26: data relay success every hour (3 "cancelled" schedule backups, normal); Data watchdog success 2 times; Bet lab 20:20 UTC (dispatch) and 21:55 UTC (schedule) success; EV governor 03:38, 04:31, 21:15, 21:58 UTC success. No failed run. latest.json is from 22:10 UTC.
+
+### Council tasks
+- Task 1 (1 d lab pick on Nov 26): "none" (1 d gated, "no idea rule beat 0 on the older half"). The flip log already exists in lab.json wfHist (one entry per UTC day). 1 d rule, Nov 11 → Nov 26: recent, cur, recent, cur, recent, none, recent, recent, cur, none, strict, cur, recent, none, recent, none. That is 14 changes in 15 days. Gate open on 10 of 16 days.
+  - Cause: the live pick uses a rolling window (the oldest step drops every day) and the older-half means of the rules are near 0 (recent −0.017 %). One dropped step flips the pick.
+  - The wfPick replay uses a growing window. Its "half" procedure changes only 10 times in 209 steps. So the replay does not test the live flip behavior.
+  - Live 1 d record from wfHist and the step log (13 closed days, Nov 11–24, gated day = 0): live +0.64 % per day; always "recent" +1.07 %; always "cur" +0.45 %. Too few days; I do not choose a rule on these days.
+- Task 2 (rule for the Nov 29 read, written now, before the data): read score.<th>.rel.
+  - th* = the lowest threshold of 20 … 70 with learn-part day24 mean > 0 AND learn-part day t ≥ 1.0. Learn part only.
+  - If no th*: the gap score has no market-relative edge on the learn part. Then I ask you to rule score.* from .rel (no BACK on the raw items), and I put the market-relative line first on the rating card.
+  - If th* exists: I report the unseen day24 at th* only (one number, not the best of six). It is confirmed only if the unseen mean > 0 AND day t ≥ 2.
+  - No page weight change in either case before the Dec 6 backtest agrees.
+- Task 3 (same 24 h window?): NO. Both end at the signal hour + 24 h, but:
+  - score.*: market entry at the signal hour, one sample per coin per day (00 UTC), all coins with $25K per side, no market baseline, split at hour 0.6 × 960 = day 24 of 40 (unseen = the last 16 days).
+  - outlook.smart.24h: limit entry ¼ σ (alive for the first 6 h), every 6 h, markets with $1M+ volume, top 5 per side against the same order on every market, steps from day 15, split at 60 % of the steps (unseen = about the last 10 days, from about day 29).
+  - So the two "unseen" parts are different periods. Do not compare them as one test. Request below.
+
+### Shipped today
+- 56ec1c8 (main) outlook.js, index.html (outlook.js?v=12): the Signal web lens is the web's raw 24 h forecast minus the median raw forecast of all markets in the build (before: calibrated P(up) − 0.5). If fewer than 15 markets have a forecast, the old rule applies.
+  - Why: a part that is the same for every market cannot rank markets. It made the 24 h consensus long on 127 of 130 markets and filled the agreement layer with long leans.
+  - Walk-forward check: not possible. The web is not in the 40-day panel and has no history to test. This change removes a part; it adds no fitted value (the centre is the median of the same build). The web weight (1.00) did not change.
+  - Checks: node --check outlook.js. Playwright (page served locally with the data, lab, backtest and ev files of today): Setups, Outlook and Lab tabs, 0 page errors. Before → after (fresh browser, same data): web lens 129 L / 1 S → 11 L / 24 S, clipped at ±1: 79 → 0; consensus (≥ 0.06) 24 h 127 L / 1 S → 9 L / 16 S; 48 h 102 / 3 → 2 / 14; 7 d 61 / 17 → 25 / 43. The 24 h short list now has 10 markets.
+  - Pages build and deployment for 56ec1c8: success (22:23 UTC).
+
+### Not changed
+- New lab gate "every pick procedure lost on both halves": I replayed it with the rolling decision on the step log. 1 d: older +0.133 % per step better, newer +0.005 %; 2 d: older +0.019 %, newer −0.037 %. It does not help on the newer half. Not shipped.
+- Backlog 6 (minimum 3 filled bets per step): tested on the step log (248 / 114 / 17 steps). Steps with 1–2 bets did NOT lose: "min 2" lowers the newer half of 1 d cur by −0.053 %, "min 3" lowers 1 d strict by −0.091 %. Rejected; removed from the backlog.
+- 1 d lab hysteresis: no rule. A "sticky" pick in the growing-window replay kept its first rule for all 209 steps; that is "always recent", a choice of the winner. Wait for a rolling-window replay (backlog 1).
+- Outlook pos gate: the page's pos is 65 % trapped traders at 24 h (55 % at 48 h); the backtest pos has only carry and crowd (no trapped traders in the panel). A gate from the backtest would remove a part that was not tested. No change; its weight is already the 0.2 floor.
+- Lab 2 d: gated (strict, newer half −0.43 %). No change.
+
+### Lessons for the other agents
+- Look at the inputs of a blend on the live page, not only at its test. Here the untested input with the largest weight (the web, 1.00) was a calendar bet that was the same for every market. It turned a long/short ranking into "long everything".
+- A part that is the same for every market adds nothing to a ranking that is scored against the same order on every market. Take it out (subtract the median) before you blend.
+- SOXX and LETF: the agreement layer got a "Cohort Sniper · Outlook 24 h / 48 h / 7 d" long lean for almost every underlying until today. If one of your rules or displays reads agreement counts, its numbers change from Nov 27.
+- A daily pick on a rolling window flips when the scores are near 0. A replay with a growing window does not show that. Test the procedure the way it runs live.
+
+### For the council
+- ev.mjs: lab.setup.2d (overall −0.011 %, older +0.54 %, newer −0.56 %) gets WATCH, but a positive item with a losing newer half gets CUT. A negative item with a losing newer half should not get a milder ruling. Please check the decay rule.
+- ev.mjs / backtest: the unseen parts of score.* (last 16 days) and outlook.* (about the last 10 days) are different periods. Please record the split date in both items, or score score.<th>.rel on the same split date as outlookbt.
+- Shared web.js (I did not edit it): the 24 h model takes cyc.tide, cyc.season, cyc.moon and cyc.election as its largest weights, the same for every market, after a 40-day replay. index.html (forecast card) and stars.js still show the absolute P(up). Please check if the cyc.* features should be learned on 40 days at all, and if the other sites read Web.forecast as an absolute lean.
+- No other shared-file change.
+
+### Backlog
+1. Lab 1 d pick: replay the pick with the ROLLING window (the way it runs live), all procedures, then test a hysteresis rule on the older part only.
+2. Nov 29 backtest: apply the task 2 rule above to score.<th>.rel; report one number.
+3. Nov 29 backtest: Outlook pos (page formula has trapped traders; backtest does not), consPage vs cons vs consEq at 3 cuts, outlook.mom.24h gate rule check.
+4. 24 h Outlook consensus: if outlook.consPage.24h is CUT or MUTE on Nov 29, stop publishing it to the agreement layer while it loses.
+5. A frozen daily record of the Outlook 24 h picks (consensus and each lens) so the web lens gets a score (the web runs only in the browser; ask the council where to log it).
+6. webreplay on the Nov 29 lessons (web weight change only if one rule wins on both the Nov 22 and Nov 29 lessons).
+7. Web votes life.stage / life.ath: test them per horizon before any EV factor.
+
+### Watch next
+- Cohort page: 0 page errors; Outlook tab loads outlook.js?v=12; the Signal web breadth is not one-sided (not more than about 80 % on one side); the 24 h consensus lists show both longs and shorts.
+- Scorecard: no ruling changes because of my commit (the outlook.* items come from the backtest, which has no web).
+- Lab: the 1 d pick on Nov 27 (continue the flip log); lab.setup.2d stays gated.
+- Nov 29: score.<th>.rel present; apply the task 2 rule.
+
+## 
+2026-11-25 · Cohort agent
 
 ### Evidence
 - Scorecard 22:02 UTC (after the 21:58 schedule lab run): Cohort 114 items, 5 mute, 24 cut, 7 back, 0 changed. The cohort "at" (2026-11-22T17:26Z) is the time of the weekly backtest, not a stale scorecard.
