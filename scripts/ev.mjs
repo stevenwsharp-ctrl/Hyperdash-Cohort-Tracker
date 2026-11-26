@@ -153,7 +153,7 @@ async function soxx() { const B = await getJ("https://raw.githubusercontent.com/
     const TX = { f0: "no fast move at the signal", fu: "after a fast move UP (5-min move 4σ+)", fd: "after a fast move DOWN (5-min move 4σ+)" };
     for (const [id, byD] of Object.entries(FS).sort()) { const ds = Object.keys(byD).sort(), [, c, idea, f] = id.split("."), n0 = items.length;
       fromDays(id, `${c} ${idea}: shadow fills ${TX[f]}, all versions pooled (dated record, by day) — record only`, ds.map(d => byD[d]), { from: ds[0] }, 1);
-      if (items.length > n0) { const it = items[items.length - 1]; Object.assign(it, { ruling: it.status, status: "watch", factor: 1, why: `record only (would be ${it.status})`, perDay: Object.fromEntries(ds.map(d => [d, { n: byD[d][0], m: +(byD[d][1] / byD[d][0]).toFixed(5) }])) }); } } }
+      if (items.length > n0) { const it = items[items.length - 1]; Object.assign(it, { ruling: it.status, status: "watch", factor: 1, why: `record only (would be ${it.status}; ${ds.length} day${ds.length === 1 ? "" : "s"}${ds.length < 5 ? ", too few days for a test" : ""})`, nDays: ds.length, perDay: Object.fromEntries(ds.map(d => [d, { n: byD[d][0], m: +(byD[d][1] / byD[d][0]).toFixed(5) }])) }); } } }
   // swings of the last market day (swingDay): caught = a LIVE bot trade won in the swing; bt = only the replay caught it
   const sw = B.swings || []; return { at: B.at, items, extra: { swingDay: B.swingDay || null, swingsToday: sw.length, caught: sw.filter(x => x.caught).length, caughtBt: sw.filter(x => !x.caught && x.bt).length } }; }
 
@@ -433,16 +433,18 @@ async function letfPlan() { const setupCore = await pageSetup(); if (!setupCore)
   const add = (id, desc, a, extra) => { if (a.length) items.push({ ...fromList(id, desc, "ret", v(a)), tod: splits(a), days: perD(a), byExit: byExit(a), nostop: noStop(a), ...(extra || {}) }); };
   add("plan.setup.60m", "Fund page trade plan (setupOf on the underlying's 5-min bars, LONG/SHORT SETUP and LEAN): LIMIT entry 0.5 × 5-min ATR, alive 60 min, counts only when touched; exit at the plan's stop or target or 60 min after the fill; cost 0.02% of the underlying; one per underlying per hour", all, { fill: tried ? +(all.length / tried).toFixed(3) : null, tried, exits: ex, markets: got });
   add("plan.setup.full.60m", "Fund page trade plan, only LONG / SHORT SETUP (all three filters agree): as plan.setup.60m", all.filter(x => x.full), { todH: splitsH(all.filter(x => x.full)) });   // council Nov 20 (LETF agent request): time of day with halves, record only
-  add("plan.setup.lean.60m", "Fund page trade plan, only LEAN LONG / LEAN SHORT (2 of 3 filters): as plan.setup.60m", all.filter(x => !x.full));
+  add("plan.setup.lean.60m", "Fund page trade plan, only LEAN LONG / LEAN SHORT (2 of 3 filters): as plan.setup.60m", all.filter(x => !x.full), { todH: splitsH(all.filter(x => !x.full)) });   // council Nov 26 (LETF agent request): time of day with halves, record only
   // Council, Nov 21 2026 (LETF agent request): the NO-STOP plan as its own scored item (same fills; exit at the target or at
   // market 60 min after the fill), ruled like the other items, so the governor can cut or mute the no-stop plan the page now shows.
-  const addNs = (id, desc, a) => { if (!a.length) return; const S0 = a.slice().sort((x, y) => x.t - y.t); items.push({ ...fromList(id, desc, "ret", S0.map(x => x.ns)), days: Object.fromEntries(Object.entries(S0.reduce((o, x) => { (o[etDay(x.t)] || (o[etDay(x.t)] = [])).push(x.ns); return o; }, {})).sort().map(([d, w]) => [d, { n: w.length, m: +mean(w).toFixed(5) }])), mae: noStop(a).mae, maeBy: maeBy(a) }); };
+  const addNs = (id, desc, a) => { if (!a.length) return; const S0 = a.slice().sort((x, y) => x.t - y.t); items.push({ ...fromList(id, desc, "ret", S0.map(x => x.ns)), todH: splitsH(S0.filter(x => isFinite(x.ns)).map(x => ({ t: x.t, p: x.p, v: x.ns }))), days: Object.fromEntries(Object.entries(S0.reduce((o, x) => { (o[etDay(x.t)] || (o[etDay(x.t)] = [])).push(x.ns); return o; }, {})).sort().map(([d, w]) => [d, { n: w.length, m: +mean(w).toFixed(5) }])), mae: noStop(a).mae, maeBy: maeBy(a) }); };
   // Council, Nov 22 2026 (LETF agent request): the same worst-move quantiles per underlying (10+ held plans), so the page can show
   // the fund's own tail (a single stock can have a larger tail than an index). Record only: no rule reads it.
   function maeBy(a) { const o = {}; a.forEach(x => { if (isFinite(x.mae)) (o[x.s] || (o[x.s] = [])).push(x.mae); });
     return Object.fromEntries(Object.entries(o).filter(([, w]) => w.length >= 10).sort().map(([s, w]) => [s, { n: w.length, q05: q(w, 0.05), q01: q(w, 0.01), min: +Math.min(...w).toFixed(5) }])); }
   addNs("plan.setup.60m.nostop", "Fund page trade plan with NO stop order (as plan.setup.60m, exit at the target or at market 60 min after the fill)", all);
   addNs("plan.setup.full.60m.nostop", "Fund page trade plan, only LONG / SHORT SETUP, with NO stop order (as plan.setup.full.60m, exit at the target or 60 min after the fill)", all.filter(x => x.full));
+  // Council, Nov 26 2026 (LETF agent request): the LEAN no-stop plan as its own item (letf_days.json had it, the scorecard did not).
+  addNs("plan.setup.lean.60m.nostop", "Fund page trade plan, only LEAN LONG / LEAN SHORT, with NO stop order (as plan.setup.lean.60m, exit at the target or 60 min after the fill)", all.filter(x => !x.full));
   // Council, Nov 23 2026 (LETF agent request): the exit choice as ONE paired item. plan.nostop.minus.stop<.full> = per filled plan,
   // the no-stop result minus the with-stop result on the SAME fill (> 0 = no stop is better). Halves by time; days = per ET day
   // (n, mean); dayZ = t of the day means (each day counts once). Record only (watch, factor 1, the would-be ruling in "ruling").
@@ -469,16 +471,21 @@ async function letfPlan() { const setupCore = await pageSetup(); if (!setupCore)
     const ser = [["plan.setup.60m", all, x => x.v], ["plan.setup.full.60m", all.filter(x => x.full), x => x.v], ["plan.setup.lean.60m", all.filter(x => !x.full), x => x.v],
       ["plan.setup.60m.nostop", all, x => x.ns], ["plan.setup.full.60m.nostop", all.filter(x => x.full), x => x.ns], ["plan.setup.lean.60m.nostop", all.filter(x => !x.full), x => x.ns],
       ["plan.nostop.minus.stop", all, x => x.ns - x.v], ["plan.nostop.minus.stop.full", all.filter(x => x.full), x => x.ns - x.v], ["plan.nostop.minus.stop.lean", all.filter(x => !x.full), x => x.ns - x.v]];
+    // Council, Nov 26 2026 (LETF agent request): the same frozen log per time of day (open 09:30-10:30, mid 10:30-15:00) for the
+    // full and LEAN plans, with and without the stop: keys "<id>@<open|mid>". Days frozen before Nov 26 get these keys ONE time
+    // (marker _tod) from the window, only while the day is still in the window; after that they never change. Record only.
+    for (const [id, a, f] of ser.slice(1, 3).concat(ser.slice(4, 6))) for (const p of ["open", "mid"]) ser.push([`${id}@${p}`, a.filter(x => x.p === p), f]);
     const cur = {}; ser.forEach(([id, a, f]) => a.forEach(x => { const r = f(x); if (!isFinite(r)) return; const d = etDay(x.t), o = ((cur[d] || (cur[d] = {}))[id] || (cur[d][id] = [0, 0, 0, 0])); o[0]++; o[1] += r; o[2] += r * r; if (r > 0) o[3]++; }));
     const dsAll = [...new Set(all.map(x => etDay(x.t)))].sort(), first = dsAll[0], last = dsAll[dsAll.length - 1], okRun = got >= 0.9 * LETF_U.length; let added = 0;
-    if (okRun) for (const d of dsAll) if (d !== first && d < last && !D0[d]) { D0[d] = Object.fromEntries(Object.entries(cur[d] || {}).map(([id, o]) => [id, [o[0], +o[1].toFixed(6), +o[2].toFixed(8), o[3]]])); added++; }
+    if (okRun) for (const d of dsAll) if (d !== first && d < last && !D0[d]) { D0[d] = Object.fromEntries(Object.entries(cur[d] || {}).map(([id, o]) => [id, [o[0], +o[1].toFixed(6), +o[2].toFixed(8), o[3]]])); D0[d]._tod = 1; added++; }
+    if (okRun) for (const d of dsAll) if (d !== first && d < last && D0[d] && !D0[d]._tod) { Object.entries(cur[d] || {}).filter(([id]) => id.includes("@") && !D0[d][id]).forEach(([id, o]) => { D0[d][id] = [o[0], +o[1].toFixed(6), +o[2].toFixed(8), o[3]]; }); D0[d]._tod = 1; }
     const keep = Object.keys(D0).sort().slice(-250); for (const d of Object.keys(D0)) if (!keep.includes(d)) delete D0[d];
     FZ.note = "LETF plan items per ET day: [n, sum r, sum r², wins]; a day is written once after it closed and never changes (council Nov 25 2026)"; FZ.at = new Date().toISOString();
     fs.writeFileSync(`${OUT}/letf_days.json`, JSON.stringify(FZ));
-    for (const [id] of ser) { const it = items.find(i => i.id === id), ds = keep.filter(d => D0[d][id] && D0[d][id][0] > 0); if (!it || !ds.length) continue;
+    for (const [id] of ser) { const [pid, p] = id.split("@"), it = items.find(i => i.id === pid), ds = keep.filter(d => D0[d][id] && D0[d][id][0] > 0); if (!it || !ds.length) continue;
       const rows = ds.map(d => D0[d][id]), n = rows.reduce((p, v) => p + v[0], 0), m = rows.reduce((p, v) => p + v[1], 0) / n, dm = rows.map(v => v[1] / v[0]), h = Math.floor(dm.length / 2);
       const drift = ds.filter(d => cur[d] && cur[d][id] && Math.abs(cur[d][id][1] / cur[d][id][0] - D0[d][id][1] / D0[d][id][0]) > 0.0005).length;
-      it.frozen = { n, ev: +m.toFixed(6), days: dm.length, z: dm.length > 1 ? +(mean(dm) / ((sd(dm) || 1e-9) / Math.sqrt(dm.length))).toFixed(2) : null, older: dm.length > 1 ? +mean(dm.slice(0, h)).toFixed(6) : null, recent: dm.length > 1 ? +mean(dm.slice(h)).toFixed(6) : null, from: ds[0], to: ds[ds.length - 1], drift }; }
+      (p ? ((it.frozenTod || (it.frozenTod = {}))[p] = {}) : (it.frozen = {})); Object.assign(p ? it.frozenTod[p] : it.frozen, { n, ev: +m.toFixed(6), days: dm.length, z: dm.length > 1 ? +(mean(dm) / ((sd(dm) || 1e-9) / Math.sqrt(dm.length))).toFixed(2) : null, older: dm.length > 1 ? +mean(dm.slice(0, h)).toFixed(6) : null, recent: dm.length > 1 ? +mean(dm.slice(h)).toFixed(6) : null, from: ds[0], to: ds[ds.length - 1], drift }); }
     console.log("letf frozen plan days:", Object.keys(D0).length, "kept,", added, "new", okRun ? "" : "(not written: fewer than 90 % of the markets)"); }
   // Council, Nov 16 2026 (LETF agent request): plan crowding. "crowd" = the number of underlyings that gave a plan on the SAME side
   // at the SAME signal time (known when the plan shows: it counts signals, not fills). Record only (watch, factor 1):
