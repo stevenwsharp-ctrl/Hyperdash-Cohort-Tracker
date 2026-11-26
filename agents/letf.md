@@ -1,5 +1,66 @@
 # LETF agent notes
 
+## 2026-11-26 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev, at 2026-11-26T21:58:52Z. Thanksgiving: no new market day (last data Nov 25). trackers.letf: 29 items, 1 mute, 4 cut, 2 back, 0 changed.
+- Negative EV, already stopped on the page: fast.15m.alert MUTE (−0.52% per 15 min, z −2.40; the push is off). fast.5m.15m CUT (−0.34%, z −1.99, n 12, both halves below 0; the card says "do not follow"; its limit fade fade.fast5m.15m is n 5, −0.03%). rev.all.15m WATCH (−0.009%, newer −0.067%): held() keeps the turn flags off (mean and newer half below 0). plan.setup.lean.60m CUT (−0.078%).
+- Positive: plan.setup.full.60m.nostop BACK (+0.302% per plan, n 129, z 2.92, older +0.185%, newer +0.417%). plan.nostop.minus.stop BACK (+0.085%, z 3.51) and .lean BACK.
+- Council task 1, frozen days (16 days, Nov 3 – 24, drift 0 on all plan items): the frozen values agree with the window on the same days. But counted by day, the evidence is much weaker:
+  - plan.setup.full.60m.nostop: frozen +0.119% per plan, day z 0.95 (older +0.172%, newer +0.259%). The window z 2.92 counts plans; Nov 2 (+0.78%, n 12) and Nov 25 (+0.77%, n 24) give most of the window result. Window, each day once: 18 days, 13 up, day t 1.35.
+  - plan.setup.lean.60m: frozen −0.113%, day z −0.84, older −0.231%, newer +0.015%. Window newer half +0.069% (Nov 25 is not frozen yet).
+  - Pairs, frozen: all +0.100% (day z 2.76, older +0.137%, newer +0.074%); full +0.066% (z 1.53, 7 up / 1 down non-zero days); lean +0.110% (z 2.56, older +0.163%, newer +0.054%). The no-stop choice is robust by day too.
+- Council task 2, LEAN gate against one-evening flips:
+  - leanOff() reads the newer half of plan.setup.lean.60m only, not the ruling. On the last scorecard of each day (Nov 14 – 26) the newer half was below 0 every day to Nov 24 (−0.25% … −0.03%) and above 0 on all 6 scorecards from Nov 25 21:58 (+0.065% … +0.081%). The ruling flipped CUT / WATCH, but the gate did not flip once.
+  - Walk-forward on the frozen days (expanding window, decisions from day 5, 12 decision days, older 6 / newer 6): current rule: older half never open (same as all other rules), newer half open 1 day (Nov 23, −1.10% per plan, n 20). "Open only after 2 decisions in a row": never open, so it avoids Nov 23. "Both halves ≥ 0" and "all days ≥ 0": never open. No gate: older −0.34%, newer +0.10% per plan. The older half cannot tell the rules apart; the newer half difference is one day. Not enough to ship. Proposal below.
+  - Test of a second reading (the gate reads the LEAN no-stop newer half, because the shown plan has no stop): on the real scorecards it is above 0 after Nov 20 (+0.016%), so the gate opens for Nov 23, which lost −1.20% per plan. The stop item kept the gate shut that day. Keep the stop item as the gate input.
+- Council task 3, crowd split (record only): crowd3.full n 121, +0.228% (older +0.086%, newer +0.368%, would be BACK). crowd12.full n 8 (too few). crowd3.lean n 324, −0.071% (older −0.276%, newer +0.134%). crowd12.lean n 39, −0.136% (older +0.020%, newer −0.285%, would be CUT). No rule: crowd12 is below n 30 on each half.
+- LEAN by time of day (window): open (09:30 – 10:30) n 105, −0.356%; mid n 258, +0.035%. Open < mid on all scorecards from Nov 14 (−0.12% … −0.46%), but on Nov 13 open = mid (−0.02%). No older / newer split of the time of day for plan items, so no walk-forward is possible. No rule (request below).
+- Data audit: instruments.json (second source, 524 leveraged funds): leverage × direction agrees with the fund name for all funds; no fund has two different leverage values under two underlyings. The Worker list is not reachable from the cloud.
+
+### Shipped today
+- LETF-Sniper 6eaf9f1 (index.html, inline code; no script file changed, so no ?v= bump). Priority 2 (wrong numbers on the page):
+  1. The plan score line under a fund-page plan showed the result WITH the stop (full +0.233%; LEAN −0.078% CUT) next to a plan that shows NO stop order. Now, when stopOff() is on, the line shows the test of the plan as shown first (full: plan.setup.full.60m.nostop +0.302% BACK; LEAN: the nostop field +0.014%, no own ruling), then "the same plans with the stop" and its ruling. When the stop is on, or LEAN is off, the line is as before.
+  2. The line adds the frozen day log of the shown version (days, from – to, day z, older / newer days). When the ruling is BACK and the day z is below 2, it says: "BACK counts plans; counted by day, the edge is not proven yet. Do not size up on it." Today this shows on full plans (day z 0.9).
+  - Walk-forward: no fitted value, no rule change, text only. No change to stops, gates, sizes or orders.
+- Checks: node --check on all 6 inline scripts: OK. Playwright (local server, ?demo; scanner, SOXL, SOXS, TSLL) with 3 scorecards: today's, a copy without .frozen and with the full no-stop item CUT, and no scorecard (404): 12 loads, 0 page errors. planEvHtml() called on a full plan, a LEAN plan and the LEAN-off case gives the expected text for each scorecard.
+- Pages build and deployment: success (run 45905011477, 22:28 UTC).
+- worker.js not changed. Steven does not need to paste anything.
+
+### Not changed
+- LEAN gate: no new rule (the test above cannot separate the rules on the older half; one day on the newer half).
+- LEAN gate input stays the with-stop newer half (the no-stop input would have opened the gate for the Nov 23 loss).
+- No more weight for full plans: the day z is 0.95 on the frozen days; the factor 1.25 already acts.
+- Fast moves and turns: the page already stops every negative item. No fade is proven (fade.fast5m.15m n 5, fade.rev.15m +0.008%).
+- Shared files, ev.mjs, worker.js: not edited.
+
+### Lessons for the other agents
+- Show the score of the rule that is shown. The LETF fund page showed the score of the plan with a stop next to a plan without a stop. Check each EV number on your page against the exact exit and filter that the page shows.
+- A BACK on the sample count can be weak by day. LETF full plans: z 2.92 by plan, z 0.95 by frozen day. Read the day z before you push a part harder.
+- A gate that reads one number (the newer half) does not flip when the ruling flips. Check what the gate reads before you add hysteresis.
+
+### For the council
+- Please review 6eaf9f1 (text only).
+- ev.mjs (record only): for plan.setup.lean.60m and plan.setup.full.60m (and their no-stop versions) add todH (time of day split by older / newer half, as fast.15m.15m has) and a frozen day log per time of day. Reason: LEAN open hour −0.356% (n 105) against mid +0.035% (n 258), but no walk-forward is possible now.
+- ev.mjs (record only): a frozen item for the LEAN no-stop plans (plan.setup.lean.60m.nostop is in letf_days.json but has no item), so the page can show its frozen day log.
+- Proposal for the LEAN gate (not shipped, for the record): open only when the window newer half AND the frozen newer half are both at or above 0. It cannot flip on one evening of bar revisions. Today: both above 0 (+0.069%, +0.015%), so no change today. I will test it again when the frozen log has 25+ days.
+- No shared-file change.
+
+### Backlog
+1. LEAN open-hour gate (09:30 – 10:30 ET): only after the todH split shows open < 0 on the older half and the newer half confirms it.
+2. LEAN gate: window + frozen newer half (above), test at 25+ frozen days.
+3. Plans: if plan.setup.full.60m.nostop goes CUT or MUTE, show the plan as weak or hide it; do not change the exit.
+4. Full SETUP plans first on the fund page and in the hub only if the frozen day z goes to 2+.
+5. Live check (not demo) that all funds of one underlying show one setup.
+6. letf.setup web weight from the scorecard (waits for the test).
+7. rev.js backtest(): true New York clock for the day split before Mar 8 2027.
+
+### Watch next
+- Friday Nov 27 is a half day. The Nov 25 day enters the frozen log; plan.setup.lean.60m frozen newer half stays at or above 0.
+- plan.setup.full.60m.nostop stays BACK; its frozen day z goes up (above 1) with Nov 25 in the log. If it stays below 1, the page keeps the "do not size up" text (correct).
+- The pairs keep both frozen halves above 0 (the page keeps no stop).
+- Fund page with a no-stop plan: the score line starts with "with no stop order, as shown above".
+
 ## 2026-11-25 · LETF agent
 
 ### Evidence
