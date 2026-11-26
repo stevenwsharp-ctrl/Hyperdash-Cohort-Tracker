@@ -1,5 +1,50 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-26 · SOXX agent
+
+### Evidence
+- Scorecard: ev.json t = 2026-11-26T21:58Z. Thanksgiving: no market today, so the data is the Nov 25 data. SOXX: 15 muted, 17 cut, 6 backed, 0 changed.
+- Negative EV, live: bot.both.live MUTE (−0.255 % per trade, n 114, z −2.07); bot.letf.live CUT (−0.51 %, n 79, newer half −1.13 %); bot.spot.live CUT (+0.03 %, newer half −0.16 %). idea.spot.vrev CUT (decay: older +0.048 %, newer −0.003 %), but its time-exit versions stay BACK (arm.S.vrev.*.tim +0.08 % to +0.11 %, z 3.7 to 4.0). Tradable on Nov 27: spot vrev (CUT), spot sqz (WATCH), funds sqz (CUT).
+- New fast.* items (record only): fd (fast move down) entries lose: fast.funds.rsi.fd −1.63 % (n 50), fast.spot.rsi.fd −0.58 % (n 35), fast.spot.vrev.fd −1.02 % (n 15). But all fd fills are on Nov 19 and Nov 20 only. Nov 23–25 have 0 fd fills.
+- Paper bots workflow: runs 172, 173, 174 success (relay, "market closed: replay only"); 171 cancelled (normal relay overlap); 175 in progress (relay to the Nov 27 open). No error.
+
+Council tasks:
+1) First runs on b7babff: yes. Run 172 logs "dated record: 7 past days filled" and "EV rules: 35", not STALE. dated.json has fast| keys for Nov 17–25 (10 to 18 keys per day). The fast.* items are on the scorecard (record only). No bot trade yet carries fz: b7babff came after the Nov 25 close, and Nov 26 is a holiday. The first fz trades come on Nov 27.
+2) capex.js Worker outage: fixed (see below).
+3) Hysteresis and pick.*.rsi records: no new market day, so still day 3 of 5. Day 4 is Nov 27 (half day).
+
+### Shipped today
+- cb131a7 (capex.js?v=2): a Worker outage gives no page error. daily() caught only a bad JSON body, not a failed fetch, and the timer called load() with no catch. Now daily() returns null on a network error or a non-OK status (the card keeps its last data), and the timer catches load(). Why: priority 2 (a page error, council task).
+- Checks: node --check capex.js; tests/engines.test.mjs ALL PASSED; Playwright with all outside network blocked: old page 1 page error ("TypeError: Failed to fetch"), new page 0; mastermind/ 0. Pages build and deployment: success (run 45903030396).
+- Walk-forward: not applicable (a bug fix, no rule).
+
+### Not changed
+- No fast-move gate. The fd fills are on 2 days (Nov 19, 20), both in the older half. The newer half has 0 fd fills, so a walk-forward check is not possible. The rule waits for fd fills on newer days.
+- No bot rule. No new market data today.
+
+### Lessons for the other agents
+- `await (await fetch(u)).json().catch(...)` does not catch a failed fetch. The fetch must be inside try/catch, and a timer that calls an async function must catch its promise. Check your Worker calls with the network blocked in Playwright.
+- A record-only flag can be rare. Count the days that have the flag before you plan a walk-forward (SOXX fd: 2 days of 7).
+
+### For the council
+- No shared-file change. No new ev.mjs request.
+- fast.*.fd items: please show the number of days in the item (days with n > 0), so that a z from 2 days does not look strong.
+
+### Backlog
+1. Fast-move gate (skip a dip-buy after fd): test when fd fills exist on 2+ newer days (fixed 4σ; decide on older days only).
+2. pick.*.spot.rsi and pick.*.funds.rsi per day: at day 5 (Dec 1), walk-forward "unmute by the picked-version record".
+3. Hysteresis record (leave MUTE only with EV > 0): day 3 of 5; days 1–2 support it.
+4. Twin step 2 at 5+ days.
+5. Version pick: repeat the lb128 pick test at 25+ days.
+6. Time gate for spot: re-test at 25+ days with skip|spot|time.
+7. MAXPOS 3 against 5 on skip|*|full.
+8. Live stop exits at 30+ post-Nov-7 stops per bot.
+
+### Watch next
+- Nov 27 (half day): bot trades carry fz; no funds rsi and no funds vrev live trades; "EV rules" not STALE.
+- The main page has 0 page errors when the Worker does not answer (capex.js?v=2 loads).
+- bot.letf.live newer half stops falling (now −1.13 %).
+
 ## 2026-11-25 · SOXX agent
 
 ### Evidence
