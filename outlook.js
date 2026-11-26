@@ -1,7 +1,7 @@
 /* Cohort Sniper · Outlook tab: the best longs and shorts for the next 24 hours, 48 hours and 7 days.
    Six ranking systems, each a different way of seeing the market, each giving every market a score from −1 (short) to +1 (long):
    1. Smart money   — the cohort gap: profitable traders vs losing traders (the site's core setup score).
-   2. Signal web    — the spider web's learned forecast (P(up) over 24 h; shrunk for 48 h and 7 d, which it has not learned).
+   2. Signal web    — the spider web's learned 24 h forecast, relative to the median market (shrunk for 48 h and 7 d, which it has not learned).
    3. Momentum      — the move over twice the horizon, in units of the market's own volatility (trends tend to persist).
    4. Positioning   — trapped traders (squeeze / flush fuel), funding carry (the paid side), and crowd lean (fade the crowded side).
    5. Reversion     — the stretch from the horizon's average price, in volatility units (big stretches tend to snap back).
@@ -30,7 +30,7 @@
     #v-outlook .sysn{font-weight:700}#v-outlook .tr{font-size:11px;color:var(--faint,#888)}#v-outlook .bar{display:inline-block;height:6px;border-radius:3px;vertical-align:middle}`;
   document.head.appendChild(st);
   const HZ = [[24, "Next 24 hours"], [48, "Next 48 hours"], [168, "Next 7 days"]], SYS = [["smart", "Smart money"], ["web", "Signal web"], ["mom", "Momentum"], ["pos", "Positioning"], ["rev", "Reversion"], ["flow", "Fresh flow"]];
-  const HOW = { smart: "Profitable cohorts vs losing cohorts: who holds which side, and how firmly.", web: "The spider web's learned forecast from every signal on both sites (24 h; 48 h and 7 d shrunk).", mom: "The move over 2× the horizon in units of the market's own volatility.", pos: "Trapped traders' pain, the side funding pays, and fading the crowded side.", rev: "Stretch from the average price of the last horizon, in volatility units: big stretches snap back.", flow: "Change of the cohort gap over the last day (week for 7 d): smart money adding vs fools adding." };
+  const HOW = { smart: "Profitable cohorts vs losing cohorts: who holds which side, and how firmly.", web: "The spider web's learned 24 h forecast from every signal on both sites, relative to the other markets (the part that is the same for every market is taken out; 48 h and 7 d shrunk).", mom: "The move over 2× the horizon in units of the market's own volatility.", pos: "Trapped traders' pain, the side funding pays, and fading the crowded side.", rev: "Stretch from the average price of the last horizon, in volatility units: big stretches snap back.", flow: "Change of the cohort gap over the last day (week for 7 d): smart money adding vs fools adding." };
   const c1 = v => Math.max(-1, Math.min(1, v)), lsG = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, lsS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } };
   let H = lsG("cs_ol_h", 24);
   // ---------- price series from history (every ~30 min) and hourly bars (rhythm loader) ----------
@@ -48,7 +48,15 @@
   function score(r, h) {
     const px = r.ctx && r.ctx.px, sym = r.sym || parse(r.coin).sym, sr = series(r.coin), sd = vol(sr) || (r.ctx && r.ctx.ch != null ? Math.max(0.01, Math.abs(r.ctx.ch) / 100) : 0.04), sH = sd * Math.sqrt(h / 24), o = {};
     o.smart = c1(Math.sign(r.gap || r.dir) * (r.score || 0) / 100 * 1.2) * (h === 24 ? 0.85 : 1);
-    try { const F = window.Web && Web.forecast(sym, 24); o.web = F ? c1((F.p - 0.5) * 4 * (h === 24 ? 1 : h === 48 ? 0.7 : 0.4) * (F.ready ? 1 : 0.5)) : null; } catch (e) { o.web = null; }
+    // Cohort agent (2026-11-26): the web lens is the web's 24 h forecast RELATIVE TO THE OTHER MARKETS (raw forecast minus the
+    // median raw forecast of this build, WMID). Before, it was the calibrated P(up) minus 0.5. Live check (Nov 26): the top 4
+    // inputs of the web's 24 h forecast were the same calendar / tide features for every market (cyc.tide, cyc.season,
+    // cyc.moon, cyc.election), so P(up) was 0.63 to 0.88 almost everywhere and the lens was +1.00 (clipped) on most markets:
+    // breadth 129 long / 1 short, the 24 h consensus listed 10 longs and 1 short, and the agreement layer got a long lean for
+    // almost every market, while the 40-day panel market fell on both parts (-0.80% and -1.20% per 24 h). A part that is the
+    // same for every market cannot rank markets, and the Outlook test scores each side against the same order on every market,
+    // so that part cannot earn there. No fitted value: the centre is the median of this build (no centre: 0.5, as before).
+    try { const F = window.Web && Web.forecast(sym, 24), pr = F ? (WMID != null && isFinite(F.raw) ? F.raw - WMID : F.p - 0.5) : null; o.web = F ? c1(pr * 4 * (h === 24 ? 1 : h === 48 ? 0.7 : 0.4) * (F.ready ? 1 : 0.5)) : null; } catch (e) { o.web = null; }
     const L = Math.min(2 * h, 24 * 60) * 36e5, p0 = pxAgo(sr, L); o.mom = p0 && px ? c1(Math.log(px / p0) / (sd * Math.sqrt(L / 864e5)) / 2) : null;
     let tp = 0; try { const X = SPEC && SPEC.m && SPEC.m[r.coin]; if (X && X.holders && window.Trapped) { const T = Trapped.analyze(X.holders, LEVELS && LEVELS.m && LEVELS.m[r.coin] && LEVELS.m[r.coin].h, px); if (T) tp = c1(T.P); } } catch (e) { }
     const f = r.ctx && r.ctx.f, carry = f != null ? c1(-f * 24 * 365 / 0.5) : 0, cr = crowd(r.coin), wc = h === 24 ? 0.15 : h === 48 ? 0.25 : 0.4;
@@ -110,9 +118,10 @@
   const lost = (h, k) => { const R = btRes(h, k); return !!(R && R.learnM != null && R.unseenM != null && R.learnM < 0 && R.unseenM < 0); };
   const gated = (h, k) => (GATE[h] || []).some(g => g.includes(k) && g.every(x => lost(h, x)));
   // ---------- build ----------
-  let LAST = null;
+  let LAST = null, WMID = null;
   function build() {
     const rows = (ROWS || []).filter(r => r.ctx && r.ctx.px > 0 && (r.ctx.v || 0) >= 1e6), all = {}, L0 = lsG(LK, []);
+    WMID = null; try { if (window.Web) { const q = rows.map(r => { const F = Web.forecast(r.sym || parse(r.coin).sym, 24); return F && isFinite(F.raw) ? F.raw : null; }).filter(v => v != null).sort((a, b) => a - b); if (q.length >= 15) WMID = q[q.length >> 1]; } } catch (e) { WMID = null; }   // centre of the web lens (see score)
     for (const [h] of HZ) { const W = Object.fromEntries(SYS.map(([k]) => [k, (gated(h, k) ? 0 : 1) * weight(L0, h, k) * btW(h, k) * (window.EVR ? EVR.factor("cohort", `outlook.${k}.${h}h`) : 1)]));   // EV governor: 0 mute, 0.5 cut, 1.25 back
       all[h] = rows.map(r => { const { o, px, sd, sH } = score(r, h); let s = 0, w = 0, ag = 0, n = 0; SYS.forEach(([k]) => { if (o[k] == null || !W[k]) return; s += o[k] * W[k]; w += W[k]; n++; });
         const raw = w ? s / w : 0; let agW = 0; SYS.forEach(([k]) => { if (o[k] != null && Math.sign(o[k]) === Math.sign(raw) && Math.abs(o[k]) >= 0.1) { ag++; agW += W[k]; } });
