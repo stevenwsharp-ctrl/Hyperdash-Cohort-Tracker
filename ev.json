@@ -1,5 +1,5 @@
 {
- "t": "2026-11-26T21:58:52.854Z",
+ "t": "2026-11-26T23:18:42.330Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; a factor acts only where a page or bot reads that item id (SOXX bots: idea.* only; bot.*, half.*, live.*, skip.*, pick.*, twin.* and fast.* are shown, not gates); agents read this file every market day",
  "trackers": {
   "soxx": {
@@ -4350,8 +4350,9 @@
      "from": "2026-11-17",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be watch)",
+     "why": "record only (would be watch; 7 days)",
      "ruling": "watch",
+     "nDays": 7,
      "perDay": {
       "2026-11-17": {
        "n": 365,
@@ -4399,8 +4400,9 @@
      "from": "2026-11-20",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be watch)",
+     "why": "record only (would be watch; 1 day, too few days for a test)",
      "ruling": "watch",
+     "nDays": 1,
      "perDay": {
       "2026-11-20": {
        "n": 10,
@@ -4426,8 +4428,9 @@
      "from": "2026-11-17",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be watch)",
+     "why": "record only (would be watch; 7 days)",
      "ruling": "watch",
+     "nDays": 7,
      "perDay": {
       "2026-11-17": {
        "n": 335,
@@ -4475,8 +4478,9 @@
      "from": "2026-11-20",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be watch)",
+     "why": "record only (would be watch; 1 day, too few days for a test)",
      "ruling": "watch",
+     "nDays": 1,
      "perDay": {
       "2026-11-20": {
        "n": 10,
@@ -4502,8 +4506,9 @@
      "from": "2026-11-17",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be mute)",
+     "why": "record only (would be mute; 7 days)",
      "ruling": "mute",
+     "nDays": 7,
      "perDay": {
       "2026-11-17": {
        "n": 1655,
@@ -4553,8 +4558,9 @@
      "from": "2026-11-17",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be cut)",
+     "why": "record only (would be cut; 7 days)",
      "ruling": "cut",
+     "nDays": 7,
      "perDay": {
       "2026-11-17": {
        "n": 425,
@@ -4604,8 +4610,9 @@
      "from": "2026-11-19",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be mute)",
+     "why": "record only (would be mute; 2 days, too few days for a test)",
      "ruling": "mute",
+     "nDays": 2,
      "perDay": {
       "2026-11-19": {
        "n": 20,
@@ -4635,8 +4642,9 @@
      "from": "2026-11-18",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be mute)",
+     "why": "record only (would be mute; 5 days)",
      "ruling": "mute",
+     "nDays": 5,
      "perDay": {
       "2026-11-18": {
        "n": 45,
@@ -4678,8 +4686,9 @@
      "from": "2026-11-18",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be watch)",
+     "why": "record only (would be watch; 6 days)",
      "ruling": "watch",
+     "nDays": 6,
      "perDay": {
       "2026-11-18": {
        "n": 75,
@@ -4725,8 +4734,9 @@
      "from": "2026-11-17",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be watch)",
+     "why": "record only (would be watch; 7 days)",
      "ruling": "watch",
+     "nDays": 7,
      "perDay": {
       "2026-11-17": {
        "n": 1075,
@@ -4776,8 +4786,9 @@
      "from": "2026-11-17",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be watch)",
+     "why": "record only (would be watch; 7 days)",
      "ruling": "watch",
+     "nDays": 7,
      "perDay": {
       "2026-11-17": {
        "n": 190,
@@ -4827,8 +4838,9 @@
      "from": "2026-11-17",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be watch)",
+     "why": "record only (would be watch; 7 days)",
      "ruling": "watch",
+     "nDays": 7,
      "perDay": {
       "2026-11-17": {
        "n": 140,
@@ -4878,8 +4890,9 @@
      "from": "2026-11-17",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be mute)",
+     "why": "record only (would be mute; 7 days)",
      "ruling": "mute",
+     "nDays": 7,
      "perDay": {
       "2026-11-17": {
        "n": 2395,
@@ -4929,8 +4942,9 @@
      "from": "2026-11-17",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be cut)",
+     "why": "record only (would be cut; 7 days)",
      "ruling": "cut",
+     "nDays": 7,
      "perDay": {
       "2026-11-17": {
        "n": 785,
@@ -4980,8 +4994,9 @@
      "from": "2026-11-19",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be mute)",
+     "why": "record only (would be mute; 2 days, too few days for a test)",
      "ruling": "mute",
+     "nDays": 2,
      "perDay": {
       "2026-11-19": {
        "n": 20,
@@ -5011,8 +5026,9 @@
      "from": "2026-11-19",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be mute)",
+     "why": "record only (would be mute; 2 days, too few days for a test)",
      "ruling": "mute",
+     "nDays": 2,
      "perDay": {
       "2026-11-19": {
        "n": 25,
@@ -5042,8 +5058,9 @@
      "from": "2026-11-18",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be cut)",
+     "why": "record only (would be cut; 4 days, too few days for a test)",
      "ruling": "cut",
+     "nDays": 4,
      "perDay": {
       "2026-11-18": {
        "n": 75,
@@ -5081,8 +5098,9 @@
      "from": "2026-11-17",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be cut)",
+     "why": "record only (would be cut; 7 days)",
      "ruling": "cut",
+     "nDays": 7,
      "perDay": {
       "2026-11-17": {
        "n": 1615,
@@ -5130,8 +5148,9 @@
      "from": "2026-11-20",
      "status": "watch",
      "factor": 1,
-     "why": "record only (would be mute)",
+     "why": "record only (would be mute; 1 day, too few days for a test)",
      "ruling": "mute",
+     "nDays": 1,
      "perDay": {
       "2026-11-20": {
        "n": 15,
@@ -7290,18 +7309,18 @@
    }
   },
   "letf": {
-   "at": "2026-11-26T21:58:52.853Z",
+   "at": "2026-11-26T23:18:42.328Z",
    "items": [
     {
      "id": "rev.all.15m",
      "desc": "Hard reversal detector, all turns (score ≥ 0.6), on the underlying: trade the new direction, next 15 min",
      "unit": "ret",
      "n": 140,
-     "ev": -0.00009249591097917269,
-     "z": -0.13470295538427096,
+     "ev": -0.00009249591097917284,
+     "z": -0.13470295538427118,
      "hit": 0.4357142857142857,
-     "older": 0.00048032823584456737,
-     "recent": -0.0006653200578029126,
+     "older": 0.000480328235844567,
+     "recent": -0.0006653200578029128,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
@@ -7419,7 +7438,7 @@
      "z": 0.10840629699415,
      "hit": 0.5436893203883495,
      "older": -0.0005086986797796972,
-     "recent": 0.0006661364113200517,
+     "recent": 0.0006661364113200516,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -8168,8 +8187,8 @@
      "ev": 0.000037375027967622,
      "z": 0.06692812767275723,
      "hit": 0.5142276422764228,
-     "older": -0.0012939742793410488,
-     "recent": 0.001368724335276293,
+     "older": -0.0012939742793410486,
+     "recent": 0.0013687243352762926,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -9122,8 +9141,8 @@
      "ev": 0.002333317267619129,
      "z": 2.3272089792636317,
      "hit": 0.6124031007751938,
-     "older": 0.001585773314932525,
-     "recent": 0.003069360544110554,
+     "older": 0.0015857733149325251,
+     "recent": 0.0030693605441105545,
      "status": "back",
      "factor": 1.25,
      "why": "proven positive EV",
@@ -9306,6 +9325,30 @@
       "to": "2026-11-24",
       "drift": 0
      },
+     "frozenTod": {
+      "open": {
+       "n": 41,
+       "ev": 0.000755,
+       "days": 12,
+       "z": 0.09,
+       "older": 0.000833,
+       "recent": 0.000092,
+       "from": "2026-11-04",
+       "to": "2026-11-24",
+       "drift": 0
+      },
+      "mid": {
+       "n": 52,
+       "ev": 0.000349,
+       "days": 15,
+       "z": 0.13,
+       "older": -0.000364,
+       "recent": 0.000572,
+       "from": "2026-11-03",
+       "to": "2026-11-24",
+       "drift": 0
+      }
+     },
      "prev": "back",
      "changed": false
     },
@@ -9317,8 +9360,8 @@
      "ev": -0.0007785383299250617,
      "z": -1.173740139699254,
      "hit": 0.4793388429752066,
-     "older": -0.0022584192847421116,
-     "recent": 0.0006932114108545312,
+     "older": -0.002214608197541035,
+     "recent": 0.0006496410439128013,
      "status": "cut",
      "factor": 0.5,
      "why": "negative EV, not yet proven",
@@ -9424,8 +9467,8 @@
      "nostop": {
       "n": 363,
       "m": 0.00014,
-      "older": -0.00084,
-      "recent": 0.00111,
+      "older": -0.0008,
+      "recent": 0.00107,
       "mae": {
        "q01": -0.06193,
        "q05": -0.03457,
@@ -9436,32 +9479,59 @@
        "3": {
         "n": 363,
         "m": -0.00051,
-        "older": -0.00209,
-        "recent": 0.00105,
+        "older": -0.00204,
+        "recent": 0.00101,
         "stops": 36
        },
        "4": {
         "n": 363,
         "m": -0.00061,
-        "older": -0.00228,
-        "recent": 0.00105,
+        "older": -0.00223,
+        "recent": 0.001,
         "stops": 19
        },
        "6": {
         "n": 363,
         "m": -0.00063,
-        "older": -0.00215,
-        "recent": 0.00089,
+        "older": -0.00211,
+        "recent": 0.00085,
         "stops": 8
        },
        "8": {
         "n": 363,
         "m": -0.00019,
-        "older": -0.00149,
-        "recent": 0.00111,
+        "older": -0.00145,
+        "recent": 0.00107,
         "stops": 3
        }
       }
+     },
+     "todH": {
+      "open": {
+       "n": 105,
+       "m": -0.00356,
+       "o": {
+        "n": 56,
+        "m": -0.00286
+       },
+       "r": {
+        "n": 49,
+        "m": -0.00436
+       }
+      },
+      "mid": {
+       "n": 258,
+       "m": 0.00035,
+       "o": {
+        "n": 125,
+        "m": -0.00193
+       },
+       "r": {
+        "n": 133,
+        "m": 0.00249
+       }
+      },
+      "close": null
      },
      "frozen": {
       "n": 316,
@@ -9474,6 +9544,30 @@
       "to": "2026-11-24",
       "drift": 0
      },
+     "frozenTod": {
+      "open": {
+       "n": 93,
+       "ev": -0.002823,
+       "days": 16,
+       "z": 0.23,
+       "older": 0.001591,
+       "recent": -0.000406,
+       "from": "2026-11-03",
+       "to": "2026-11-24",
+       "drift": 0
+      },
+      "mid": {
+       "n": 223,
+       "ev": -0.000422,
+       "days": 16,
+       "z": -0.95,
+       "older": -0.00293,
+       "recent": 0.001248,
+       "from": "2026-11-03",
+       "to": "2026-11-24",
+       "drift": 0
+      }
+     },
      "prev": "cut",
      "changed": false
     },
@@ -9482,14 +9576,41 @@
      "desc": "Fund page trade plan with NO stop order (as plan.setup.60m, exit at the target or at market 60 min after the fill)",
      "unit": "ret",
      "n": 492,
-     "ev": 0.0008917474752120841,
+     "ev": 0.0008917474752120839,
      "z": 1.5956657948739585,
      "hit": 0.5589430894308943,
-     "older": -0.00018384142559825067,
+     "older": -0.0001838414255982509,
      "recent": 0.001967336376022419,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
+     "todH": {
+      "open": {
+       "n": 168,
+       "m": -0.00104,
+       "o": {
+        "n": 72,
+        "m": -0.00223
+       },
+       "r": {
+        "n": 96,
+        "m": -0.00014
+       }
+      },
+      "mid": {
+       "n": 324,
+       "m": 0.00189,
+       "o": {
+        "n": 174,
+        "m": 0.00066
+       },
+       "r": {
+        "n": 150,
+        "m": 0.00332
+       }
+      },
+      "close": null
+     },
      "days": {
       "2026-11-02": {
        "n": 35,
@@ -9738,11 +9859,38 @@
      "ev": 0.0030192035152817936,
      "z": 2.919498278800966,
      "hit": 0.6356589147286822,
-     "older": 0.001849002311810166,
+     "older": 0.0018490023118101658,
      "recent": 0.004171401623315396,
      "status": "back",
      "factor": 1.25,
      "why": "proven positive EV",
+     "todH": {
+      "open": {
+       "n": 63,
+       "m": 0.00326,
+       "o": {
+        "n": 23,
+        "m": 0.00153
+       },
+       "r": {
+        "n": 40,
+        "m": 0.00426
+       }
+      },
+      "mid": {
+       "n": 66,
+       "m": 0.00279,
+       "o": {
+        "n": 41,
+        "m": 0.00203
+       },
+       "r": {
+        "n": 25,
+        "m": 0.00403
+       }
+      },
+      "close": null
+     },
      "days": {
       "2026-11-02": {
        "n": 12,
@@ -9835,8 +9983,334 @@
       "to": "2026-11-24",
       "drift": 0
      },
+     "frozenTod": {
+      "open": {
+       "n": 41,
+       "ev": 0.000856,
+       "days": 12,
+       "z": 0.09,
+       "older": 0.000833,
+       "recent": 0.000155,
+       "from": "2026-11-04",
+       "to": "2026-11-24",
+       "drift": 0
+      },
+      "mid": {
+       "n": 52,
+       "ev": 0.001448,
+       "days": 15,
+       "z": 1.01,
+       "older": 0.000297,
+       "recent": 0.002505,
+       "from": "2026-11-03",
+       "to": "2026-11-24",
+       "drift": 0
+      }
+     },
      "prev": "back",
      "changed": false
+    },
+    {
+     "id": "plan.setup.lean.60m.nostop",
+     "desc": "Fund page trade plan, only LEAN LONG / LEAN SHORT, with NO stop order (as plan.setup.lean.60m, exit at the target or 60 min after the fill)",
+     "unit": "ret",
+     "n": 363,
+     "ev": 0.00013570937832780663,
+     "z": 0.2060582934540485,
+     "hit": 0.5316804407713499,
+     "older": -0.0007988842957699901,
+     "recent": 0.0010651679223481435,
+     "status": "watch",
+     "factor": 1,
+     "why": "positive, not proven",
+     "todH": {
+      "open": {
+       "n": 105,
+       "m": -0.00362,
+       "o": {
+        "n": 56,
+        "m": -0.00348
+       },
+       "r": {
+        "n": 49,
+        "m": -0.00377
+       }
+      },
+      "mid": {
+       "n": 258,
+       "m": 0.00166,
+       "o": {
+        "n": 125,
+        "m": 0.0004
+       },
+       "r": {
+        "n": 133,
+        "m": 0.00285
+       }
+      },
+      "close": null
+     },
+     "days": {
+      "2026-11-02": {
+       "n": 23,
+       "m": -0.00138
+      },
+      "2026-11-03": {
+       "n": 16,
+       "m": -0.00235
+      },
+      "2026-11-04": {
+       "n": 21,
+       "m": 0.00256
+      },
+      "2026-11-05": {
+       "n": 34,
+       "m": -0.00023
+      },
+      "2026-11-06": {
+       "n": 18,
+       "m": 0.00664
+      },
+      "2026-11-09": {
+       "n": 17,
+       "m": -0.00137
+      },
+      "2026-11-10": {
+       "n": 20,
+       "m": -0.00164
+      },
+      "2026-11-11": {
+       "n": 21,
+       "m": -0.00266
+      },
+      "2026-11-12": {
+       "n": 24,
+       "m": -0.00641
+      },
+      "2026-11-13": {
+       "n": 10,
+       "m": -0.00479
+      },
+      "2026-11-16": {
+       "n": 30,
+       "m": 0.00063
+      },
+      "2026-11-17": {
+       "n": 11,
+       "m": 0.00363
+      },
+      "2026-11-18": {
+       "n": 9,
+       "m": -0.0017
+      },
+      "2026-11-19": {
+       "n": 16,
+       "m": 0.00894
+      },
+      "2026-11-20": {
+       "n": 38,
+       "m": 0.00414
+      },
+      "2026-11-23": {
+       "n": 20,
+       "m": -0.01197
+      },
+      "2026-11-24": {
+       "n": 11,
+       "m": 0.0066
+      },
+      "2026-11-25": {
+       "n": 24,
+       "m": 0.00377
+      }
+     },
+     "mae": {
+      "q01": -0.06193,
+      "q05": -0.03457,
+      "q50": -0.00651,
+      "min": -0.09696
+     },
+     "maeBy": {
+      "AMD": {
+       "n": 15,
+       "q05": -0.09696,
+       "q01": -0.09696,
+       "min": -0.09696
+      },
+      "APLD": {
+       "n": 12,
+       "q05": -0.05847,
+       "q01": -0.05847,
+       "min": -0.05847
+      },
+      "AVGO": {
+       "n": 15,
+       "q05": -0.01962,
+       "q01": -0.01962,
+       "min": -0.01962
+      },
+      "AXTI": {
+       "n": 11,
+       "q05": -0.03208,
+       "q01": -0.03208,
+       "min": -0.03208
+      },
+      "BE": {
+       "n": 10,
+       "q05": -0.0386,
+       "q01": -0.0386,
+       "min": -0.0386
+      },
+      "COIN": {
+       "n": 14,
+       "q05": -0.03901,
+       "q01": -0.03901,
+       "min": -0.03901
+      },
+      "CRWV": {
+       "n": 16,
+       "q05": -0.06671,
+       "q01": -0.06671,
+       "min": -0.06671
+      },
+      "HOOD": {
+       "n": 15,
+       "q05": -0.03019,
+       "q01": -0.03019,
+       "min": -0.03019
+      },
+      "IONQ": {
+       "n": 20,
+       "q05": -0.02783,
+       "q01": -0.03459,
+       "min": -0.03459
+      },
+      "IREN": {
+       "n": 16,
+       "q05": -0.05891,
+       "q01": -0.05891,
+       "min": -0.05891
+      },
+      "IWM": {
+       "n": 13,
+       "q05": -0.00835,
+       "q01": -0.00835,
+       "min": -0.00835
+      },
+      "MSTR": {
+       "n": 20,
+       "q05": -0.03408,
+       "q01": -0.04537,
+       "min": -0.04537
+      },
+      "MU": {
+       "n": 11,
+       "q05": -0.03291,
+       "q01": -0.03291,
+       "min": -0.03291
+      },
+      "NBIS": {
+       "n": 15,
+       "q05": -0.06193,
+       "q01": -0.06193,
+       "min": -0.06193
+      },
+      "NVDA": {
+       "n": 11,
+       "q05": -0.06223,
+       "q01": -0.06223,
+       "min": -0.06223
+      },
+      "OKLO": {
+       "n": 18,
+       "q05": -0.04094,
+       "q01": -0.04094,
+       "min": -0.04094
+      },
+      "PLTR": {
+       "n": 16,
+       "q05": -0.03006,
+       "q01": -0.03006,
+       "min": -0.03006
+      },
+      "QQQ": {
+       "n": 16,
+       "q05": -0.01263,
+       "q01": -0.01263,
+       "min": -0.01263
+      },
+      "RGTI": {
+       "n": 19,
+       "q05": -0.04033,
+       "q01": -0.04033,
+       "min": -0.04033
+      },
+      "SMCI": {
+       "n": 16,
+       "q05": -0.05473,
+       "q01": -0.05473,
+       "min": -0.05473
+      },
+      "SOXX": {
+       "n": 13,
+       "q05": -0.01517,
+       "q01": -0.01517,
+       "min": -0.01517
+      },
+      "SPY": {
+       "n": 15,
+       "q05": -0.00426,
+       "q01": -0.00426,
+       "min": -0.00426
+      },
+      "TSLA": {
+       "n": 17,
+       "q05": -0.01827,
+       "q01": -0.01827,
+       "min": -0.01827
+      },
+      "XBI": {
+       "n": 19,
+       "q05": -0.01283,
+       "q01": -0.01283,
+       "min": -0.01283
+      }
+     },
+     "frozen": {
+      "n": 316,
+      "ev": -0.00003,
+      "days": 16,
+      "z": 0,
+      "older": -0.000684,
+      "recent": 0.000683,
+      "from": "2026-11-03",
+      "to": "2026-11-24",
+      "drift": 0
+     },
+     "frozenTod": {
+      "open": {
+       "n": 93,
+       "ev": -0.002643,
+       "days": 16,
+       "z": 0.57,
+       "older": 0.001582,
+       "recent": 0.001498,
+       "from": "2026-11-03",
+       "to": "2026-11-24",
+       "drift": 0
+      },
+      "mid": {
+       "n": 223,
+       "ev": 0.00106,
+       "days": 16,
+       "z": 0.63,
+       "older": -0.000626,
+       "recent": 0.001697,
+       "from": "2026-11-03",
+       "to": "2026-11-24",
+       "drift": 0
+      }
+     }
     },
     {
      "id": "plan.nostop.minus.stop",
@@ -10167,11 +10641,11 @@
      "desc": "Fund page trade plan (as plan.setup.60m), only when 3+ underlyings gave a plan on the same side at the same signal time",
      "unit": "ret",
      "n": 445,
-     "ev": 0.00010442649868183033,
-     "z": 0.17306220471714934,
+     "ev": 0.00010442649868183059,
+     "z": 0.17306220471714978,
      "hit": 0.5280898876404494,
-     "older": -0.001673366789643799,
-     "recent": 0.0018742476197952359,
+     "older": -0.0016733667896437988,
+     "recent": 0.001874247619795236,
      "status": "watch",
      "factor": 1,
      "why": "record only (would be watch)",
@@ -10531,11 +11005,11 @@
      "desc": "Fund page trade plan (as plan.setup.60m), only LEAN, when 3+ underlyings gave a plan on the same side at the same signal time",
      "unit": "ret",
      "n": 324,
-     "ev": -0.0007083559304591809,
-     "z": -0.9735879819250959,
+     "ev": -0.0007083559304591813,
+     "z": -0.9735879819250965,
      "hit": 0.49382716049382713,
      "older": -0.002761669792750132,
-     "recent": 0.001344957931831769,
+     "recent": 0.0013449579318317686,
      "status": "watch",
      "factor": 1,
      "why": "record only (would be watch)",
@@ -10730,7 +11204,7 @@
     "planMarkets": 24
    },
    "summary": {
-    "n": 29,
+    "n": 30,
     "mute": 1,
     "cut": 4,
     "back": 2,
