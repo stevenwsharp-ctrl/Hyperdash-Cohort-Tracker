@@ -1,4 +1,49 @@
 # Council notes (newest first)
+## 2026-11-26 · Council
+
+### Shipped today
+- All three trackers got a live improvement today. Thanksgiving: no market, so all scores use the Nov 25 data.
+- SOXX Sniper: yes, live (cb131a7, pages build success). capex.js: when the Worker does not answer, the main page gives no page error now (it keeps the last data).
+- Cohort Sniper: yes, live (56ec1c8, pages build success). Outlook tab: the "Signal web" lens is now relative to the other markets. Before, a calendar part that is the same for every market made it long on 129 of 130 markets, and the 24 h consensus was long on 127 of 130. Now: web lens 11 long / 24 short; consensus 9 long / 16 short.
+- LETF Sniper: yes, live (6eaf9f1, pages build success). Fund page: the plan score line shows the result of the plan AS SHOWN (no stop order) first, then the result with the stop, and the frozen day log. If BACK is not proven by day, it says "do not size up on it".
+- Council: the scorecard has new record-only fields for the LETF and SOXX agents (a7b44f5). No ruling changed.
+
+### Scoreboard (ev.json 23:18 UTC, Nov 25 market data, 0 rulings changed)
+- SOXX: 15 muted, 17 cut, 6 backed. Gain: spot VWAP snap-back with the time exit (BACK, +0.08 % to +0.11 % per trade). Loss: the letf bot live (CUT, −0.51 % per trade, newer half −1.13 %); both bot live MUTE (−0.26 %). Paper bots: no trades today (holiday). On Nov 27 they can trade only spot VWAP snap-back, spot squeeze and funds squeeze.
+- Cohort: 5 muted, 22 cut, 7 backed. Gain: gap score (BACK), but most of it is the market's fall; the honest market-relative number comes with the Nov 29 backtest. Loss: the 2 d lab picks (CUT, −0.40 % to −0.79 % per step); outlook momentum 24 h (CUT, unseen −3.49 % per pick).
+- LETF: 1 muted, 4 cut, 2 backed (30 items, 1 new). Gain: full SETUP plans with no stop (BACK, +0.30 % per plan). But counted by day it is weak (frozen day z 0.95). Loss: the 🚀 alert follow (MUTE, −0.52 %; push stays off).
+
+### Agents
+- SOXX agent: ran, good work. It did all 3 tasks. It correctly did not make a fast-move gate: all "fast move down" fills are on 2 days (Nov 19, 20), so a walk-forward test is not possible yet.
+- Cohort agent: ran, very good work. It found the long-everything lean by looking at the live inputs, not only at the test. The fix adds no fitted value (median of the same build). It wrote its Nov 29 rule before the data (good). It tested and rejected 2 ideas (lab gate, minimum 3 bets) on the newer half.
+- LETF agent: ran, good work. The fix is text only (no order change) and makes the page honest: the score now matches the plan that is shown. Its LEAN gate test was correct: the gate reads the newer half, not the ruling, so it did not flip on Nov 25.
+- My checks: node --check on all changed files and the 6 inline scripts of the LETF page; tests/engines.test.mjs ALL PASSED; Playwright with outside network blocked on SOXX, Mastermind, Cohort (main, #lab, Outlook), LETF (?demo, SOXL, SOXS): 0 page errors. All pages builds: success. Order rules kept. No revert.
+- Shared files: all 17 shared files are the same in all repos that have them.
+- Yesterday's "Watch next": first bot runs on the fast-move flag: yes (7 past days filled, fast.* items on the scorecard). capex page error: fixed. LEAN gate flip: did not happen (the gate did not flip). Bot trades with fz: not yet (holiday).
+
+### Lessons shared
+- A part that is the same for every market cannot rank markets (Cohort). The calendar parts (season, tide, moon, election) in the shared web.js act as a "recent market drift" term: over a 40-day window, season and election have only 1 or 2 values. SOXX (stance.js, mm.js, radar.js) and LETF (letfweb.js) read Web.forecast as an absolute lean, so they also get this long lean.
+- Show the score of the rule that is shown (LETF). SOXX and Cohort: check each EV number on your page against the exact entry, exit and filter that the page shows.
+- Count days before you trust a z (all three). SOXX fd fills: 2 days. LETF full no-stop: z 2.9 by plan, 0.95 by day. New today: LETF LEAN open hour is −0.28 % per plan but its frozen day z is +0.23 (a few bad days make the loss), so an open-hour gate is not proven by day.
+- Catch every Worker call (SOXX): a fetch must be inside try/catch, and a timer must catch its promise.
+
+### Tasks for tomorrow
+- SOXX agent: 1) Nov 27 (half day): check that bot trades carry fz, that no funds RSI or funds VWAP snap-back trade is live, and that "EV rules" is not STALE. 2) Hysteresis and pick.*.rsi records: day 4 of 5. 3) List every place where the SOXX site reads Web.forecast as an absolute lean (stance.js, radar.js, read.js, intel.js, mesh.js, mm.js). Tell me which of them would change if the web gave a relative forecast. Do not edit web.js.
+- Cohort agent: 1) Run webreplay on the Nov 22 lessons with and without cyc.season, cyc.election, cyc.tide and cyc.moon (fit on the older part, check on the newer part, relative to the median market). If "without" wins on the newer part, request the web.js change under "For the council". 2) backtest.mjs and outlookbt.mjs: write the split time (the first unseen hour) into the output, so the scorecard can show it on score.* and outlook.* (your request; I will copy the field when it exists). 3) Nov 27: continue the 1 d lab flip log; Nov 29: apply your written rule to score.<th>.rel.
+- LETF agent: 1) Read the new fields: todH on plan.setup.lean.60m and on the no-stop items, and .frozenTod (open / mid per frozen day) on the full and LEAN plans. Today the LEAN open hour by day is z +0.23: the open-hour gate is not proven. Record only. 2) The new item plan.setup.lean.60m.nostop (+0.014 %, WATCH): use it in the plan score line instead of the "nostop" field, if it helps. 3) Nov 27: check that Nov 25 entered the frozen log and the new @open / @mid keys are there.
+
+### Changes I made
+- Hyperdash-Cohort-Tracker a7b44f5 (scripts/ev.mjs), record only: LETF todH on the LEAN plan and on the no-stop items; a frozen day log per time of day (open / mid) for the full and LEAN plans, with and without the stop (old frozen days get these keys one time, then never change); new item plan.setup.lean.60m.nostop; SOXX fast.* and twin.* items say how many days they have ("2 days, too few days for a test").
+- Checks: a harness with mocked sources, old script against new: 0 existing rulings or values changed; 0 frozen day values changed; a second run gives the same frozen log. EV governor on push: success (23:18 UTC), 0 rulings changed. Pages build: success.
+- Not done (Cohort request): a CUT for a negative item with a losing newer half. I tested it forward on 4 past scorecards (Nov 14–21): those items did not do worse later (median −0.17 %) than negative items with a winning newer half (−0.26 %). The newer-half sign gave no extra warning, so I did not change the rule.
+- Not done: the web.js calendar question. It is a shared file for all three sites; I change it only after the webreplay test above.
+
+### What Steven should know
+- Nothing to paste. No Worker change.
+- Until today the Cohort Outlook tab told you "long" on almost every coin. That came from a calendar part, not from the coins. It is fixed on the Cohort site. The same calendar part can still push the SOXX and LETF signal web a little to the long side; we test it before we change it.
+- Friday Nov 27 is a half day. The bots trade only 3 ideas.
+- Your Nov 21 decision is still open: the LETF plans show no stop order. If you want a hard stop for your own risk, tell the LETF agent; it costs some EV.
+
 ## 2026-11-25 · Council
 
 ### Shipped today
