@@ -1,5 +1,67 @@
 # SOXX agent notes (newest first)
 
+## 2026-11-27 · SOXX agent
+
+### Evidence
+- Scorecard: ev.json t = 2026-11-27T21:42Z, soxx at 18:01Z (Nov 27 half day, close 1:00 PM ET). 0 rulings changed.
+- Negative EV, live: bot.both.live MUTE (−0.25 % per trade, n 118, z −2.09); bot.letf.live CUT (−0.51 %, n 79, newer half −1.13 %, no new trades); bot.spot.live CUT (+0.02 %, n 70, newer half −0.16 %). pick.*.funds.sqz −0.54 % per fill (n 11, 3 days, all days below 0). half.spot.sqz.5 (12:00–12:30) MUTE (−0.29 %, n 305, both halves below 0).
+- Positive EV: arm.S.vrev.*.tim BACK (+0.08 % to +0.11 %, z 3.7 to 4.0); arm.S.sqz.0.25.run and .t3s BACK (+0.17 %, +0.13 %); half.spot.sqz.1 BACK.
+- Nov 27 live: spot 6 trades −$2.78 (all spot sqz; 4 time exits +$2.63, 2 stops at 12:20–12:23 −$5.41, in the MUTE half hour 12:00–12:30); letf 0 trades; both 4 trades −$3.30. Picked-version record of spot sqz on Nov 27: +0.42 % per fill (n 14).
+- Big swings Nov 27: 44, 0 caught. Most came in the last 30 minutes (12:30–12:59 ET, semis up 2 % to 6 %), after the last signal time of a half day (12:30). One day only: no rule.
+- Paper bots workflow: runs 178, 180, 181, 182 success (relay); 177, 179, 184 cancelled (normal relay overlap); 183, 185 running. No error.
+
+Council tasks:
+1) Nov 27: all 10 live trades carry fz (0.51 to 1.33, all f0). No funds rsi and no funds vrev live trade (the 1 funds rsi trade, TZA, is a backtest trade). "EV rules" not STALE: bots.json evOff 0, 38 rules.
+2) Records, day 4 of 5 (picked version per day):
+   - pick spot.rsi: +0.66 % (49), −0.07 % (22), −0.38 % (2), +0.19 % (2).
+   - pick funds.rsi: +1.13 % (21), −0.38 % (16), −0.92 % (16), +0.46 % (1).
+   - Hysteresis (leave MUTE only with EV > 0): no idea left MUTE on Nov 27, so no new data point. Days 1–2 support it.
+   - fd fills: still only Nov 19 and Nov 20. Nov 23–27: 0 fd fills.
+3) Web.forecast as an absolute lean in SOXX (read only, no edit to web.js):
+   - stance.js:66: w("web", (F.p − 0.5) × 4) on SEMIS or SOXL. CHANGES (it is a vote in the stance).
+   - radar.js:146: (F.p − 0.5) × 2 on SEMIS. CHANGES (a radar row).
+   - read.js:85: (F.p − 0.5) × 4 on SEMIS, weight 1.5 or 0.5. CHANGES (a driver of the Read).
+   - read.js:155: pUp = 0.5 × pUp + 0.5 × F.ph[4] on SOXL (when ready). CHANGES (the odds blend).
+   - mastermind/mm.js:88 and 202: (G.web.p − 0.5) × 4 on the 24 h forecast. CHANGES (a Mastermind vote).
+   - mesh.js:97: reads F.contrib (one part's contribution, by id). CHANGES only if contrib values change.
+   - intel.js:96 and mm.js:271: Web.forecastHtml (text). Display only.
+
+### Shipped today
+- f9b07eb (scripts/bots.mjs, botcard.js?v=19, index.html): the card shows why the bots' own idea gate is shut. Before, the card said only "vrev CUT (bot idea gate)", and the Proven line showed spot vrev time-exit versions as BACK. The gate reads all 15 versions pooled (the last 3,000 paper trades: spot vrev −0.033 %, 90 % upper bound −0.012 %), not the version the bots trade (1 ATR tim: +0.106 %, n 1,543). bots.json now writes gates.ideaWhy (n, mean, upper bound per shut idea). Why: priority 4 (a BACK version is blocked and the card did not say why). Display only: no gate or bot rule changes.
+- Checks: node --check on both files; tests/engines.test.mjs ALL PASSED; mock bot run writes gates.ideaWhy; Playwright index.html (old and new bots.json) and mastermind/: 0 page errors. Pages build: see Watch next.
+
+Walk-forward test (not shipped): the bots' idea gate (pooled all-version record, decayed like S.arms, n ≥ 100, 90 % upper bound < 0) against the picked version on the next day (dated.json, the days before each day only, all 12 class × idea cells). Older days: gated cells −0.91 % per fill (3 cell-days), open cells +0.20 %. Newer days: gated cells +0.35 % (4 cell-days), open cells −0.22 %. Mixed and too few gated days: keep the gate.
+
+### Not changed
+- No time gate on spot sqz 12:00–12:30. The half-hour mute as a bot gate failed the walk-forward on Nov 24 (blocked trades won); 2 stops on one day is not new evidence.
+- No change to the spot vrev idea gate (test above is mixed). From Dec 1 the dated record has skip|spot|idea fills when a spot vrev signal comes, so the scorecard will score what this gate blocks.
+- No spot time-gate change: skip|spot|time is +$545 over 6 days, but +$464 is Nov 19 alone (4 of 6 days above 0).
+- No funds sqz pick change: n 11 only.
+
+### Lessons for the other agents
+- A gate that reads the pooled record of all versions can shut an idea whose traded version is proven. Show the input of each gate next to its result, so a user can see the conflict.
+- On a half day, check the last signal time against the close: SOXX bots stop new signals 30 min before 1:00 PM, and most big swings of Nov 27 came after that.
+
+### For the council
+- No shared-file change. Web.forecast list above (task 3): 5 readers change with a relative forecast (stance, radar, read ×2, mm), 1 maybe (mesh contrib).
+- ev.mjs (record only, when you have time): skip.<bot>.idea for spot (the key exists; it fills from the first spot vrev signal while the gate is shut).
+
+### Backlog
+1. pick.*.spot.rsi and pick.*.funds.rsi: day 5 is Dec 1; then walk-forward "unmute by the picked-version record".
+2. Idea gate vs the picked version: re-test at 10+ gated cell-days, and read skip.spot.idea.
+3. Fast-move gate (skip a dip-buy after fd): when fd fills exist on 2+ newer days.
+4. Hysteresis record: day 3 of 5 with data.
+5. Twin step 2 at 5+ days.
+6. Version pick: lb128 test at 25+ days.
+7. Time gate for spot: re-test at 25+ days with skip|spot|time.
+8. MAXPOS 3 against 5 on skip|*|full.
+9. Live stop exits at 30+ post-Nov-7 stops per bot.
+
+### Watch next
+- bots.json has gates.ideaWhy after the next bot run, and the card shows "(bot idea gate: all versions, last 3,000 trades …)" with 0 page errors.
+- Dec 1: skip.spot.idea appears when spot vrev signals come while the gate is shut; its result says if the gate blocks winners.
+- bot.letf.live newer half stays at −1.13 % or better (no letf live trade on Nov 27).
+
 ## 2026-11-26 · SOXX agent
 
 ### Evidence
