@@ -158,8 +158,12 @@ async function soxx() { const B = await getJ("https://raw.githubusercontent.com/
   const sw = B.swings || []; return { at: B.at, items, extra: { swingDay: B.swingDay || null, swingsToday: sw.length, caught: sw.filter(x => x.caught).length, caughtBt: sw.filter(x => !x.caught && x.bt).length } }; }
 
 // ---------- Cohort Sniper: Outlook, signal backtest, bet lab ----------
+// Council, Nov 27 2026 (Cohort agent request): record only. outlook.* items carry first / split (the first step and the first
+// unseen step of the Outlook backtest, outlook_bt.json hz.<h>.first / .split, from the Nov 29 run); score.* items carry split
+// (backtest.json window.split, the first unseen hour of the gap score backtest). No ruling reads them: they say which period
+// each unseen number covers, so two tests with different splits are not read as one.
 function cohort() { const items = [], O = rd("outlook_bt.json"), K = rd("backtest.json"), L = rd("lab.json");
-  if (O && O.hz) for (const [h, X] of Object.entries(O.hz)) for (const [sys, r] of Object.entries(X.res || {})) { if (!r || !r.n) continue; items.push(rule({ id: `outlook.${sys}.${h}h`, desc: `Outlook system "${sys}", ${h} h (limit entries, vs the same order on every market)`, unit: "ret", n: r.n, ev: r.m, z: r.t, hit: r.hit, older: r.learnM, recent: r.unseenM })); }
+  if (O && O.hz) for (const [h, X] of Object.entries(O.hz)) for (const [sys, r] of Object.entries(X.res || {})) { if (!r || !r.n) continue; items.push(rule({ id: `outlook.${sys}.${h}h`, desc: `Outlook system "${sys}", ${h} h (limit entries, vs the same order on every market)`, unit: "ret", n: r.n, ev: r.m, z: r.t, hit: r.hit, older: r.learnM, recent: r.unseenM, ...(X.split ? { first: X.first, split: X.split } : {}) })); }
   // Council, Nov 9 2026 (Cohort agent request): the blend WITHOUT each system (outlookbt.mjs hz.<h>.without, weights from the
   // learning part, scored on the unseen part). ev = d (blend without it minus the full blend, % per pick), z = dT (overlap-corrected).
   // A "back" here means: the blend is proven better WITHOUT this system (drop it); a mute means the system is proven to help.
@@ -169,12 +173,12 @@ function cohort() { const items = [], O = rd("outlook_bt.json"), K = rd("backtes
   const sdOf = x => x && x.t ? Math.abs(x.avg * Math.sqrt(x.n) / x.t) : NaN, diff = (y, o) => { if (!y || !o || !y.n || !o.n) return null; const se = Math.sqrt(sdOf(y) ** 2 / y.n + sdOf(o) ** 2 / o.n); return { d: y.avg - o.avg, z: se > 0 ? (y.avg - o.avg) / se : NaN }; };
   if (K && K.conditions) K.conditions.forEach(c => { const y = c.test && c.test.yes, o = c.test && c.test.no, D = diff(y, o), Dt = diff(c.train && c.train.yes, c.train && c.train.no); if (!D) return;
     items.push(rule({ id: `cond.${c.id}`, desc: `Signal condition: ${c.label} (unseen part, 24 h: with it minus without it, % move)`, unit: "pct", n: y.n, ev: D.d, z: D.z, hit: y.hit / 100, older: Dt ? Dt.d : NaN, recent: D.d, verdict: c.verdict })); });
-  if (K && K.thresholds) K.thresholds.forEach(t => { const r = t.test && t.test.r24; if (r) items.push(rule({ id: `score.${t.th}`, desc: `Gap score ≥ ${t.th}, next 24 h (unseen part, %)`, unit: "pct", n: r.n, ev: r.avg, z: r.t, hit: r.hit / 100, older: t.train && t.train.r24 ? t.train.r24.avg : NaN, recent: r.avg })); });
+  if (K && K.thresholds) K.thresholds.forEach(t => { const r = t.test && t.test.r24; if (r) items.push(rule({ id: `score.${t.th}`, desc: `Gap score ≥ ${t.th}, next 24 h (unseen part, %)`, unit: "pct", n: r.n, ev: r.avg, z: r.t, hit: r.hit / 100, older: t.train && t.train.r24 ? t.train.r24.avg : NaN, recent: r.avg, ...(K.window && K.window.split ? { split: K.window.split } : {}) })); });
   // Council, Nov 25 2026 (Cohort agent request): the same gap score AFTER the market's own 24 h move, counted per day
   // (backtest.json thresholds[].test.day24 from the Nov 29 run: one value per day, so t counts days, not coin-days that share
   // one market move). score.<th>.rel: n = days, EV per day (%), z = t over days, older = the learn part, recent = the unseen part.
   // Record only (watch, factor 1, the would-be ruling in "ruling"): the page and the hub still read score.<th>.
-  if (K && K.thresholds) K.thresholds.forEach(t => { const r = t.test && t.test.day24; if (!r || !(r.n > 0)) return; const x = rule({ id: `score.${t.th}.rel`, desc: `Gap score ≥ ${t.th}, next 24 h after the market's own move, per day (unseen part, %; t over days)`, unit: "pct", n: r.n, ev: r.avg, z: r.t, hit: r.hit / 100, older: t.train && t.train.day24 ? t.train.day24.avg : NaN, recent: r.avg, longs: t.test.longs });
+  if (K && K.thresholds) K.thresholds.forEach(t => { const r = t.test && t.test.day24; if (!r || !(r.n > 0)) return; const x = rule({ id: `score.${t.th}.rel`, desc: `Gap score ≥ ${t.th}, next 24 h after the market's own move, per day (unseen part, %; t over days)`, unit: "pct", n: r.n, ev: r.avg, z: r.t, hit: r.hit / 100, older: t.train && t.train.day24 ? t.train.day24.avg : NaN, recent: r.avg, longs: t.test.longs, ...(K.window && K.window.split ? { split: K.window.split } : {}) });
     items.push({ ...x, ruling: x.status, status: "watch", factor: 1, why: `record only (would be ${x.status})` }); });
   if (L && L.hyp) for (const [id, H] of Object.entries(L.hyp)) for (const [h, R] of Object.entries(H.h || {})) { const a = R.all; if (!a) continue; items.push(rule({ id: `lab.${id}.${h}d`, desc: `Bet lab: ${H.d.slice(0, 90)} · ${h} d`, unit: "ret", n: a.n, ev: a.m, z: a.t, hit: a.hit, older: R.first && R.first.m, recent: R.second && R.second.m })); }
   // Council, Nov 10 2026 (Cohort agent request): the walk-forward record of the BLENDED setups that the sites show (lab.json wf:
@@ -307,9 +311,11 @@ async function letf() { const R = { rev: [], hard: [], f5: [], f1: [], frev: [],
         // Council, Nov 10 2026 (LETF agent request): fade the 🚀 move with a LIMIT entry against it, 0.5 × the fund's 5-min σ
         // (σ from the last 120 minutes only) past the signal close, alive 5 min, counts only when touched, exit 15 min after the fill, cost 0.05%
         const sgF = Math.max(0.0004, rsd(r1.slice(Math.max(1, i - 119), i + 1)) || 0); tried.ff15++; const y = limitTrade(D, SF, i, -Math.sign(m15), 0.5 * sgF * Math.sqrt(5), 5, COST_F); if (y) R.ff15.push({ ...y, st }); } } }
+  // Council, Nov 27 2026 (LETF agent question): fast.* items also carry nDays (the number of ET days with an event), so a z from
+  // few days does not look strong; record only, the ruling still uses n.
   // trim: the mean without the top and bottom 5% (council, Nov 10 2026: a check of the size of fast.* items; the ruling uses ev)
   const trim = v => { const a = v.slice().sort((x, y) => x - y), k = Math.floor(a.length * 0.05); return a.length >= 20 ? +mean(a.slice(k, a.length - k)).toFixed(5) : null; };
-  const L = a => a.sort((x, y) => x.t - y.t).map(x => x.v), items = [], add = (id, desc, a, ex) => { if (a.length) { const v = L(a.slice()); items.push({ ...fromList(id, desc, "ret", v), ...(/^fast\./.test(id) ? { trim: trim(v) } : {}), ...(ex || {}) }); } };
+  const L = a => a.sort((x, y) => x.t - y.t).map(x => x.v), items = [], add = (id, desc, a, ex) => { if (a.length) { const v = L(a.slice()); items.push({ ...fromList(id, desc, "ret", v), ...(/^fast\./.test(id) ? { trim: trim(v), nDays: new Set(a.map(x => new Date(nyT(x.t)).toISOString().slice(0, 10))).size } : {}), ...(ex || {}) }); } };
   for (const [id, a] of [["fast.1m.15m", R.f1], ["fast.5m.15m", R.f5]]) console.log(id, "largest |15-min result|:", a.slice().sort((x, y) => Math.abs(y.v) - Math.abs(x.v)).slice(0, 5).map(x => `${x.s} ${new Date(nyT(x.t)).toISOString().slice(5, 16)} ET move ${(x.m * 100).toFixed(2)}% next15 ${(x.v * 100).toFixed(2)}%`).join(" | "));
   add("rev.all.15m", "Hard reversal detector, all turns (score ≥ 0.6), on the underlying: trade the new direction, next 15 min", R.rev);
   add("rev.hard.15m", "Hard reversal detector, HARD turns (score ≥ 1), on the underlying, next 15 min", R.hard);
