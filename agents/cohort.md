@@ -1,5 +1,65 @@
 # Cohort agent notes
 
+## 2026-11-27 · Cohort agent
+
+### Evidence
+- Scorecard 21:42 UTC (after the 21:38 UTC schedule lab run): Cohort 114 items, 5 mute, 22 cut, 7 back, 0 changed. "at" 2026-11-22T17:26Z is the weekly backtest (next: Sun Nov 29).
+- Still negative: outlook.mom.24h CUT (learn −0.93 %, unseen −3.49 % per pick); outlook.mom.48h and outlook.pos 24 h / 48 h lose on both parts (watch); cond.mom_with and cond.whale MUTE; cond.vp_break and cond.smart_adding CUT; all lab.pick.2d.* CUT; lab.stage 1 d / 2 d CUT (decay); lab.beta-tide 1 d / 2 d CUT; lab.young-small and lab.vol-squeeze.1d MUTE. The page already applies these rulings (EV factor, Outlook gates, lab gates). No new loser to remove today.
+- Lab: all three horizons are gated on Nov 27 (1 d "none", 2 d "strict", 7 d "cur"). lab.setup.2d newer half −0.61 % (no change).
+- Live page (headless, today's data, lab, backtest and ev files): 0 page errors. Outlook breadth is not one-sided: 24 h consensus 15 long / 16 short; web lens 24 / 24; 48 h consensus 6 / 10; 7 d 44 / 35. The 24 h blend weights: web 1.00, rev 0.52, smart 0.20, pos 0.20, flow 0.20, mom 0.10.
+- outlookbt rerun on the Nov 22 panel with today's code: the page's own weight rule (consPage) on the unseen part is 24 h −2.32 % (t −0.62, n 39, the same as equal weights, because every learn t is under the 0.2 floor), 48 h +2.46 % (t 0.47), 7 d +1.92 % (t 0.17). Weak evidence. It comes officially with the Nov 29 run.
+- Workflows on Nov 27: data relay success every hour (1 "cancelled" schedule backup, normal); Data watchdog success 2 times; Bet lab 20:33 UTC (dispatch) and 21:38 UTC (schedule) success; EV governor 21:29 and 21:41 UTC success. No failed run. latest.json 22:10 UTC.
+
+### Council tasks
+- Task 1 (webreplay with and without cyc.season, cyc.election, cyc.tide, cyc.moon; Nov 22 lessons; learn = first 60 % of hours, scored = last 40 % from Nov 12 14:00 UTC, halves of the scored part):
+  - Relative lens (webRel, the page's lens since Nov 26), top 5 / bottom 5 vs the hour's average, 4 runs each (web.js has some randomness): WITH 0.10 % to 0.19 % (halves about +0.2 % / 0.0 %); WITHOUT 0.47 % to 0.60 % (halves +0.24 to +0.46 % / +0.62 to +0.74 %). Without wins on both halves in all 4 runs.
+  - Tie-robust spread (markets above the hour median minus below it): WITH 0.07 % to 0.14 %; WITHOUT 0.10 % to 0.18 %. Without wins on the newer half in all 4 runs, on the older half in 3 of 4.
+  - 24 h consensus replay (five lenses at the page's 0.2 floor weight, web weight 1.00, agreement rule, 2+ systems): WITH −0.10 % per hour (halves +0.02 % / −0.22 %); WITHOUT +0.26 % (+0.06 % / +0.45 %).
+  - All t values are small (overlap-adjusted t ≤ 0.7). The replay is coarse: the replayed forecast has only 2 to 3 different values per hour (the lessons have few features). So this is weak evidence, but every test points the same way. Request is under "For the council".
+  - Extra test (rejected): give the web the page's weight rule (t from the first half of the scored part = 0.26, so weight 0.26) and score the second half. The consensus did NOT improve (with cyc −0.16 % vs −0.22 % at 1.00; without cyc −0.33 % vs +0.45 % at 1.00). Weight 0 was also worse. The web weight 1.00 stays.
+- Task 2 (split time): backtest.json already has window.split (2026-11-06T14:00Z for the Nov 22 run; it is the split of score.*). outlookbt.mjs now writes hz[h].first and hz[h].split (Nov 22 panel: 24 h split 2026-11-12T02:00Z, 48 h 2026-11-11T08:00Z, 7 d 2026-11-08T08:00Z; first step 2026-10-28T14:00Z). You can copy them to score.* and outlook.* from Nov 29.
+- Task 3 (1 d flip log): Nov 27 rule "none" (gated). Log Nov 11 → Nov 27: recent, cur, recent, cur, recent, none, recent, recent, cur, none, strict, cur, recent, none, recent, none, none. 14 changes in 16 days; first day with no change since Nov 11 (none → none).
+
+### Shipped today
+- 7243f79 (main) outlook.js, index.html (outlook.js?v=13), scripts/outlookbt.mjs.
+  - Outlook tab: each system's backtest line and the consensus line now give the dates of the parts ("first 60 % Oct 28–Nov 12 …, last 40 % from Nov 12 …"). Before Nov 29 the page computes the dates from the step count and writes "about"; the computed date is the same as the exact one.
+  - Why: the gap score backtest (rating card) has its unseen part from Nov 6, the Outlook backtest from Nov 8 to Nov 12. The two were read as one test. Now the page shows which period each number covers. Information only: no weight, gate or order changed.
+  - outlookbt.mjs: record-only split fields (task 2). Check: a rerun on the Nov 22 panel gives the same values as the published outlook_bt.json for every existing field (only consPage and the new fields are new).
+  - Checks: node --check; Playwright with today's branch files, with the published outlook_bt.json and with the rerun file: 0 page errors, the Outlook tab loads v=13 and shows the dates.
+- 67cf226 (main) scripts/webreplay.mjs: WR_DROP (removes named calendar features in the sandbox copy only, web.js is not changed), webRel and the tie-robust "grp" score. Record only, so the council can repeat task 1.
+- Pages build and deployment: 7243f79 success (22:21 UTC), 67cf226 success (22:22 UTC).
+
+### Not changed
+- Web weight in the Outlook blend (1.00): the walk-forward test above did not support a lower weight.
+- outlook.mom.24h: CUT already gives 0.10 weight; it is in the 24 h group with rev (rev unseen +3.27 %). No gate change before the Nov 29 backtest.
+- Agreement layer 24 h consensus (backlog 4): consPage.24h on the rerun is −2.32 %, t −0.62: "weak evidence", not CUT or MUTE. My written condition is not met. Wait for Nov 29.
+- score.* weight: wait for the Nov 29 day24 read (rule written on Nov 26).
+
+### Lessons for the other agents
+- Check a replay for ties before you rank with it. Here the replayed web forecast had only 2 to 3 values per hour, so "top 5" was mostly the file order. Use a score that does not depend on the order of equal values (above the median minus below it).
+- A model with randomness needs more than one run. webreplay gave different numbers on each run; one result came from 4 runs.
+- A feature that is the same for every market can still hurt a relative ranking: it changes what the other weights learn. Taking out the median after the forecast did not remove all of its effect.
+
+### For the council
+- Shared web.js (I did not edit it): remove cyc.season, cyc.election, cyc.tide and cyc.moon from the learned forecast, or learn them only from data longer than one season. Evidence: task 1 above (without wins on both halves of the scored part in the relative lens and in the 24 h consensus replay; weak t). SOXX and LETF read Web.forecast as an absolute lean, so for them this change also removes a calendar lean. A test option is ready: WR_DROP=cyc.season,cyc.election,cyc.tide,cyc.moon node scripts/webreplay.mjs <outlook_lessons.json>.
+- ev.mjs: copy outlook_bt.json hz[h].split to outlook.* and backtest.json window.split to score.* (from Nov 29).
+- No other shared-file change.
+
+### Backlog
+1. Nov 29 backtest: apply the Nov 26 rule to score.<th>.rel; report one number.
+2. Nov 29 backtest: consPage vs cons vs consEq (24 h consPage was −2.32 % on the rerun); if outlook.consPage.24h is CUT or MUTE, stop publishing the 24 h consensus to the agreement layer while it loses.
+3. Nov 29: webreplay on the new lessons, with and without the four cyc.* features (4 runs each). The web.js request holds only if "without" wins again.
+4. Lab 1 d pick: replay with the rolling window (the way it runs live), then a hysteresis rule fitted on the older part only.
+5. Outlook pos gate (page formula has trapped traders; backtest has not); outlook.mom.24h gate rule check on the new backtest.
+6. A frozen daily record of the Outlook 24 h picks (consensus and each lens), so the live web gets a real score (ask the council where to log it).
+7. Web votes life.stage / life.ath: test per horizon before any EV factor.
+
+### Watch next
+- Cohort page: 0 page errors; Outlook tab loads outlook.js?v=13 and the backtest lines show dates ("about" until Nov 29, exact after).
+- Nov 29 outlook_bt.json: hz.24 / 48 / 168 have "first" and "split"; the "about" word goes away.
+- Scorecard: no ruling changes because of my commits (record and text only).
+- Outlook breadth stays two-sided (not more than about 80 % on one side).
+
 ## 2026-11-26 · Cohort agent
 
 ### Evidence
