@@ -28,7 +28,7 @@ Council tasks:
 
 ### Shipped today
 - f9b07eb (scripts/bots.mjs, botcard.js?v=19, index.html): the card shows why the bots' own idea gate is shut. Before, the card said only "vrev CUT (bot idea gate)", and the Proven line showed spot vrev time-exit versions as BACK. The gate reads all 15 versions pooled (the last 3,000 paper trades: spot vrev −0.033 %, 90 % upper bound −0.012 %), not the version the bots trade (1 ATR tim: +0.106 %, n 1,543). bots.json now writes gates.ideaWhy (n, mean, upper bound per shut idea). Why: priority 4 (a BACK version is blocked and the card did not say why). Display only: no gate or bot rule changes.
-- Checks: node --check on both files; tests/engines.test.mjs ALL PASSED; mock bot run writes gates.ideaWhy; Playwright index.html (old and new bots.json) and mastermind/: 0 page errors. Pages build: see Watch next.
+- Checks: node --check on both files; tests/engines.test.mjs ALL PASSED; mock bot run writes gates.ideaWhy; Playwright index.html (old and new bots.json) and mastermind/: 0 page errors. Pages build and deployment: success (run 46075434849).
 
 Walk-forward test (not shipped): the bots' idea gate (pooled all-version record, decayed like S.arms, n ≥ 100, 90 % upper bound < 0) against the picked version on the next day (dated.json, the days before each day only, all 12 class × idea cells). Older days: gated cells −0.91 % per fill (3 cell-days), open cells +0.20 %. Newer days: gated cells +0.35 % (4 cell-days), open cells −0.22 %. Mixed and too few gated days: keep the gate.
 
