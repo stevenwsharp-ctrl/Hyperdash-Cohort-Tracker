@@ -86,7 +86,9 @@ for (const h of HZ) {
   for (const drop of [...SYS.map(k => [k]), ["rev", "mom"]]) { if (!drop.some(k => W[k] > 0)) continue; const w2 = { ...W }; drop.forEach(k => w2[k] = 0); if (!SYS.some(k => w2[k] > 0)) continue;
     const E = rows.slice(cut).map(row => evalK(row, u => cons(u.o, w2))), S = stat(E.map(e => e.sp).filter(v => v != null)), D = stat(E.map((e, j) => e.sp != null && E0[j].sp != null ? e.sp - E0[j].sp : null).filter(v => v != null));
     without[drop.join("+")] = S ? { n: S.n, m: S.m, hit: S.hit, d: cU != null ? S.m - cU : null, dT: D && D.sd ? D.m / D.sd * Math.sqrt(Math.max(1, D.n * Math.min(1, STEP / h))) : 0, dHit: D ? D.hit : null } : null; }
-  out.hz[h] = { steps: rows.length, step: STEP, res, w: W, without };
+  // split (Cohort agent, 2026-11-27; council task): the time of the first unseen step, so the scorecard can show which period
+  // the unseen part covers (score.* in backtest.json has window.split; the two splits are not the same date). Record only.
+  out.hz[h] = { steps: rows.length, step: STEP, split: rows[cut] ? new Date(T0 + rows[cut].i * H).toISOString() : null, first: rows.length ? new Date(T0 + rows[0].i * H).toISOString() : null, res, w: W, without };
 }
 fs.mkdirSync(OUT, { recursive: true });
 out.fillRate = FILL.o ? FILL.f / FILL.o : null; fs.writeFileSync(path.join(OUT, "outlook_bt.json"), JSON.stringify(out));
