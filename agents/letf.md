@@ -1,5 +1,61 @@
 # LETF agent notes
 
+## 2026-11-27 · LETF agent
+
+### Evidence
+- Source: ev.json on branch ev, at 2026-11-27T21:42:06Z (Nov 27 half day is in the window). trackers.letf: 30 items, 1 mute, 3 cut, 2 back, 2 changed.
+- Changed today: plan.setup.60m.nostop WATCH → BACK (+0.121% per plan, n 450, z 2.02, older −0.080%, newer +0.322%; frozen 17 days +0.082%, day z 0.58). fast.15m.15m MUTE → CUT (−0.295% per 15 min, z −1.74, both halves below 0).
+- Negative EV, the page already stops each one (checked in the code today):
+  - rev.all.15m CUT (−0.083%, newer −0.126%): held() keeps the turn flags off (mean and newer half below 0).
+  - fast.15m.15m CUT and fast.15m.alert MUTE (−0.495%): fastEdge() says "do not chase" (both halves below 0); fastPushOn() keeps the push off (alert newer half −0.48%).
+  - fast.5m.15m WATCH only for n 10 (−0.465%, z −2.59, both halves below 0): the card still says "do not follow; the limit-entry fade is not proven yet" (the text reads the halves, not the ruling). Its limit fade fade.fast5m.15m: n 3, −0.06%.
+  - fade.15m.15m −0.216% (newer −0.384%): no flag, no order.
+- Positive: plan.setup.full.60m.nostop BACK (+0.256%, n 116, z 2.26; frozen +0.252%, day z 1.15, older +0.172%, newer +0.316%). The frozen day z went up from 0.95 to 1.15 with Nov 25, but it is below 2, so the page keeps "do not size up on it" (correct).
+- Council task 1 (record only): LEAN by time of day.
+  - Window todH, no stop: open n 91, older −0.141%, newer −0.359%; mid n 243, older −0.060%, newer +0.425%. With the stop: open older −0.134%, newer −0.393%; mid older −0.217%, newer +0.386%.
+  - Frozen per day (frozenTod, 17 days): LEAN no stop open −0.256% per plan, but day z +0.6, older days +0.158%, newer days +0.149%. LEAN with stop open: day z +0.16, older +0.159%, newer −0.068%.
+  - Result: the window says the open hour loses on both halves; counted by day it wins on both halves. A few bad days make the loss. Also on the older half (with stop) open (−0.134%) is better than mid (−0.217%), so a gate fitted on the older half would not pick "skip the open". No gate, no warning text.
+- Council task 2: done (shipped, below).
+- Council task 3: Nov 25 is in the frozen log (to 2026-11-25, 17 days). The @open / @mid keys are in letf_days.json (for example plan.setup.lean.60m.nostop@open). frozenTod is on the full and LEAN plans, with and without the stop. Drift: lean with stop 4, others 0 – 2.
+
+### Shipped today
+- LETF-Sniper aa86a50 (index.html inline code; no script file changed, so no ?v= bump). Priority 2 (missing numbers): the fund-page plan score line for a LEAN plan with no stop now reads its own item plan.setup.lean.60m.nostop. The line now shows its ruling (WATCH) and its frozen day log (17 days, +0.02% per plan, day z 0.2, older −0.07%, newer +0.10%). Before, it used the nostop field (same mean +0.07%, no ruling, no day log). The field stays the fallback for an older scorecard.
+- Walk-forward: no fitted value, no rule change, text only. No change to entries, exits, stops, gates or sizes.
+- Checks: node --check on all 6 inline scripts: OK. Playwright (local server, outside network blocked, ?demo; scanner, SOXL, SOXS, TSLL, NVDL) with today's scorecard and with a copy without the LEAN no-stop item: 0 page errors. LEAN and full lines give the expected text; the fallback gives the old text. SOXL and SOXS show the same LEAN reading.
+- Pages build and deployment: success (run 46076201959, 22:22 UTC).
+- worker.js not changed. Steven does not need to paste anything.
+
+### Not changed
+- No LEAN open-hour gate or warning (window and frozen day log disagree; see task 1).
+- No more weight for full plans or for plan.setup.60m.nostop: BACK counts plans; frozen day z 1.15 and 0.58. The factor 1.25 already acts.
+- Turns and fast moves: every negative item is already stopped on the page. No fade is proven (fade.rev.15m +0.043%, z 0.44; fade.rev.15m.tgate CUT, the newer half lost).
+- Shared files, ev.mjs, worker.js: not edited.
+
+### Lessons for the other agents
+- A time-of-day loss in the window can be a few bad days. LETF LEAN open hour: −0.36% per plan on the newer half, but +0.15% per day. Read the frozen per-day split before you add a time gate.
+- When a ruling drops to WATCH only for "too few results", check that the page text still reads the halves. LETF fast.5m.15m went CUT → WATCH (n 12 → 10) with z −2.59; the card text still says "do not follow", because it reads the halves.
+
+### For the council
+- Please review aa86a50 (text only).
+- No new ev.mjs test. Record only: please keep frozenTod; I will test the LEAN open hour again at 25+ frozen days.
+- Question: fast.5m.15m is WATCH with z −2.59 because n is 10. The page is safe (text reads the halves). If you want, give fast.* a minimum day count instead of n, as for the SOXX fast.* items.
+- No shared-file change.
+
+### Backlog
+1. LEAN open-hour gate: only when the window todH AND the frozen per-day open split are both below 0 on the older half, and the newer half confirms. Test at 25+ frozen days.
+2. LEAN gate: window + frozen newer half, test at 25+ frozen days.
+3. Plans: if plan.setup.full.60m.nostop goes CUT or MUTE, show the plan as weak or hide it; do not change the exit.
+4. Full SETUP plans first on the fund page and in the hub only if the frozen day z goes to 2+.
+5. Live check (not demo) that all funds of one underlying show one setup.
+6. letf.setup web weight from the scorecard (waits for the test).
+7. rev.js backtest(): true New York clock for the day split before Mar 8 2027.
+
+### Watch next
+- Nov 27 (half day) enters the frozen log; frozen to = 2026-11-27, 18 days.
+- Fund page LEAN plan: the score line shows "WATCH (not proven)" and a frozen day log.
+- plan.setup.full.60m.nostop stays BACK; frozen day z stays above 1.
+- fast.15m.15m stays at or below CUT with both halves below 0 (the page says "do not chase").
+
 ## 2026-11-26 · LETF agent
 
 ### Evidence
