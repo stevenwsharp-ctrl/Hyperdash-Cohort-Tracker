@@ -1,4 +1,48 @@
 # Council notes (newest first)
+## 2026-11-27 · Council
+
+### Shipped today
+- All three trackers got a live improvement today. Friday Nov 27 was a half day (close 1:00 PM ET).
+- SOXX Sniper: yes, live (f9b07eb, pages build success). The bot card now tells why the bots' own idea gate is shut. The gate reads all 15 versions of spot VWAP snap-back together (−0.033 % per trade). The version that the bots trade (1 ATR, time exit) is +0.106 % (n 1,543). Before, the card showed only "CUT" and this conflict was not visible. Display only.
+- Cohort Sniper: yes, live (7243f79 and 67cf226, pages builds success). The Outlook tab now gives the dates of each backtest part, so you do not read two tests with different dates as one test. The webreplay tool can now test the web without the calendar parts.
+- LETF Sniper: yes, live (aa86a50, pages build success). On the fund page, the score line of a LEAN plan with no stop now reads its own scorecard item. It shows its ruling (WATCH, not proven) and its frozen day log (17 days, +0.02 % per plan).
+- Council: the scorecard writes the split dates on the Outlook and gap score items, and a day count on the LETF fast-move items (ffe8dc9). Record only.
+
+### Scoreboard (ev.json 21:42 UTC, Nov 27 data)
+- SOXX: 14 muted, 18 cut, 6 backed (0 changed). Gain: spot VWAP snap-back with the time exit (BACK, +0.08 % to +0.11 % per trade, z 3.7 to 4.0). Loss: the letf bot live (CUT, −0.51 % per trade, newer half −1.13 %; no new trade today). Paper bots today: spot 6 trades −$2.78 (2 stops at 12:20 ET, in the muted half hour 12:00–12:30); letf 0 trades; both 4 trades −$3.30.
+- Cohort: 5 muted, 22 cut, 7 backed (0 changed). Gain: gap score (BACK); the market-relative number comes with the Nov 29 backtest. Loss: Outlook momentum 24 h (CUT, unseen −3.49 % per pick); all 2 d lab picks (CUT). All three lab horizons are gated today (no lab setups shown).
+- LETF: at 21:42 UTC 1 muted, 3 cut, 2 backed. At 23:19 UTC (the run after my push, one more plan in the window) 2 muted, 2 cut, 1 backed. Gain: full SETUP plans with no stop (BACK, +0.26 % per plan, n 116; day z 1.15, weak by day). Edge case: all plans with no stop went WATCH → BACK at 21:42 (z 2.02) and back to WATCH at 23:19 (z 1.96). It is on the line; do not read it as proven. Loss: the 🚀 follow went CUT → MUTE (−0.34 % per 15 min, n 201, z −2.01, both halves below 0). The page says "do not chase" and the push stays off. My commit did not cause these changes: it adds fields only.
+
+### Agents
+- SOXX agent: ran, good work. It did all 3 tasks. Its list of the places that read the web forecast as a long/short lean (stance, radar, read ×2, Mastermind) is what I need for the web.js decision. It correctly did not add a time gate for 2 stops on one day: that gate failed its walk-forward test on Nov 24.
+- Cohort agent: ran, very good work. It ran each test 4 times (the web model has randomness) and found that the replay has ties, so it used a score that ties cannot change. It also tested a lower web weight and rejected it on the newer half.
+- LETF agent: ran, good work. Its time-of-day test was correct: the window says the open hour loses, but counted by day it wins on both halves. So no gate. Text-only change, no order change.
+- My checks: node --check on all changed files; tests/engines.test.mjs ALL PASSED; Playwright with outside network blocked on SOXX, Mastermind, Cohort (main, #lab), LETF (?demo, SOXL, SOXS): 0 page errors. All pages builds: success. Order rules kept (limit entries, no new stop, same size, long-only bots). No revert.
+- Shared files: all 16 shared files are the same in all repos that have them.
+- Yesterday's "Watch next": bot trades carry fz — yes (all 10 live trades). Cohort Outlook is two-sided — yes (24 h 15 long / 16 short). Nov 25 in the LETF frozen log — yes, with the open / mid keys.
+
+### Lessons shared
+- Show the input of each gate next to its result (SOXX). A gate can read a pooled record while the page shows a part of it as BACK. Cohort: the lab gates read the walk-forward of the blend, not each idea; show that. LETF: the 🚀 gates read all funds together; say so on the card.
+- On a half day, compare the last signal time with the close (SOXX). Most of the 44 big swings of Nov 27 came after 12:30 ET, when no signal can come. LETF: check how a 60-min plan that starts after 12:00 is scored on a half day.
+- Check for ties before you rank (Cohort). Equal values make "top 5" the file order. SOXX: the version pick and the stance; LETF: the crowd count per hour.
+- A loss in the window can come from a few bad days (LETF). Read the per-day split before any time gate. SOXX agrees: the spot time gate is +$545, but +$464 is one day.
+
+### Tasks for tomorrow
+- SOXX agent: 1) Dec 1 is day 5 of the picked-version records: do the walk-forward test "unmute by the picked-version record" (fit on the older days, check on the newer days). 2) For the web.js decision: write how large the calendar part (cyc.season, cyc.election, cyc.tide, cyc.moon) is in today's SEMIS and SOXL forecast (F.contrib), and how much stance, read and Mastermind would move without it. Do not edit web.js. 3) When skip.spot.idea appears, read it: does the idea gate block winners?
+- Cohort agent: 1) Nov 29: webreplay on the new lessons with and without the four cyc.* parts, 4 runs each, relative lens and 24 h consensus. If "without" wins again on the newer half, I will change web.js on all three sites. 2) Nov 29: apply your written rule to score.<th>.rel, and check that the split dates are on the scorecard. 3) Backlog 6 (a frozen daily record of the Outlook 24 h picks): write the exact keys you need (per lens, per day) under "For the council"; I will add it to ev.mjs as a frozen log like letf_days.json.
+- LETF agent: 1) Half day: check how the Nov 27 plans that start after 12:00 ET are scored (exit at the 1:00 PM close, or a wrong bar?). Fix the scorer request if it is wrong. 2) The new nDays says fast.5m.15m (z −2.59, n 10) comes from 2 days only. Keep the page text as it is; do not build a fade on it. Check that the 🚀 card reads the new MUTE correctly (fast.15m.15m). 3) Nov 27 must be in the frozen log (to 2026-11-27, 18 days).
+
+### Changes I made
+- Hyperdash-Cohort-Tracker ffe8dc9 (scripts/ev.mjs), record only: outlook.* items get first / split (from the Nov 29 backtest); score.* and score.*.rel get split (2026-11-06T14:00Z); LETF fast.* items get nDays.
+- Checks: node --check; a harness on today's backtest and lab files, old script against new: 114 items, 0 rulings or values changed, only the new field. With split fields put into a test copy of outlook_bt.json, the outlook.* items carry them.
+- Not done: the Cohort request to remove the calendar parts from web.js. All tests point the same way, but the evidence is weak (t ≤ 0.7, the replay has only 2 to 3 values per hour). The change also moves the SOXX and LETF leans. I wait for the Nov 29 re-test (the Cohort agent's own condition).
+
+### What Steven should know
+- Nothing to paste. No Worker change.
+- The SOXX bot card now shows why spot VWAP snap-back is blocked: the bots' gate looks at all versions together, and that pool loses, while the version the bots use wins. The agent tested a change and the result was mixed, so the gate stays. More data comes from Dec 1.
+- Sunday Nov 29: new weekly backtest. Then we decide about the calendar part of the signal web on all three sites.
+- Your Nov 21 decision is still open: the LETF plans show no stop order. If you want a hard stop for your own risk, tell the LETF agent; it costs some EV.
+
 ## 2026-11-26 · Council
 
 ### Shipped today
