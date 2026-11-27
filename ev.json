@@ -1,5 +1,5 @@
 {
- "t": "2026-11-27T03:40:12.536Z",
+ "t": "2026-11-27T04:36:22.111Z",
  "note": "factor 0 = mute, 0.5 = cut, 1.25 = back; a factor acts only where a page or bot reads that item id (SOXX bots: idea.* only; bot.*, half.*, live.*, skip.*, pick.*, twin.* and fast.* are shown, not gates); agents read this file every market day",
  "trackers": {
   "soxx": {
@@ -7309,7 +7309,7 @@
    }
   },
   "letf": {
-   "at": "2026-11-27T03:40:12.534Z",
+   "at": "2026-11-27T04:36:22.109Z",
    "items": [
     {
      "id": "rev.all.15m",
@@ -7354,8 +7354,8 @@
        "m": -0.00366
       }
      },
-     "prev": "watch",
-     "changed": true
+     "prev": "cut",
+     "changed": false
     },
     {
      "id": "rev.hard.15m",
@@ -8172,10 +8172,10 @@
      "desc": "Fund page trade plan (setupOf on the underlying's 5-min bars, LONG/SHORT SETUP and LEAN): LIMIT entry 0.5 × 5-min ATR, alive 60 min, counts only when touched; exit at the plan's stop or target or 60 min after the fill; cost 0.02% of the underlying; one per underlying per hour",
      "unit": "ret",
      "n": 491,
-     "ev": 0.0002484509930408144,
-     "z": 0.4550995462941206,
+     "ev": 0.0002484509930408147,
+     "z": 0.45509954629412114,
      "hit": 0.5173116089613035,
-     "older": -0.0010134656895750584,
+     "older": -0.0010134656895750581,
      "recent": 0.0015052379330444277,
      "status": "watch",
      "factor": 1,
@@ -9125,8 +9125,8 @@
      "desc": "Fund page trade plan, only LONG / SHORT SETUP (all three filters agree): as plan.setup.60m",
      "unit": "ret",
      "n": 129,
-     "ev": 0.0023617618171997024,
-     "z": 2.361133352366509,
+     "ev": 0.0023617618171997033,
+     "z": 2.36113335236651,
      "hit": 0.6124031007751938,
      "older": 0.0016124600615483211,
      "recent": 0.0030995358535333708,
@@ -9348,7 +9348,7 @@
      "z": -0.7821260260066036,
      "hit": 0.48342541436464087,
      "older": -0.0018301517630508744,
-     "recent": 0.0008208819462789314,
+     "recent": 0.0008208819462789316,
      "status": "watch",
      "factor": 1,
      "why": "negative, weak evidence",
@@ -9555,19 +9555,19 @@
        "drift": 2
       }
      },
-     "prev": "cut",
-     "changed": true
+     "prev": "watch",
+     "changed": false
     },
     {
      "id": "plan.setup.60m.nostop",
      "desc": "Fund page trade plan with NO stop order (as plan.setup.60m, exit at the target or at market 60 min after the fill)",
      "unit": "ret",
      "n": 491,
-     "ev": 0.0009230894748319963,
-     "z": 1.6466346863362773,
+     "ev": 0.000923089474831996,
+     "z": 1.6466346863362769,
      "hit": 0.560081466395112,
-     "older": -0.00017097063322344373,
-     "recent": 0.0020127021840742024,
+     "older": -0.00017097063322344403,
+     "recent": 0.002012702184074203,
      "status": "watch",
      "factor": 1,
      "why": "positive, not proven",
@@ -10002,8 +10002,8 @@
      "desc": "Fund page trade plan, only LEAN LONG / LEAN SHORT, with NO stop order (as plan.setup.lean.60m, exit at the target or 60 min after the fill)",
      "unit": "ret",
      "n": 362,
-     "ev": 0.0001774732573864149,
-     "z": 0.2683031238220794,
+     "ev": 0.00017747325738641487,
+     "z": 0.2683031238220793,
      "hit": 0.5331491712707183,
      "older": -0.0007860770018561247,
      "recent": 0.0011410235166289546,
@@ -10630,11 +10630,11 @@
      "desc": "Fund page trade plan (as plan.setup.60m), only when 3+ underlyings gave a plan on the same side at the same signal time",
      "unit": "ret",
      "n": 445,
-     "ev": 0.00031987939485839426,
-     "z": 0.5443759542398671,
+     "ev": 0.0003198793948583946,
+     "z": 0.5443759542398675,
      "hit": 0.5303370786516854,
-     "older": -0.0013526218115962943,
-     "recent": 0.001984880595902973,
+     "older": -0.0013602987980369644,
+     "recent": 0.001992523156395478,
      "status": "watch",
      "factor": 1,
      "why": "record only (would be watch)",
@@ -10739,7 +10739,7 @@
      "z": -0.3423295065007623,
      "hit": 0.391304347826087,
      "older": 0.0014868421194258348,
-     "recent": -0.002371924429379982,
+     "recent": -0.0023719244293799826,
      "status": "watch",
      "factor": 1,
      "why": "record only (would be watch)",
@@ -10827,8 +10827,8 @@
      "ev": 0.0023111277708932486,
      "z": 2.2243737230686094,
      "hit": 0.6198347107438017,
-     "older": 0.0010632100650649567,
-     "recent": 0.0035385878094128798,
+     "older": 0.0008841136138466716,
+     "recent": 0.0037147482532341436,
      "status": "watch",
      "factor": 1,
      "why": "record only (would be back)",
@@ -10994,11 +10994,11 @@
      "desc": "Fund page trade plan (as plan.setup.60m), only LEAN, when 3+ underlyings gave a plan on the same side at the same signal time",
      "unit": "ret",
      "n": 324,
-     "ev": -0.0004237658319941285,
-     "z": -0.6018235844634847,
+     "ev": -0.0004237658319941281,
+     "z": -0.6018235844634842,
      "hit": 0.49691358024691357,
      "older": -0.0023322880540780342,
-     "recent": 0.0014847563900897767,
+     "recent": 0.001484756390089777,
      "status": "watch",
      "factor": 1,
      "why": "record only (would be watch)",
@@ -11100,7 +11100,7 @@
      "unit": "ret",
      "n": 38,
      "ev": -0.0011941501913058934,
-     "z": -0.8964702997886422,
+     "z": -0.896470299788642,
      "hit": 0.3684210526315789,
      "older": 0.0005098574420557143,
      "recent": -0.002898157824667501,
@@ -11197,7 +11197,7 @@
     "mute": 1,
     "cut": 4,
     "back": 2,
-    "changed": 2
+    "changed": 0
    },
    "rules": {
     "rev.all.15m": 0.5,
